@@ -20,27 +20,7 @@ export default function SplitsTab() {
   const [showWeekdayModal, setShowWeekdayModal] = useState(false);
   const [pendingDayId, setPendingDayId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (profile && profile.id) {
-      fetchSplits();
-      fetchDays();
-    }
-  }, [profile?.id]);
-
-  const fetchSplits = async () => {
-    setLoading(true);
-    if (!profile || !profile.id) return;
-    const { data, error } = await supabase
-      .from('splits')
-      .select('*')
-      .eq('user_id', profile.id)
-      .order('created_at', { ascending: true });
-    if (!error && data) {
-      setSplits(data);
-    }
-    setLoading(false);
-  };
-
+  // Fetch all days for the user
   const fetchDays = async () => {
     if (!profile || !profile.id) return;
     const { data, error } = await supabase
@@ -53,7 +33,9 @@ export default function SplitsTab() {
     }
   };
 
-  const fetchSplitDays = async (splitId: string) => {
+  // Fetch all split_days for a split
+  const fetchSplitDays = async (splitId: string | null) => {
+    if (!splitId) return;
     const { data, error } = await supabase
       .from('split_days')
       .select('*')
@@ -65,14 +47,14 @@ export default function SplitsTab() {
     }
   };
 
+  // Add a new split
   const handleAddSplit = async () => {
-    if (!newSplit.name.trim() || !profile || !profile.id) return;
+    if (!profile || !profile.id || !newSplit.name.trim()) return;
     setAdding(true);
-    const { error } = await supabase.from('splits').insert({
-      user_id: profile.id,
-      name: newSplit.name.trim(),
-      mode: newSplit.mode,
-    });
+    const { data, error } = await supabase
+      .from('splits')
+      .insert([{ name: newSplit.name.trim(), mode: newSplit.mode, user_id: profile.id }])
+      .select();
     setAdding(false);
     if (error) {
       Alert.alert('Error', error.message);
@@ -82,41 +64,37 @@ export default function SplitsTab() {
     }
   };
 
-  const handleDeleteSplit = async (id: string) => {
-    Alert.alert('Delete Split', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive', onPress: async () => {
-          const { error } = await supabase.from('splits').delete().eq('id', id);
-          if (error) {
-            Alert.alert('Error', error.message);
-          } else {
-            setSelectedSplitId(null);
-            setSplitDays([]);
-            fetchSplits();
-          }
-        }
-      }
-    ]);
-  };
-
-  // Link day to split (week or rotation)
-  const handleLinkDay = (dayId: string, split: any) => {
-    if (split.mode === 'week') {
-      setPendingDayId(dayId);
-      setShowWeekdayModal(true);
+  // Delete a split
+  const handleDeleteSplit = async (splitId: string) => {
+    const { error } = await supabase.from('splits').delete().eq('id', splitId);
+    if (error) {
+      Alert.alert('Error', error.message);
     } else {
-      doLinkDay(dayId, split, null);
+      if (selectedSplitId === splitId) setSelectedSplitId(null);
+      fetchSplits();
     }
   };
 
-  // Actually link day after picking weekday
-  const doLinkDay = async (dayId: string, split: any, weekday: number | null) => {
+  // Link a day to a split (for rotation mode)
+  const handleLinkDay = async (dayId: string, split: any) => {
     if (!selectedSplitId) return;
     setLinking(true);
     let payload: any = { split_id: selectedSplitId, day_id: dayId };
-    if (split.mode === 'week' && weekday !== null) payload.weekday = weekday;
     if (split.mode === 'rotation') payload.order_index = splitDays.length;
+    const { error } = await supabase.from('split_days').insert(payload);
+    setLinking(false);
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      fetchSplitDays(selectedSplitId);
+    }
+  };
+
+  // Link a day to a split for a specific weekday (for week mode)
+  const doLinkDay = async (dayId: string, split: any, weekday: number) => {
+    if (!selectedSplitId) return;
+    setLinking(true);
+    let payload: any = { split_id: selectedSplitId, day_id: dayId, weekday };
     const { error } = await supabase.from('split_days').insert(payload);
     setLinking(false);
     setShowWeekdayModal(false);
@@ -138,7 +116,28 @@ export default function SplitsTab() {
     }
   };
 
-  // When selecting a split, fetch its days
+  // Fetch all splits for the user
+  const fetchSplits = async () => {
+    setLoading(true);
+    if (!profile || !profile.id) return;
+    const { data, error } = await supabase
+      .from('splits')
+      .select('*')
+      .eq('user_id', profile.id)
+      .order('created_at', { ascending: true });
+    if (!error && data) {
+      setSplits(data);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (profile && profile.id) {
+      fetchSplits();
+      fetchDays();
+    }
+  }, [profile?.id]);
+
   useEffect(() => {
     if (selectedSplitId) {
       fetchSplitDays(selectedSplitId);
@@ -184,38 +183,68 @@ export default function SplitsTab() {
               </View>
               {selectedSplitId === item.id && (
                 <View style={styles.splitDaysSection}>
-                  <Text style={styles.splitDaysTitle}>Linked Days</Text>
-                  {splitDays.length === 0 && <Text>No days linked yet.</Text>}
-                  <FlatList
-                    data={splitDays}
-                    keyExtractor={sd => sd.id}
-                    renderItem={({ item: sd, index }) => {
-                      const day = days.find(d => d.id === sd.day_id);
-                      return (
-                        <View style={styles.splitDayBox}>
-                          <Text>{item.mode === 'week' ? WEEKDAYS[sd.weekday] : `#${sd.order_index + 1}`}: {day?.name}</Text>
-                          <TouchableOpacity onPress={() => handleRemoveSplitDay(sd.id)}>
-                            <Text style={styles.deleteBtn}>Remove</Text>
+                  {item.mode === 'week' ? (
+                    <>
+                      <Text style={styles.splitDaysTitle}>Week Schedule</Text>
+                      {WEEKDAYS.map((wd, idx) => {
+                        const splitDay = splitDays.find(sd => sd.weekday === idx);
+                        const assignedDay = splitDay ? days.find(d => d.id === splitDay.day_id) : null;
+                        return (
+                          <View key={wd} style={styles.splitDayBox}>
+                            <Text style={{ width: 60 }}>{wd}:</Text>
+                            <TouchableOpacity
+                              style={styles.assignBtn}
+                              onPress={() => {
+                                setPendingDayId(`${idx}`); // use weekday as pendingDayId
+                                setShowWeekdayModal(true);
+                              }}
+                            >
+                              <Text style={styles.assignBtnText}>{assignedDay ? assignedDay.name : 'Rest'}</Text>
+                            </TouchableOpacity>
+                            {assignedDay && splitDay && (
+                              <TouchableOpacity onPress={() => handleRemoveSplitDay(splitDay.id)}>
+                                <Text style={styles.deleteBtn}>Remove</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        );
+                      })}
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.splitDaysTitle}>Rotation Days</Text>
+                      <FlatList
+                        data={splitDays}
+                        keyExtractor={sd => sd.id}
+                        renderItem={({ item: sd, index }) => {
+                          const day = days.find(d => d.id === sd.day_id);
+                          return (
+                            <View style={styles.splitDayBox}>
+                              <Text>{`#${sd.order_index + 1}`}: {day?.name}</Text>
+                              <TouchableOpacity onPress={() => handleRemoveSplitDay(sd.id)}>
+                                <Text style={styles.deleteBtn}>Remove</Text>
+                              </TouchableOpacity>
+                            </View>
+                          );
+                        }}
+                      />
+                      <Text style={styles.splitDaysTitle}>Add Day to Rotation</Text>
+                      <FlatList
+                        data={days.filter(d => !splitDays.some(sd => sd.day_id === d.id))}
+                        keyExtractor={d => d.id}
+                        renderItem={({ item: d }) => (
+                          <TouchableOpacity
+                            style={styles.addDayBtn}
+                            onPress={() => handleLinkDay(d.id, item)}
+                            disabled={linking}
+                          >
+                            <Text style={styles.addDayBtnText}>Add {d.name}</Text>
                           </TouchableOpacity>
-                        </View>
-                      );
-                    }}
-                  />
-                  <Text style={styles.splitDaysTitle}>Add Day to Split</Text>
-                  <FlatList
-                    data={days.filter(d => !splitDays.some(sd => sd.day_id === d.id))}
-                    keyExtractor={d => d.id}
-                    renderItem={({ item: d }) => (
-                      <TouchableOpacity
-                        style={styles.addDayBtn}
-                        onPress={() => handleLinkDay(d.id, item)}
-                        disabled={linking}
-                      >
-                        <Text style={styles.addDayBtnText}>Add {d.name}</Text>
-                      </TouchableOpacity>
-                    )}
-                  />
-      {/* Weekday picker modal for week splits */}
+                        )}
+                      />
+                    </>
+                  )}
+      {/* Day picker modal for assigning a day to a weekday */}
       <Modal
         visible={showWeekdayModal}
         transparent
@@ -224,21 +253,39 @@ export default function SplitsTab() {
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
           <View style={{ backgroundColor: '#fff', padding: 24, borderRadius: 12, width: 300 }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Select Weekday</Text>
-            {WEEKDAYS.map((wd, idx) => (
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Assign Day to {pendingDayId !== null ? WEEKDAYS[parseInt(pendingDayId)] : ''}</Text>
+            {days.length === 0 && <Text>No days created yet.</Text>}
+            {days.map((d) => (
               <TouchableOpacity
-                key={wd}
+                key={d.id}
                 style={{ padding: 10, marginVertical: 2, backgroundColor: '#eee', borderRadius: 6 }}
                 onPress={() => {
                   if (pendingDayId && selectedSplitId) {
                     const split = splits.find(s => s.id === selectedSplitId);
-                    doLinkDay(pendingDayId, split, idx);
+                    // Remove any existing assignment for this weekday first
+                    const existing = splitDays.find(sd => sd.weekday === parseInt(pendingDayId));
+                    if (existing) handleRemoveSplitDay(existing.id);
+                    doLinkDay(d.id, split, parseInt(pendingDayId));
                   }
                 }}
               >
-                <Text>{wd}</Text>
+                <Text>{d.name}</Text>
               </TouchableOpacity>
             ))}
+            <TouchableOpacity
+              style={{ padding: 10, marginVertical: 2, backgroundColor: '#eee', borderRadius: 6 }}
+              onPress={() => {
+                // Remove assignment for this weekday (set to Rest)
+                if (pendingDayId && selectedSplitId) {
+                  const existing = splitDays.find(sd => sd.weekday === parseInt(pendingDayId));
+                  if (existing) handleRemoveSplitDay(existing.id);
+                  setShowWeekdayModal(false);
+                  setPendingDayId(null);
+                }
+              }}
+            >
+              <Text>Set to Rest</Text>
+            </TouchableOpacity>
             <Button title="Cancel" onPress={() => setShowWeekdayModal(false)} />
           </View>
         </View>
@@ -323,6 +370,17 @@ const styles = StyleSheet.create({
   },
   addDayBtnText: {
     color: '#333',
+    fontWeight: 'bold',
+  },
+  assignBtn: {
+    backgroundColor: '#eee',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 6,
+    marginHorizontal: 4,
+  },
+  assignBtnText: {
+    color: '#007AFF',
     fontWeight: 'bold',
   },
 });
