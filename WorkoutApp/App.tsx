@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View, ActivityIndicator } from 'react-native';
+import MainNavigator from './MainNavigator';
 import { supabase } from './lib/supabase';
 import { useProfileStore } from './lib/profileStore';
 import AuthScreen from './screens/AuthScreen';
@@ -55,12 +56,7 @@ export default function App() {
   }
 
   // Main app UI goes here
-  return (
-    <View style={styles.container}>
-      {/* Replace with your main app navigation/components */}
-      <StatusBar style="auto" />
-    </View>
-  );
+  return <MainNavigator />;
 }
 
 const styles = StyleSheet.create({
