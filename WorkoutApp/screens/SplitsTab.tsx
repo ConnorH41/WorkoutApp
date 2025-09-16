@@ -201,11 +201,7 @@ export default function SplitsTab() {
                             >
                               <Text style={styles.assignBtnText}>{assignedDay ? assignedDay.name : 'Rest'}</Text>
                             </TouchableOpacity>
-                            {assignedDay && splitDay && (
-                              <TouchableOpacity onPress={() => handleRemoveSplitDay(splitDay.id)}>
-                                <Text style={styles.deleteBtn}>Remove</Text>
-                              </TouchableOpacity>
-                            )}
+                            {/* Remove button column removed for week splits; use picker to set to Rest */}
                           </View>
                         );
                       })}
