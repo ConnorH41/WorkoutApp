@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert, Modal, Platform } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
 
@@ -9,6 +10,60 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export default function SplitsTab() {
   const profile = useProfileStore((state) => state.profile);
   const [splits, setSplits] = useState<any[]>([]);
+  const [currentSplitId, setCurrentSplitId] = useState<string | null>(null);
+  const [splitStartDate, setSplitStartDate] = useState<string | null>(null);
+  const [showSetModal, setShowSetModal] = useState(false);
+  const [pendingSplit, setPendingSplit] = useState<any>(null);
+  const [calendarDate, setCalendarDate] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [numWeeks, setNumWeeks] = useState('4');
+  const [numRotations, setNumRotations] = useState('1');
+  // Load current split from local storage (or Supabase if you want persistence)
+  useEffect(() => {
+    const loadCurrentSplit = async () => {
+      const stored = await Promise.resolve(localStorage.getItem('currentSplitId'));
+      const start = await Promise.resolve(localStorage.getItem('splitStartDate'));
+      if (stored) setCurrentSplitId(stored);
+      if (start) setSplitStartDate(start);
+    };
+    loadCurrentSplit();
+  }, []);
+
+
+  // Open modal to set current split
+  const handleSetCurrentSplit = (split: any) => {
+    setPendingSplit(split);
+    setCalendarDate(new Date());
+    setNumWeeks('4');
+    setNumRotations('1');
+    setShowSetModal(true);
+  };
+
+  // Confirm setting current split with date and weeks/rotations
+  const handleConfirmSetCurrentSplit = async () => {
+    if (!pendingSplit) return;
+    setCurrentSplitId(pendingSplit.id);
+    setSplitStartDate(calendarDate.toISOString());
+    await Promise.resolve(localStorage.setItem('currentSplitId', pendingSplit.id));
+    await Promise.resolve(localStorage.setItem('splitStartDate', calendarDate.toISOString()));
+    if (pendingSplit.mode === 'week') {
+      await Promise.resolve(localStorage.setItem('splitNumWeeks', numWeeks));
+      await Promise.resolve(localStorage.removeItem('splitNumRotations'));
+    } else {
+      await Promise.resolve(localStorage.setItem('splitNumRotations', numRotations));
+      await Promise.resolve(localStorage.removeItem('splitNumWeeks'));
+    }
+    setShowSetModal(false);
+    setPendingSplit(null);
+  };
+
+  // Start the current split (set start date)
+  const handleStartSplit = async () => {
+    if (!currentSplitId) return;
+    const now = new Date().toISOString();
+    setSplitStartDate(now);
+    await Promise.resolve(localStorage.setItem('splitStartDate', now));
+  };
   const [loading, setLoading] = useState(false);
   const [newSplit, setNewSplit] = useState({ name: '', mode: 'week' });
   const [adding, setAdding] = useState(false);
@@ -174,13 +229,84 @@ export default function SplitsTab() {
           renderItem={({ item }) => (
             <View style={styles.splitBox}>
               <TouchableOpacity onPress={() => setSelectedSplitId(item.id)}>
-                <Text style={styles.splitName}>{item.name} ({item.mode})</Text>
+                <Text style={styles.splitName}>{item.name} ({item.mode})
+                  {currentSplitId === item.id && '  [Current]'}</Text>
               </TouchableOpacity>
               <View style={styles.splitActions}>
                 <TouchableOpacity onPress={() => handleDeleteSplit(item.id)}>
                   <Text style={styles.deleteBtn}>Delete</Text>
                 </TouchableOpacity>
+                {currentSplitId !== item.id && (
+                  <TouchableOpacity onPress={() => handleSetCurrentSplit(item)}>
+                    <Text style={{ color: '#007AFF', marginLeft: 12 }}>Set as Current</Text>
+                  </TouchableOpacity>
+                )}
+      {/* Modal for setting current split with calendar and weeks/rotations */}
+      <Modal
+        visible={showSetModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSetModal(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+          <View style={{ backgroundColor: '#fff', padding: 24, borderRadius: 12, width: 320 }}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Set Current Split</Text>
+            <Text style={{ marginBottom: 8 }}>Start Date:</Text>
+            <TouchableOpacity
+              style={{ padding: 10, backgroundColor: '#eee', borderRadius: 6, marginBottom: 12 }}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text>{calendarDate.toDateString()}</Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={calendarDate}
+                mode="date"
+                display="default"
+                onChange={(_, date) => {
+                  setShowDatePicker(false);
+                  if (date) setCalendarDate(date);
+                }}
+                style={{ backgroundColor: '#fff' }}
+              />
+            )}
+            {pendingSplit?.mode === 'week' ? (
+              <>
+                <Text style={{ marginBottom: 4 }}>Number of Weeks:</Text>
+                <TextInput
+                  style={[styles.input, { marginBottom: 12 }]}
+                  value={numWeeks}
+                  onChangeText={setNumWeeks}
+                  keyboardType="numeric"
+                />
+              </>
+            ) : (
+              <>
+                <Text style={{ marginBottom: 4 }}>Number of Rotations:</Text>
+                <TextInput
+                  style={[styles.input, { marginBottom: 12 }]}
+                  value={numRotations}
+                  onChangeText={setNumRotations}
+                  keyboardType="numeric"
+                />
+              </>
+            )}
+            <Button title="Set Split" onPress={handleConfirmSetCurrentSplit} />
+            <Button title="Cancel" onPress={() => setShowSetModal(false)} />
+          </View>
+        </View>
+      </Modal>
               </View>
+              {currentSplitId === item.id && (
+                <View style={{ marginTop: 8 }}>
+                  <Text style={{ fontStyle: 'italic', color: '#666' }}>
+                    {splitStartDate ? `Started: ${new Date(splitStartDate).toLocaleString()}` : 'Not started yet'}
+                  </Text>
+                  {!splitStartDate && (
+                    <Button title="Start Split" onPress={handleStartSplit} />
+                  )}
+                </View>
+              )}
               {selectedSplitId === item.id && (
                 <View style={styles.splitDaysSection}>
                   {item.mode === 'week' ? (
