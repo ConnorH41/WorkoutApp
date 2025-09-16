@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert, Modal } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
 
@@ -16,6 +16,9 @@ export default function SplitsTab() {
   const [splitDays, setSplitDays] = useState<any[]>([]);
   const [days, setDays] = useState<any[]>([]);
   const [linking, setLinking] = useState(false);
+  // For week mode: modal to pick weekday
+  const [showWeekdayModal, setShowWeekdayModal] = useState(false);
+  const [pendingDayId, setPendingDayId] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile && profile.id) {
@@ -98,15 +101,26 @@ export default function SplitsTab() {
   };
 
   // Link day to split (week or rotation)
-  const handleLinkDay = async (dayId: string, index: number) => {
+  const handleLinkDay = (dayId: string, split: any) => {
+    if (split.mode === 'week') {
+      setPendingDayId(dayId);
+      setShowWeekdayModal(true);
+    } else {
+      doLinkDay(dayId, split, null);
+    }
+  };
+
+  // Actually link day after picking weekday
+  const doLinkDay = async (dayId: string, split: any, weekday: number | null) => {
     if (!selectedSplitId) return;
     setLinking(true);
-    const split = splits.find(s => s.id === selectedSplitId);
     let payload: any = { split_id: selectedSplitId, day_id: dayId };
-    if (split.mode === 'week') payload.weekday = index;
-    if (split.mode === 'rotation') payload.order_index = index;
+    if (split.mode === 'week' && weekday !== null) payload.weekday = weekday;
+    if (split.mode === 'rotation') payload.order_index = splitDays.length;
     const { error } = await supabase.from('split_days').insert(payload);
     setLinking(false);
+    setShowWeekdayModal(false);
+    setPendingDayId(null);
     if (error) {
       Alert.alert('Error', error.message);
     } else {
@@ -191,16 +205,44 @@ export default function SplitsTab() {
                   <FlatList
                     data={days.filter(d => !splitDays.some(sd => sd.day_id === d.id))}
                     keyExtractor={d => d.id}
-                    renderItem={({ item: d, index }) => (
+                    renderItem={({ item: d }) => (
                       <TouchableOpacity
                         style={styles.addDayBtn}
-                        onPress={() => handleLinkDay(d.id, item.mode === 'week' ? index : splitDays.length)}
+                        onPress={() => handleLinkDay(d.id, item)}
                         disabled={linking}
                       >
-                        <Text style={styles.addDayBtnText}>Add {d.name} ({item.mode === 'week' ? WEEKDAYS[index] : `#${splitDays.length + 1}`})</Text>
+                        <Text style={styles.addDayBtnText}>Add {d.name}</Text>
                       </TouchableOpacity>
                     )}
                   />
+      {/* Weekday picker modal for week splits */}
+      <Modal
+        visible={showWeekdayModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowWeekdayModal(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+          <View style={{ backgroundColor: '#fff', padding: 24, borderRadius: 12, width: 300 }}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Select Weekday</Text>
+            {WEEKDAYS.map((wd, idx) => (
+              <TouchableOpacity
+                key={wd}
+                style={{ padding: 10, marginVertical: 2, backgroundColor: '#eee', borderRadius: 6 }}
+                onPress={() => {
+                  if (pendingDayId && selectedSplitId) {
+                    const split = splits.find(s => s.id === selectedSplitId);
+                    doLinkDay(pendingDayId, split, idx);
+                  }
+                }}
+              >
+                <Text>{wd}</Text>
+              </TouchableOpacity>
+            ))}
+            <Button title="Cancel" onPress={() => setShowWeekdayModal(false)} />
+          </View>
+        </View>
+      </Modal>
                 </View>
               )}
             </View>
