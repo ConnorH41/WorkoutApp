@@ -195,8 +195,12 @@ export default function DaysTab() {
               ) : (
                 <>
                   <TouchableOpacity onPress={() => {
-                    setSelectedDayId(item.id);
-                    fetchExercises(item.id);
+                    if (selectedDayId === item.id) {
+                      setSelectedDayId(null);
+                    } else {
+                      setSelectedDayId(item.id);
+                      fetchExercises(item.id);
+                    }
                   }}>
                     <Text style={styles.dayName}>{item.name}</Text>
                   </TouchableOpacity>
