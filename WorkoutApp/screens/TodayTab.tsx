@@ -28,7 +28,7 @@ export default function TodayTab() {
     const { data, error } = await supabase
       .from('bodyweight')
       .select('*')
-      .eq('user_id', profile.id)
+      .eq('user_id', profile!.id)
       .order('logged_at', { ascending: false })
       .limit(7);
     if (!error && data) {
@@ -124,6 +124,43 @@ export default function TodayTab() {
     }
   };
 
+  // Complete/Rest button handlers
+  const [completing, setCompleting] = useState(false);
+  const [resting, setResting] = useState(false);
+
+  const handleCompleteWorkout = async () => {
+    if (!todayWorkout) return;
+    setCompleting(true);
+    const { error } = await supabase
+      .from('workouts')
+      .update({ completed: true })
+      .eq('id', todayWorkout.id);
+    setCompleting(false);
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      Alert.alert('Workout Complete', 'Great job!');
+      fetchTodayWorkout();
+    }
+  };
+
+  const handleRestDay = async () => {
+    if (!profile || !profile.id) return;
+    setResting(true);
+    // Insert a rest workout for today if not already present
+    const today = new Date().toISOString().slice(0, 10);
+    const { error } = await supabase
+      .from('workouts')
+      .insert({ user_id: profile.id, date: today, completed: true });
+    setResting(false);
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      Alert.alert('Rest Day', 'Rest day logged.');
+      fetchTodayWorkout();
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Today</Text>
@@ -197,8 +234,26 @@ export default function TodayTab() {
             </View>
           )}
         />
+      ) : todayWorkout ? (
+        <View style={{ marginVertical: 16 }}>
+          <Text>No exercises for today's workout.</Text>
+        </View>
       ) : (
-        <Text>No workout scheduled for today.</Text>
+        <View style={{ marginVertical: 16 }}>
+          <Text>No workout scheduled for today.</Text>
+          <Button title={resting ? 'Logging...' : 'Log Rest Day'} onPress={handleRestDay} disabled={resting} />
+        </View>
+      )}
+
+      {todayWorkout && !todayWorkout.completed && (
+        <Button
+          title={completing ? 'Completing...' : 'Mark Workout Complete'}
+          onPress={handleCompleteWorkout}
+          disabled={completing}
+        />
+      )}
+      {todayWorkout && todayWorkout.completed && (
+        <Text style={{ color: 'green', marginTop: 12 }}>Workout marked as complete!</Text>
       )}
     </View>
   );
