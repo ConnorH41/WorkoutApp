@@ -105,7 +105,7 @@ export default function DaysTab() {
     const { data, error } = await supabase
       .from('days')
       .select('*')
-      .eq('user_id', profile.id)
+      .eq('user_id', profile?.id)
       .order('created_at', { ascending: true });
     if (!error && data) {
       setDays(data);

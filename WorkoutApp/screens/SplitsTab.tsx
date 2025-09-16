@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert, Picker } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
 
@@ -26,6 +26,7 @@ export default function SplitsTab() {
 
   const fetchSplits = async () => {
     setLoading(true);
+    if (!profile || !profile.id) return;
     const { data, error } = await supabase
       .from('splits')
       .select('*')
@@ -38,6 +39,7 @@ export default function SplitsTab() {
   };
 
   const fetchDays = async () => {
+    if (!profile || !profile.id) return;
     const { data, error } = await supabase
       .from('days')
       .select('*')
