@@ -7,6 +7,58 @@ import { useProfileStore } from '../lib/profileStore';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+// Helper date utilities (no external deps)
+const addDays = (date: Date, days: number) => {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+};
+
+// Get the next Monday from a given date (always future Monday, not today)
+const getNextMonday = (from: Date) => {
+  const d = new Date(from);
+  const day = d.getDay();
+  const daysUntilNextMonday = ((8 - day) % 7) || 7; // if Monday, jump 7 days ahead
+  return addDays(d, daysUntilNextMonday);
+};
+
+const getEndDateForWeeks = (start: Date, weeks: number) => {
+  // inclusive range: end = start + (weeks * 7 - 1)
+  return addDays(start, weeks * 7 - 1);
+};
+
+// Lightweight storage guards (RN doesn't have localStorage)
+const safeStorage = {
+  getItem: async (key: string) => {
+    try {
+      // @ts-ignore
+      if (typeof localStorage !== 'undefined' && localStorage?.getItem) {
+        // @ts-ignore
+        return localStorage.getItem(key);
+      }
+    } catch {}
+    return null;
+  },
+  setItem: async (key: string, value: string) => {
+    try {
+      // @ts-ignore
+      if (typeof localStorage !== 'undefined' && localStorage?.setItem) {
+        // @ts-ignore
+        localStorage.setItem(key, value);
+      }
+    } catch {}
+  },
+  removeItem: async (key: string) => {
+    try {
+      // @ts-ignore
+      if (typeof localStorage !== 'undefined' && localStorage?.removeItem) {
+        // @ts-ignore
+        localStorage.removeItem(key);
+      }
+    } catch {}
+  },
+};
+
 export default function SplitsTab() {
   const profile = useProfileStore((state) => state.profile);
   const [splits, setSplits] = useState<any[]>([]);
@@ -17,8 +69,13 @@ export default function SplitsTab() {
   const [calendarDate, setCalendarDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [endDate, setEndDate] = useState<Date | null>(null);
-  const [datePickerForStart, setDatePickerForStart] = useState(true);
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
   const [numRotations, setNumRotations] = useState('1');
+  // UX: selected duration preset (weeks) and whether user manually edited end
+  const [weeksPreset, setWeeksPreset] = useState<number | null>(4);
+  const [endManuallyEdited, setEndManuallyEdited] = useState(false);
+  const iosInlineSupported = Platform.OS === 'ios' && parseFloat(String(Platform.Version)) >= 14;
 
   // computed weeks between start and end (inclusive)
   const computedWeeks = (() => {
@@ -37,8 +94,8 @@ export default function SplitsTab() {
   // Load current split from local storage (or Supabase if you want persistence)
   useEffect(() => {
     const loadCurrentSplit = async () => {
-      const stored = await Promise.resolve(localStorage.getItem('currentSplitId'));
-      const start = await Promise.resolve(localStorage.getItem('splitStartDate'));
+      const stored = await safeStorage.getItem('currentSplitId');
+      const start = await safeStorage.getItem('splitStartDate');
       if (stored) setCurrentSplitId(stored);
       if (start) setSplitStartDate(start);
     };
@@ -49,9 +106,13 @@ export default function SplitsTab() {
   // Open modal to set current split
   const handleSetCurrentSplit = (split: any) => {
     setPendingSplit(split);
-    setCalendarDate(new Date());
-    // default end date = start + 4 weeks
-    setEndDate(new Date(Date.now() + 28 * 24 * 60 * 60 * 1000));
+    const defaultStart = getNextMonday(new Date());
+    setCalendarDate(defaultStart);
+    // default end date = start + 4 weeks (inclusive)
+    const defaultWeeks = 4;
+    setWeeksPreset(defaultWeeks);
+    setEndDate(getEndDateForWeeks(defaultStart, defaultWeeks));
+    setEndManuallyEdited(false);
     setNumRotations('1');
     setShowSetModal(true);
   };
@@ -59,30 +120,35 @@ export default function SplitsTab() {
   // Confirm setting current split with date and weeks/rotations
   const handleConfirmSetCurrentSplit = async () => {
     if (!pendingSplit) return;
-    setCurrentSplitId(pendingSplit.id);
-    setSplitStartDate(calendarDate.toISOString());
-    await Promise.resolve(localStorage.setItem('currentSplitId', pendingSplit.id));
-    await Promise.resolve(localStorage.setItem('splitStartDate', calendarDate.toISOString()));
-    if (pendingSplit.mode === 'week') {
-      // calculate number of weeks from start (calendarDate) to endDate (inclusive)
-      const msPerDay = 24 * 60 * 60 * 1000;
-      let weeks = '0';
-      if (endDate) {
-        const s = new Date(calendarDate);
-        s.setHours(0, 0, 0, 0);
-        const e = new Date(endDate);
-        e.setHours(0, 0, 0, 0);
-        const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
-        weeks = String(Math.max(1, Math.ceil(diffDays / 7)));
+    try {
+      setCurrentSplitId(pendingSplit.id);
+      setSplitStartDate(calendarDate.toISOString());
+      await safeStorage.setItem('currentSplitId', pendingSplit.id);
+      await safeStorage.setItem('splitStartDate', calendarDate.toISOString());
+      if (pendingSplit.mode === 'week') {
+        // calculate number of weeks from start (calendarDate) to endDate (inclusive)
+        const msPerDay = 24 * 60 * 60 * 1000;
+        let weeks = '0';
+        if (endDate) {
+          const s = new Date(calendarDate);
+          s.setHours(0, 0, 0, 0);
+          const e = new Date(endDate);
+          e.setHours(0, 0, 0, 0);
+          const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
+          weeks = String(Math.max(1, Math.ceil(diffDays / 7)));
+        }
+        await safeStorage.setItem('splitNumWeeks', weeks);
+        await safeStorage.removeItem('splitNumRotations');
+      } else {
+        await safeStorage.setItem('splitNumRotations', numRotations);
+        await safeStorage.removeItem('splitNumWeeks');
       }
-      await Promise.resolve(localStorage.setItem('splitNumWeeks', weeks));
-      await Promise.resolve(localStorage.removeItem('splitNumRotations'));
-    } else {
-      await Promise.resolve(localStorage.setItem('splitNumRotations', numRotations));
-      await Promise.resolve(localStorage.removeItem('splitNumWeeks'));
+    } finally {
+      setShowSetModal(false);
+      setPendingSplit(null);
+      setShowStartPicker(false);
+      setShowEndPicker(false);
     }
-    setShowSetModal(false);
-    setPendingSplit(null);
   };
 
   // Start the current split (set start date)
@@ -90,7 +156,7 @@ export default function SplitsTab() {
     if (!currentSplitId) return;
     const now = new Date().toISOString();
     setSplitStartDate(now);
-    await Promise.resolve(localStorage.setItem('splitStartDate', now));
+    await safeStorage.setItem('splitStartDate', now);
   };
   const [loading, setLoading] = useState(false);
   const [newSplit, setNewSplit] = useState({ name: '', mode: 'week' });
@@ -264,11 +330,11 @@ export default function SplitsTab() {
                 <TouchableOpacity onPress={() => handleDeleteSplit(item.id)}>
                   <Text style={styles.deleteBtn}>Delete</Text>
                 </TouchableOpacity>
-                {currentSplitId !== item.id && (
-                  <TouchableOpacity onPress={() => handleSetCurrentSplit(item)}>
-                    <Text style={{ color: '#007AFF', marginLeft: 12 }}>Set as Current</Text>
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity onPress={() => handleSetCurrentSplit(item)}>
+                  <Text style={{ color: '#007AFF', marginLeft: 12 }}>
+                    {currentSplitId === item.id ? 'Change' : 'Schedule Split'}
+                  </Text>
+                </TouchableOpacity>
       {/* Modal for setting current split with calendar and weeks/rotations */}
       <Modal
         visible={showSetModal}
@@ -277,44 +343,91 @@ export default function SplitsTab() {
         onRequestClose={() => setShowSetModal(false)}
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 24, borderRadius: 12, width: 320 }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Set Current Split</Text>
+          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: 320 }}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Schedule Split</Text>
             
             {pendingSplit?.mode === 'week' ? (
               <>
                 <Text style={{ marginBottom: 4 }}>Start Date:</Text>
                 <TouchableOpacity
                   style={{ padding: 10, backgroundColor: '#eee', borderRadius: 6, marginBottom: 8 }}
-                  onPress={() => { setDatePickerForStart(true); setShowDatePicker(true); }}
+                  onPress={() => { setShowStartPicker(v => !v); setShowEndPicker(false); }}
                 >
                   <Text>{calendarDate.toDateString()}</Text>
                 </TouchableOpacity>
+                {showStartPicker && (
+                  <DateTimePicker
+                    value={calendarDate}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? (iosInlineSupported ? 'inline' : 'spinner') : 'calendar'}
+                    // @ts-ignore: iOS specific prop
+                    preferredDatePickerStyle={iosInlineSupported ? 'inline' : undefined}
+                    // @ts-ignore: iOS specific prop
+                    themeVariant={Platform.OS === 'ios' ? 'light' : undefined}
+                    onChange={(event, date) => {
+                      if (Platform.OS === 'android') setShowStartPicker(false);
+                      if (date) {
+                        setCalendarDate(date);
+                        if (weeksPreset && !endManuallyEdited) {
+                          setEndDate(getEndDateForWeeks(date, weeksPreset));
+                        }
+                      }
+                    }}
+                    style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', height: iosInlineSupported ? 260 : undefined }}
+                  />
+                )}
 
                 <Text style={{ marginBottom: 4 }}>End Date:</Text>
                 <TouchableOpacity
                   style={{ padding: 10, backgroundColor: '#eee', borderRadius: 6, marginBottom: 8 }}
-                  onPress={() => { setDatePickerForStart(false); setShowDatePicker(true); }}
+                  onPress={() => { setShowEndPicker(v => !v); setShowStartPicker(false); setEndManuallyEdited(true); setWeeksPreset(null); }}
                 >
                   <Text>{endDate ? endDate.toDateString() : 'Select end date'}</Text>
                 </TouchableOpacity>
-
-                {showDatePicker && (
+                {showEndPicker && (
                   <DateTimePicker
-                    value={datePickerForStart ? calendarDate : (endDate ?? calendarDate)}
+                    value={endDate ?? calendarDate}
                     mode="date"
-                    display="default"
-                    onChange={(_, date) => {
-                      setShowDatePicker(false);
+                    display={Platform.OS === 'ios' ? (iosInlineSupported ? 'inline' : 'spinner') : 'calendar'}
+                    // @ts-ignore: iOS specific prop
+                    preferredDatePickerStyle={iosInlineSupported ? 'inline' : undefined}
+                    // @ts-ignore: iOS specific prop
+                    themeVariant={Platform.OS === 'ios' ? 'light' : undefined}
+                    onChange={(event, date) => {
+                      if (Platform.OS === 'android') setShowEndPicker(false);
                       if (date) {
-                        if (datePickerForStart) setCalendarDate(date);
-                        else setEndDate(date);
+                        setEndDate(date);
+                        setEndManuallyEdited(true);
+                        setWeeksPreset(null);
                       }
                     }}
-                    style={{ backgroundColor: '#fff' }}
+                    style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', height: iosInlineSupported ? 260 : undefined }}
                   />
                 )}
 
-                <Text style={{ marginBottom: 8 }}>Number of Weeks: {computedWeeks}</Text>
+                {/* Preset duration chips */}
+                <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Presets</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
+                  {[4, 6, 8, 12].map(w => (
+                    <TouchableOpacity
+                      key={w}
+                      style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, backgroundColor: weeksPreset === w ? '#007AFF' : '#e0e0e0', marginRight: 8, marginBottom: 8 }}
+                      onPress={() => {
+                        setWeeksPreset(w);
+                        setEndManuallyEdited(false);
+                        setEndDate(getEndDateForWeeks(calendarDate, w));
+                      }}
+                    >
+                      <Text style={{ color: weeksPreset === w ? '#fff' : '#333', fontWeight: 'bold' }}>{w} weeks</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Inline summary */}
+                <Text style={{ marginBottom: 4 }}>
+                  {endDate ? `${calendarDate.toDateString()} → ${endDate.toDateString()}` : 'Select a date range'}
+                </Text>
+                <Text style={{ marginBottom: 8 }}>Duration: {computedWeeks} {computedWeeks === 1 ? 'week' : 'weeks'}</Text>
                 {endBeforeStart && <Text style={{ color: 'red', marginBottom: 8 }}>End date must be the same or after start date.</Text>}
               </>
             ) : (
@@ -328,8 +441,14 @@ export default function SplitsTab() {
                 />
               </>
             )}
-            <Button title="Set Split" onPress={handleConfirmSetCurrentSplit} disabled={pendingSplit?.mode === 'week' && endBeforeStart} />
-            <Button title="Cancel" onPress={() => setShowSetModal(false)} />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Button title="Cancel" onPress={() => setShowSetModal(false)} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 8 }}>
+                <Button title="Schedule" onPress={handleConfirmSetCurrentSplit} disabled={pendingSplit?.mode === 'week' && endBeforeStart} />
+              </View>
+            </View>
           </View>
         </View>
       </Modal>
