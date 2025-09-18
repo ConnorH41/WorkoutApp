@@ -301,6 +301,23 @@ export default function SplitsTab() {
     }
   };
 
+  // Return true if the given split id is the current active run and today's date
+  // falls within the run's start/end range. If end is null treat as ongoing.
+  const isSplitCurrentlyActive = (splitId: string) => {
+    if (currentSplitId !== splitId) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (!splitStartDate) return true;
+    const s = new Date(splitStartDate);
+    s.setHours(0, 0, 0, 0);
+    if (today.getTime() < s.getTime()) return false;
+    if (!splitEndDate) return true;
+    const e = new Date(splitEndDate);
+    e.setHours(0, 0, 0, 0);
+    if (today.getTime() > e.getTime()) return false;
+    return true;
+  };
+
   // Fetch all days for the user
   const fetchDays = async () => {
     if (!profile || !profile.id) return;
@@ -669,7 +686,7 @@ export default function SplitsTab() {
                     <View style={styles.modeBadge}>
                       <Text style={styles.badgeText}>{item.mode === 'week' ? 'Weekly' : 'Rotation'}</Text>
                     </View>
-                    {currentSplitId === item.id && (
+                    {isSplitCurrentlyActive(item.id) && (
                       <View style={styles.currentBadge}>
                         <Text style={styles.badgeText}>Current</Text>
                       </View>
