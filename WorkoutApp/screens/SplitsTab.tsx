@@ -663,8 +663,19 @@ export default function SplitsTab() {
           renderItem={({ item }) => (
             <View style={styles.splitBox}>
               <TouchableOpacity onPress={() => setSelectedSplitId(item.id)}>
-                <Text style={styles.splitName}>{item.name} ({item.mode})
-                  {currentSplitId === item.id && '  [Current]'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={styles.splitName}>{item.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={styles.modeBadge}>
+                      <Text style={styles.badgeText}>{item.mode === 'week' ? 'Weekly' : 'Rotation'}</Text>
+                    </View>
+                    {currentSplitId === item.id && (
+                      <View style={styles.currentBadge}>
+                        <Text style={styles.badgeText}>Current</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
               </TouchableOpacity>
               <View style={styles.splitActions}>
                 <TouchableOpacity onPress={() => handleDeleteSplit(item.id)}>
@@ -1605,6 +1616,25 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 4,
+  },
+  modeBadge: {
+    backgroundColor: '#e6f0ff',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  currentBadge: {
+    backgroundColor: '#dff6e0',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
   },
   splitActions: {
     flexDirection: 'row',
