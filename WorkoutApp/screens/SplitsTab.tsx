@@ -830,22 +830,24 @@ export default function SplitsTab() {
           data={splits}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
-            <View style={styles.splitBox}>
-              <TouchableOpacity onPress={() => setSelectedSplitId(item.id)}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={styles.splitName}>{item.name}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <View style={styles.modeBadge}>
-                      <Text style={styles.badgeText}>{item.mode === 'week' ? 'Weekly' : 'Rotation'}</Text>
-                    </View>
-                    {isSplitCurrentlyActive(item.id) && (
-                      <View style={styles.currentBadge}>
-                        <Text style={styles.badgeText}>Current</Text>
-                      </View>
-                    )}
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => setSelectedSplitId(prev => prev === item.id ? null : item.id)}
+              style={styles.splitBox}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={styles.splitName}>{item.name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={styles.modeBadge}>
+                    <Text style={styles.badgeText}>{item.mode === 'week' ? 'Weekly' : 'Rotation'}</Text>
                   </View>
+                  {isSplitCurrentlyActive(item.id) && (
+                    <View style={styles.currentBadge}>
+                      <Text style={styles.badgeText}>Current</Text>
+                    </View>
+                  )}
                 </View>
-              </TouchableOpacity>
+              </View>
               <View style={styles.splitActions}>
                 <TouchableOpacity
                   style={[styles.actionBtn, styles.dangerBtn]}
@@ -1074,7 +1076,7 @@ export default function SplitsTab() {
 
                 </View>
               )}
-            </View>
+            </TouchableOpacity>
           )}
         />
       )}
@@ -1232,7 +1234,7 @@ export default function SplitsTab() {
               />
             )}
 
-            {/* Navigation Buttons */}
+            {/* Navigation Buttons - fixed three slots to keep buttons consistent size */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
               <TouchableOpacity
                 style={[styles.modalButton, { backgroundColor: '#e0e0e0', flex: 1, marginRight: 8 }]}
@@ -1240,16 +1242,20 @@ export default function SplitsTab() {
               >
                 <Text style={{ color: '#333', fontWeight: 'bold', textAlign: 'center' }}>Cancel</Text>
               </TouchableOpacity>
-              
-              {newSplitTab > 0 && (
+
+              {/* Middle slot: Previous or placeholder */}
+              {newSplitTab > 0 ? (
                 <TouchableOpacity
                   style={[styles.modalButton, { backgroundColor: '#666', flex: 1, marginRight: 8 }]}
                   onPress={() => setNewSplitTab(newSplitTab - 1)}
                 >
                   <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>Previous</Text>
                 </TouchableOpacity>
+              ) : (
+                <View style={[styles.modalButton, { backgroundColor: 'transparent', flex: 1, marginRight: 8 }]} />
               )}
-              
+
+              {/* Right slot: Next/Create */}
               {newSplitTab < 2 ? (
                 <TouchableOpacity
                   style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
@@ -1409,7 +1415,7 @@ export default function SplitsTab() {
 
             {/* Schedule removed from Edit modal; scheduling is handled via the Schedule button on the split card */}
 
-            {/* Navigation Buttons */}
+            {/* Navigation Buttons - fixed three slots to keep buttons consistent size */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
               <TouchableOpacity
                 style={[styles.modalButton, { backgroundColor: '#e0e0e0', flex: 1, marginRight: 8 }]}
@@ -1417,17 +1423,20 @@ export default function SplitsTab() {
               >
                 <Text style={{ color: '#333', fontWeight: 'bold', textAlign: 'center' }}>Cancel</Text>
               </TouchableOpacity>
-              
-              {editSplitTab > 0 && (
+
+              {/* Middle slot: Previous or placeholder */}
+              {editSplitTab > 0 ? (
                 <TouchableOpacity
                   style={[styles.modalButton, { backgroundColor: '#666', flex: 1, marginRight: 8 }]}
                   onPress={() => setEditSplitTab(editSplitTab - 1)}
                 >
                   <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>Previous</Text>
                 </TouchableOpacity>
+              ) : (
+                <View style={[styles.modalButton, { backgroundColor: 'transparent', flex: 1, marginRight: 8 }]} />
               )}
-              
-              {/* In Edit modal: if on Basic tab show Next, otherwise show Save */}
+
+              {/* Right slot: Next/Save */}
               {editSplitTab === 0 ? (
                 <TouchableOpacity
                   style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
