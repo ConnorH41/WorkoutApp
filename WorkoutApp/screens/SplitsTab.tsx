@@ -27,6 +27,12 @@ const getEndDateForWeeks = (start: Date, weeks: number) => {
   return addDays(start, weeks * 7 - 1);
 };
 
+// Add days with fractional support (accepts fractional days)
+const addDaysFloat = (date: Date, days: number) => {
+  const ms = Math.round(days * 24 * 60 * 60 * 1000);
+  return new Date(date.getTime() + ms);
+};
+
 // Lightweight storage guards (RN doesn't have localStorage)
 const safeStorage = {
   getItem: async (key: string) => {
@@ -73,8 +79,8 @@ export default function SplitsTab() {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [numRotations, setNumRotations] = useState('1');
-  // UX: selected duration preset (weeks) and whether user manually edited end
-  const [weeksPreset, setWeeksPreset] = useState<number | null>(4);
+  // UX: optional duration in weeks (can be fractional). If null, duration is auto-calculated from start/end.
+  const [durationWeeks, setDurationWeeks] = useState<number | null>(4);
   const [endManuallyEdited, setEndManuallyEdited] = useState(false);
   const iosInlineSupported = Platform.OS === 'ios' && parseFloat(String(Platform.Version)) >= 14;
   const toDateOnly = (d: Date) => d.toISOString().slice(0, 10);
@@ -133,10 +139,10 @@ export default function SplitsTab() {
         e0.setHours(0, 0, 0, 0);
         const diffDays = Math.floor((e0.getTime() - s0.getTime()) / msPerDay) + 1;
         const weeks = Math.max(1, Math.ceil(diffDays / 7));
-        setWeeksPreset(weeks);
+        setDurationWeeks(weeks);
       } else {
         setEndDate(null);
-        setWeeksPreset(-1);
+        setDurationWeeks(-1);
       }
       setEndManuallyEdited(false);
       setNumRotations('1');
@@ -147,8 +153,8 @@ export default function SplitsTab() {
     // Otherwise use sensible defaults
     const defaultStart = getNextMonday(new Date());
     setCalendarDate(defaultStart);
-    const defaultWeeks = 4;
-    setWeeksPreset(defaultWeeks);
+  const defaultWeeks = 4;
+  setDurationWeeks(defaultWeeks);
     setEndDate(getEndDateForWeeks(defaultStart, defaultWeeks));
     setEndManuallyEdited(false);
     setNumRotations('1');
@@ -282,7 +288,7 @@ export default function SplitsTab() {
   const [newSplitEndDate, setNewSplitEndDate] = useState<Date | null>(getEndDateForWeeks(getNextMonday(new Date()), 4));
   const [showNewSplitStartPicker, setShowNewSplitStartPicker] = useState(false);
   const [showNewSplitEndPicker, setShowNewSplitEndPicker] = useState(false);
-  const [newSplitWeeksPreset, setNewSplitWeeksPreset] = useState<number | null>(4);
+  const [newSplitDurationWeeks, setNewSplitDurationWeeks] = useState<number | null>(4);
   const [newSplitTab, setNewSplitTab] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingSplit, setEditingSplit] = useState<any>(null);
@@ -292,7 +298,7 @@ export default function SplitsTab() {
   const [editSplitEndDate, setEditSplitEndDate] = useState<Date | null>(null);
   const [showEditStartPicker, setShowEditStartPicker] = useState(false);
   const [showEditEndPicker, setShowEditEndPicker] = useState(false);
-  const [editSplitWeeksPreset, setEditSplitWeeksPreset] = useState<number | null>(null);
+  const [editSplitDurationWeeks, setEditSplitDurationWeeks] = useState<number | null>(null);
   const [selectedSplitId, setSelectedSplitId] = useState<string | null>(null);
   const [splitDays, setSplitDays] = useState<any[]>([]);
   const [days, setDays] = useState<any[]>([]);
@@ -357,8 +363,8 @@ export default function SplitsTab() {
     setShowStartPicker,
     showEndPicker,
     setShowEndPicker,
-    weeksPreset,
-    setWeeksPreset,
+    durationWeeks,
+    setDurationWeeks,
   }: any) => {
     const computedWeeks = (() => {
       if (!startDate || !endDate) return 0;
@@ -396,8 +402,8 @@ export default function SplitsTab() {
               if (Platform.OS === 'android') setShowStartPicker(false);
               if (date) {
                 setStartDate(date);
-                if (weeksPreset && endDate) {
-                  setEndDate(getEndDateForWeeks(date, weeksPreset));
+                if (durationWeeks && endDate) {
+                  setEndDate(getEndDateForWeeks(date, durationWeeks));
                 }
               }
             }}
@@ -405,7 +411,7 @@ export default function SplitsTab() {
           />
         )}
 
-        {mode === 'week' && (
+            {mode === 'week' && (
           <>
             <Text style={{ marginBottom: 4, fontWeight: '500' }}>End Date:</Text>
             <TouchableOpacity
@@ -427,43 +433,51 @@ export default function SplitsTab() {
                   if (Platform.OS === 'android') setShowEndPicker(false);
                   if (date) {
                     setEndDate(date);
-                    setWeeksPreset(null);
+                    setDurationWeeks(null);
                   }
                 }}
                 style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', maxWidth: 320, height: iosInlineSupported ? 200 : undefined }}
               />
             )}
 
-            <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Duration Presets:</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
-              {[4, 6, 8, 12].map(w => (
-                <TouchableOpacity
-                  key={w}
-                  style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, backgroundColor: weeksPreset === w ? '#007AFF' : '#e0e0e0', marginRight: 8, marginBottom: 8 }}
-                  onPress={() => {
-                    setWeeksPreset(w);
-                    setEndDate(getEndDateForWeeks(startDate, w));
-                  }}
-                >
-                  <Text style={{ color: weeksPreset === w ? '#fff' : '#333', fontWeight: 'bold' }}>{w} weeks</Text>
-                </TouchableOpacity>
-              ))}
+            <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Duration (weeks):</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <TextInput
+                placeholder="e.g. 4 or 4.5 (leave blank to auto-calc)"
+                style={[styles.input, { flex: 1, marginRight: 8 }]}
+                value={durationWeeks === null || durationWeeks === -1 ? '' : String(durationWeeks)}
+                onChangeText={(text) => {
+                  if (text.trim() === '') {
+                    setDurationWeeks(null);
+                    return;
+                  }
+                  const parsed = parseFloat(text);
+                  if (!isNaN(parsed)) {
+                    setDurationWeeks(parsed);
+                    if (startDate) {
+                      const days = parsed * 7 - 1;
+                      setEndDate(addDaysFloat(startDate, days));
+                    }
+                  }
+                }}
+                keyboardType="numeric"
+              />
+              <Text style={{ marginHorizontal: 6, color: '#666', fontWeight: '600' }}>or</Text>
               <TouchableOpacity
-                style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, backgroundColor: weeksPreset === -1 ? '#007AFF' : '#e0e0e0', marginRight: 8, marginBottom: 8 }}
+                style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: durationWeeks === -1 ? '#007AFF' : '#e0e0e0' }}
                 onPress={() => {
-                  setWeeksPreset(-1);
-                  setEndDate(null);
+                  if (durationWeeks === -1) {
+                    setDurationWeeks(null);
+                  } else {
+                    setDurationWeeks(-1);
+                    setEndDate(null);
+                  }
                 }}
               >
-                <Text style={{ color: weeksPreset === -1 ? '#fff' : '#333', fontWeight: 'bold' }}>Forever</Text>
+                <Text style={{ color: durationWeeks === -1 ? '#fff' : '#333', fontWeight: '700' }}>Forever</Text>
               </TouchableOpacity>
             </View>
-
-            <Text style={{ marginBottom: 4, fontWeight: '500' }}>
-              {endDate ? `${startDate.toDateString()} → ${endDate.toDateString()}` : `${startDate.toDateString()} → Forever`}
-            </Text>
-            <Text style={{ marginBottom: 8 }}>{endDate ? `Duration: ${computedWeeks} ${computedWeeks === 1 ? 'week' : 'weeks'}` : 'Duration: Forever'}</Text>
-            {endBeforeStart && <Text style={{ color: 'red', marginBottom: 8 }}>End date must be the same or after start date.</Text>}
+                {endBeforeStart && <Text style={{ color: 'red', marginBottom: 8 }}>End date must be the same or after start date.</Text>}
           </>
         )}
       </View>
@@ -598,7 +612,7 @@ export default function SplitsTab() {
       setNewSplitWeekdays(new Array(7).fill(null));
       setNewSplitStartDate(getNextMonday(new Date()));
       setNewSplitEndDate(getEndDateForWeeks(getNextMonday(new Date()), 4));
-      setNewSplitWeeksPreset(4);
+  setNewSplitDurationWeeks(4);
       setNewSplitTab(0);
       setShowAddModal(false);
       fetchSplits();
@@ -881,101 +895,19 @@ export default function SplitsTab() {
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Schedule Split</Text>
             
             {pendingSplit?.mode === 'week' ? (
-              <>
-                <Text style={{ marginBottom: 4 }}>Start Date:</Text>
-                <TouchableOpacity
-                  style={{ padding: 10, backgroundColor: '#eee', borderRadius: 6, marginBottom: 8 }}
-                  onPress={() => { setShowStartPicker(v => !v); setShowEndPicker(false); }}
-                >
-                  <Text>{calendarDate.toDateString()}</Text>
-                </TouchableOpacity>
-                {showStartPicker && (
-                  <DateTimePicker
-                    value={calendarDate}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? (iosInlineSupported ? 'inline' : 'spinner') : 'calendar'}
-                    // @ts-ignore: iOS specific prop
-                    preferredDatePickerStyle={iosInlineSupported ? 'inline' : undefined}
-                    // @ts-ignore: iOS specific prop
-                    themeVariant={Platform.OS === 'ios' ? 'light' : undefined}
-                    onChange={(event, date) => {
-                      if (Platform.OS === 'android') setShowStartPicker(false);
-                      if (date) {
-                        setCalendarDate(date);
-                        if (weeksPreset && !endManuallyEdited) {
-                          setEndDate(getEndDateForWeeks(date, weeksPreset));
-                        }
-                      }
-                    }}
-                    style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', maxWidth: 280, height: iosInlineSupported ? 220 : undefined }}
-                  />
-                )}
-
-                <Text style={{ marginBottom: 4 }}>End Date:</Text>
-                <TouchableOpacity
-                  style={{ padding: 10, backgroundColor: '#eee', borderRadius: 6, marginBottom: 8 }}
-                  onPress={() => { setShowEndPicker(v => !v); setShowStartPicker(false); setEndManuallyEdited(true); setWeeksPreset(null); }}
-                >
-                  <Text>{endDate ? endDate.toDateString() : 'Select end date'}</Text>
-                </TouchableOpacity>
-                {showEndPicker && (
-                  <DateTimePicker
-                    value={endDate ?? calendarDate}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? (iosInlineSupported ? 'inline' : 'spinner') : 'calendar'}
-                    // @ts-ignore: iOS specific prop
-                    preferredDatePickerStyle={iosInlineSupported ? 'inline' : undefined}
-                    // @ts-ignore: iOS specific prop
-                    themeVariant={Platform.OS === 'ios' ? 'light' : undefined}
-                    onChange={(event, date) => {
-                      if (Platform.OS === 'android') setShowEndPicker(false);
-                      if (date) {
-                        setEndDate(date);
-                        setEndManuallyEdited(true);
-                        setWeeksPreset(null);
-                      }
-                    }}
-                    style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', maxWidth: 280, height: iosInlineSupported ? 220 : undefined }}
-                  />
-                )}
-
-                {/* Preset duration chips */}
-                <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Presets</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
-                  {[4, 6, 8, 12].map(w => (
-                    <TouchableOpacity
-                      key={w}
-                      style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, backgroundColor: weeksPreset === w ? '#007AFF' : '#e0e0e0', marginRight: 8, marginBottom: 8 }}
-                      onPress={() => {
-                        setWeeksPreset(w);
-                        setEndManuallyEdited(false);
-                        setEndDate(getEndDateForWeeks(calendarDate, w));
-                      }}
-                    >
-                      <Text style={{ color: weeksPreset === w ? '#fff' : '#333', fontWeight: 'bold' }}>{w} weeks</Text>
-                    </TouchableOpacity>
-                  ))}
-                  <TouchableOpacity
-                    style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, backgroundColor: weeksPreset === -1 ? '#007AFF' : '#e0e0e0', marginRight: 8, marginBottom: 8 }}
-                    onPress={() => {
-                      setWeeksPreset(-1);
-                      setEndManuallyEdited(false);
-                      setEndDate(null);
-                    }}
-                  >
-                    <Text style={{ color: weeksPreset === -1 ? '#fff' : '#333', fontWeight: 'bold' }}>Forever</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Inline summary */}
-                <Text style={{ marginBottom: 4 }}>
-                  {endDate ? `${calendarDate.toDateString()} → ${endDate.toDateString()}` : `${calendarDate.toDateString()} → Forever`}
-                </Text>
-                <Text style={{ marginBottom: 8 }}>
-                  {endDate ? `Duration: ${computedWeeks} ${computedWeeks === 1 ? 'week' : 'weeks'}` : 'Duration: Forever'}
-                </Text>
-                {endBeforeStart && <Text style={{ color: 'red', marginBottom: 8 }}>End date must be the same or after start date.</Text>}
-              </>
+              <ScheduleEditor
+                mode={pendingSplit.mode}
+                startDate={calendarDate}
+                setStartDate={setCalendarDate}
+                endDate={endDate}
+                setEndDate={setEndDate}
+                showStartPicker={showStartPicker}
+                setShowStartPicker={setShowStartPicker}
+                showEndPicker={showEndPicker}
+                setShowEndPicker={setShowEndPicker}
+                durationWeeks={durationWeeks}
+                setDurationWeeks={setDurationWeeks}
+              />
             ) : (
               <>
                 <Text style={{ marginBottom: 4 }}>Number of Rotations:</Text>
@@ -1195,8 +1127,8 @@ export default function SplitsTab() {
                 setShowStartPicker={setShowNewSplitStartPicker}
                 showEndPicker={showNewSplitEndPicker}
                 setShowEndPicker={setShowNewSplitEndPicker}
-                weeksPreset={newSplitWeeksPreset}
-                setWeeksPreset={setNewSplitWeeksPreset}
+                durationWeeks={newSplitDurationWeeks}
+                setDurationWeeks={setNewSplitDurationWeeks}
               />
             )}
 
@@ -1744,5 +1676,17 @@ const styles = StyleSheet.create({
   },
   dangerBtnText: {
     color: '#fff',
+  },
+  durationBadge: {
+    backgroundColor: '#e6f0ff',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    marginRight: 8,
+  },
+  durationText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#007AFF',
   },
 });
