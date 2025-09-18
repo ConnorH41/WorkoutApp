@@ -695,12 +695,18 @@ export default function SplitsTab() {
                 </View>
               </TouchableOpacity>
               <View style={styles.splitActions}>
-                <TouchableOpacity onPress={() => handleDeleteSplit(item.id)}>
-                  <Text style={styles.deleteBtn}>Delete</Text>
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.dangerBtn]}
+                  onPress={() => handleDeleteSplit(item.id)}
+                >
+                  <Text style={[styles.actionBtnText, styles.dangerBtnText]}>Delete</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => currentSplitId === item.id ? handleEditSplit(item) : handleSetCurrentSplit(item)}>
-                  <Text style={{ color: '#007AFF', marginLeft: 12 }}>
-                    {currentSplitId === item.id ? 'Edit' : 'Schedule Split'}
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.primaryBtn]}
+                  onPress={() => currentSplitId === item.id ? handleEditSplit(item) : handleSetCurrentSplit(item)}
+                >
+                  <Text style={[styles.actionBtnText, styles.primaryBtnText]}>
+                    {currentSplitId === item.id ? 'Edit' : 'Schedule'}
                   </Text>
                 </TouchableOpacity>
       {/* Modal for setting current split with calendar and weeks/rotations */}
@@ -1722,5 +1728,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 6,
     alignItems: 'center',
+  },
+  actionBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    marginLeft: 8,
+    minWidth: 72,
+    alignItems: 'center',
+  },
+  actionBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  primaryBtn: {
+    backgroundColor: '#007AFF',
+  },
+  primaryBtnText: {
+    color: '#fff',
+  },
+  dangerBtn: {
+    backgroundColor: '#ff3b30',
+    borderWidth: 0,
+  },
+  dangerBtnText: {
+    color: '#fff',
   },
 });
