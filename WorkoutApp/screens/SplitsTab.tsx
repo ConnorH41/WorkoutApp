@@ -64,6 +64,7 @@ export default function SplitsTab() {
   const [splits, setSplits] = useState<any[]>([]);
   const [currentSplitId, setCurrentSplitId] = useState<string | null>(null);
   const [splitStartDate, setSplitStartDate] = useState<string | null>(null);
+  const [splitEndDate, setSplitEndDate] = useState<string | null>(null);
   const [showSetModal, setShowSetModal] = useState(false);
   const [pendingSplit, setPendingSplit] = useState<any>(null);
   const [calendarDate, setCalendarDate] = useState<Date>(new Date());
@@ -96,8 +97,10 @@ export default function SplitsTab() {
     const loadCurrentSplit = async () => {
       const stored = await safeStorage.getItem('currentSplitId');
       const start = await safeStorage.getItem('splitStartDate');
+      const end = await safeStorage.getItem('splitEndDate');
       if (stored) setCurrentSplitId(stored);
       if (start) setSplitStartDate(start);
+      if (end) setSplitEndDate(end);
     };
     loadCurrentSplit();
   }, []);
@@ -123,8 +126,10 @@ export default function SplitsTab() {
     try {
       setCurrentSplitId(pendingSplit.id);
       setSplitStartDate(calendarDate.toISOString());
+      if (endDate) setSplitEndDate(endDate.toISOString());
       await safeStorage.setItem('currentSplitId', pendingSplit.id);
       await safeStorage.setItem('splitStartDate', calendarDate.toISOString());
+      if (endDate) await safeStorage.setItem('splitEndDate', endDate.toISOString());
       if (pendingSplit.mode === 'week') {
         // calculate number of weeks from start (calendarDate) to endDate (inclusive)
         const msPerDay = 24 * 60 * 60 * 1000;
@@ -456,11 +461,10 @@ export default function SplitsTab() {
               {currentSplitId === item.id && (
                 <View style={{ marginTop: 8 }}>
                   <Text style={{ fontStyle: 'italic', color: '#666' }}>
-                    {splitStartDate ? `Started: ${new Date(splitStartDate).toLocaleString()}` : 'Not started yet'}
+                    {splitStartDate ? `Start: ${new Date(splitStartDate).toLocaleDateString()}` : 'Start: —'}
+                    {`  •  `}
+                    {splitEndDate ? `End: ${new Date(splitEndDate).toLocaleDateString()}` : 'End: —'}
                   </Text>
-                  {!splitStartDate && (
-                    <Button title="Start Split" onPress={handleStartSplit} />
-                  )}
                 </View>
               )}
               {selectedSplitId === item.id && (
