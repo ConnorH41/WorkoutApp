@@ -1056,7 +1056,7 @@ export default function SplitsTab() {
                         const day = days.find(d => d.id === sd.day_id);
                         return (
                           <View key={sd.id} style={styles.splitDayBox}>
-                            <Text>{`#${(sd.order_index ?? index) + 1}`}: {day?.name || '—'}</Text>
+                            <Text>{`Day ${(sd.order_index ?? index) + 1}:`} {day?.name || '—'}</Text>
                           </View>
                         );
                       })}
@@ -1295,7 +1295,7 @@ export default function SplitsTab() {
                   disabled={adding || !newSplit.name.trim()}
                 >
                   <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>
-                    {adding ? 'Creating...' : 'Create Split'}
+                    {adding ? 'Creating...' : 'Create'}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -1336,16 +1336,18 @@ export default function SplitsTab() {
             {editSplitTab === 0 && (
               <View>
                 <Text style={{ marginBottom: 4, fontWeight: '500' }}>Split Name:</Text>
-                <TextInput
-                  style={{ width: '100%', marginBottom: 16, height: 100, fontSize: 16, textAlignVertical: 'top', padding: 8, borderWidth: 1, borderColor: '#ccc', borderRadius: 4 }}
-                  placeholder="e.g. PPL, Upper/Lower"
-                  value={editingSplit?.name || ''}
-                  onChangeText={v => setEditingSplit((prev: any) => ({ ...prev, name: v }))}
-                  returnKeyType="done"
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                  multiline
-                  numberOfLines={3}
-                />
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                  <TextInput
+                    style={{ width: '100%', marginBottom: 8, height: 35, fontSize: 16, textAlignVertical: 'top', padding: 8, borderWidth: 1, borderColor: '#ccc', borderRadius: 4 }}
+                    placeholder="e.g. PPL, Upper/Lower"
+                    value={editingSplit?.name || ''}
+                    onChangeText={v => setEditingSplit((prev: any) => ({ ...prev, name: v }))}
+                    returnKeyType="done"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                    multiline
+                    numberOfLines={3}
+                  />
+                </View>
                 
                 <Text style={{ marginBottom: 4, fontWeight: '500' }}>Mode:</Text>
                 <View style={{ flexDirection: 'row', marginBottom: 16 }}>
