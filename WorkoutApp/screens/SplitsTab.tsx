@@ -77,6 +77,7 @@ export default function SplitsTab() {
   const [weeksPreset, setWeeksPreset] = useState<number | null>(4);
   const [endManuallyEdited, setEndManuallyEdited] = useState(false);
   const iosInlineSupported = Platform.OS === 'ios' && parseFloat(String(Platform.Version)) >= 14;
+  const toDateOnly = (d: Date) => d.toISOString().slice(0, 10);
 
   // computed weeks between start and end (inclusive)
   const computedWeeks = (() => {
@@ -92,17 +93,25 @@ export default function SplitsTab() {
   })();
 
   const endBeforeStart = !!endDate && new Date(endDate).setHours(0, 0, 0, 0) < new Date(calendarDate).setHours(0, 0, 0, 0);
-  // Load current split from local storage (or Supabase if you want persistence)
+  // Load current split run from database
   useEffect(() => {
-    const loadCurrentSplit = async () => {
-      const stored = await safeStorage.getItem('currentSplitId');
-      const start = await safeStorage.getItem('splitStartDate');
-      const end = await safeStorage.getItem('splitEndDate');
-      if (stored) setCurrentSplitId(stored);
-      if (start) setSplitStartDate(start);
-      if (end) setSplitEndDate(end);
+    const fetchFromDb = async () => {
+      if (!profile || !profile.id) return;
+      const { data } = await supabase
+        .from('split_runs')
+        .select('*')
+        .eq('user_id', profile.id)
+        .eq('active', true)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (data && data.length > 0) {
+        const run: any = data[0];
+        setCurrentSplitId(run.split_id || null);
+        setSplitStartDate(run.start_date ? new Date(run.start_date).toISOString() : null);
+        setSplitEndDate(run.end_date ? new Date(run.end_date).toISOString() : null);
+      }
     };
-    loadCurrentSplit();
+    fetchFromDb();
   }, []);
 
 
@@ -144,9 +153,38 @@ export default function SplitsTab() {
         }
         await safeStorage.setItem('splitNumWeeks', weeks);
         await safeStorage.removeItem('splitNumRotations');
+        // Persist to split_runs
+        if (profile?.id) {
+          // Deactivate any existing active run for this user
+          await supabase.from('split_runs').update({ active: false }).eq('user_id', profile.id).eq('active', true);
+          await supabase.from('split_runs').insert({
+            split_id: pendingSplit.id,
+            user_id: profile.id,
+            start_date: toDateOnly(calendarDate),
+            end_date: endDate ? toDateOnly(endDate) : null,
+            num_weeks: parseInt(weeks, 10) || 1,
+            num_rotations: null,
+            active: true,
+          });
+          await fetchActiveRun();
+        }
       } else {
         await safeStorage.setItem('splitNumRotations', numRotations);
         await safeStorage.removeItem('splitNumWeeks');
+        // Persist to split_runs
+        if (profile?.id) {
+          await supabase.from('split_runs').update({ active: false }).eq('user_id', profile.id).eq('active', true);
+          await supabase.from('split_runs').insert({
+            split_id: pendingSplit.id,
+            user_id: profile.id,
+            start_date: toDateOnly(calendarDate),
+            end_date: null,
+            num_weeks: null,
+            num_rotations: parseInt(numRotations, 10) || 1,
+            active: true,
+          });
+          await fetchActiveRun();
+        }
       }
     } finally {
       setShowSetModal(false);
@@ -173,6 +211,28 @@ export default function SplitsTab() {
   // For week mode: modal to pick weekday
   const [showWeekdayModal, setShowWeekdayModal] = useState(false);
   const [pendingDayId, setPendingDayId] = useState<string | null>(null);
+
+  // Helper to fetch active run after scheduling
+  const fetchActiveRun = async () => {
+    if (!profile || !profile.id) return;
+    const { data, error } = await supabase
+      .from('split_runs')
+      .select('*')
+      .eq('user_id', profile.id)
+      .eq('active', true)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (!error && data && data.length > 0) {
+      const run: any = data[0];
+      setCurrentSplitId(run.split_id || null);
+      setSplitStartDate(run.start_date ? new Date(run.start_date).toISOString() : null);
+      setSplitEndDate(run.end_date ? new Date(run.end_date).toISOString() : null);
+    } else if (!error) {
+      setCurrentSplitId(null);
+      setSplitStartDate(null);
+      setSplitEndDate(null);
+    }
+  };
 
   // Fetch all days for the user
   const fetchDays = async () => {
@@ -289,6 +349,7 @@ export default function SplitsTab() {
     if (profile && profile.id) {
       fetchSplits();
       fetchDays();
+      fetchActiveRun();
     }
   }, [profile?.id]);
 
@@ -378,7 +439,7 @@ export default function SplitsTab() {
                         }
                       }
                     }}
-                    style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', height: iosInlineSupported ? 260 : undefined }}
+                    style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', height: iosInlineSupported ? 220 : undefined }}
                   />
                 )}
 
@@ -406,7 +467,7 @@ export default function SplitsTab() {
                         setWeeksPreset(null);
                       }
                     }}
-                    style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', height: iosInlineSupported ? 260 : undefined }}
+                    style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', height: iosInlineSupported ? 220 : undefined }}
                   />
                 )}
 
