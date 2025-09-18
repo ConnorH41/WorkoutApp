@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert, Modal, Platform, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert, Modal, Platform, Keyboard, ToastAndroid } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
@@ -85,6 +85,14 @@ export default function SplitsTab() {
   const [endManuallyEdited, setEndManuallyEdited] = useState(false);
   const iosInlineSupported = Platform.OS === 'ios' && parseFloat(String(Platform.Version)) >= 14;
   const toDateOnly = (d: Date) => d.toISOString().slice(0, 10);
+
+  const showValidationToast = (msg: string) => {
+    if (Platform.OS === 'android' && ToastAndroid && ToastAndroid.show) {
+      ToastAndroid.show(msg, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Validation', msg);
+    }
+  };
 
   // computed weeks between start and end (inclusive)
   const computedWeeks = (() => {
@@ -589,7 +597,14 @@ export default function SplitsTab() {
 
   // Add a new split with days and schedule it
   const handleAddSplit = async () => {
-    if (!profile || !profile.id || !newSplit.name.trim()) return;
+    if (!profile || !profile.id) {
+      Alert.alert('Error', 'You must be signed in to create a split');
+      return;
+    }
+    if (!newSplit.name || !newSplit.name.trim()) {
+      showValidationToast('Split name is required');
+      return;
+    }
     setAdding(true);
     
     try {
@@ -706,6 +721,10 @@ export default function SplitsTab() {
   // Save edited split
   const handleSaveEditSplit = async () => {
     if (!editingSplit || !profile?.id) return;
+    if (!editingSplit?.name || !editingSplit.name.trim()) {
+      showValidationToast('Split name is required');
+      return;
+    }
     setAdding(true);
     
     try {
@@ -1280,11 +1299,10 @@ export default function SplitsTab() {
               )}
 
               {/* Right slot: Next/Create */}
-              {newSplitTab < 2 ? (
+                {newSplitTab < 2 ? (
                 <TouchableOpacity
                   style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
                   onPress={() => setNewSplitTab(newSplitTab + 1)}
-                  disabled={newSplitTab === 0 && !newSplit.name.trim()}
                 >
                   <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>Next</Text>
                 </TouchableOpacity>
@@ -1292,7 +1310,7 @@ export default function SplitsTab() {
                 <TouchableOpacity
                   style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
                   onPress={handleAddSplit}
-                  disabled={adding || !newSplit.name.trim()}
+                  disabled={adding}
                 >
                   <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>
                     {adding ? 'Creating...' : 'Create'}
@@ -1501,7 +1519,6 @@ export default function SplitsTab() {
                 <TouchableOpacity
                   style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
                   onPress={() => setEditSplitTab(1)}
-                  disabled={!editingSplit?.name?.trim()}
                 >
                   <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>Next</Text>
                 </TouchableOpacity>
@@ -1509,7 +1526,7 @@ export default function SplitsTab() {
                 <TouchableOpacity
                   style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
                   onPress={handleSaveEditSplit}
-                  disabled={adding || !editingSplit?.name?.trim()}
+                  disabled={adding}
                 >
                   <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>
                     {adding ? 'Saving...' : 'Save Split'}
