@@ -1,0 +1,173 @@
+-- ==========================================
+-- WORKOUTAPP DB V2
+-- Adds split_runs for historical runs and links workouts to a split_run.
+-- Splits remain templates; split_runs record each scheduled/run instance.
+-- ==========================================
+create table if not exists profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  username text unique,
+  full_name text,
+  avatar_url text,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- ==========================================
+-- WORKOUT DAY TEMPLATES (e.g., "Upper A", "Legs 1")
+-- ==========================================
+create table if not exists days (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  name text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- ==========================================
+-- EXERCISES (belong to days)
+-- ==========================================
+create table if not exists exercises (
+  id uuid primary key default gen_random_uuid(),
+  day_id uuid references days(id) on delete cascade,
+  name text not null,
+  sets int not null,
+  reps int not null,
+  notes text,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- ==========================================
+-- SPLITS (templates: weekly or rotation schedules)
+-- Keep as templates; do not store run-specific start/end here.
+-- ==========================================
+create table if not exists splits (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  name text not null,
+  mode text check (mode in ('week', 'rotation')) not null,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- ==========================================
+-- SPLIT_RUNS (record each time a split is scheduled/run)
+-- One row per run; used for historical tracking and linking workouts to a run.
+-- ==========================================
+create table if not exists split_runs (
+  id uuid primary key default gen_random_uuid(),
+  split_id uuid references splits(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade,
+  start_date date not null,
+  end_date date,
+  num_weeks int,       -- set when mode = 'week'
+  num_rotations int,   -- set when mode = 'rotation'
+  active boolean default false, -- convenience flag to mark current run
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- ==========================================
+-- SPLIT-DAYS (mapping days to a split schedule)
+-- For week splits, use weekday (0=Sun, 6=Sat).
+-- For rotation splits, use "order_index".
+-- ==========================================
+create table if not exists split_days (
+  id uuid primary key default gen_random_uuid(),
+  split_id uuid references splits(id) on delete cascade,
+  day_id uuid references days(id) on delete cascade,
+  weekday int, -- used only for week mode
+  order_index int, -- used only for rotation mode
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- ==========================================
+-- WORKOUT SESSIONS (what the user actually did)
+-- Now optionally link to a split_run to track which run the workout belonged to.
+-- ==========================================
+create table if not exists workouts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  day_id uuid references days(id),
+  split_run_id uuid references split_runs(id) on delete set null,
+  date date not null default current_date,
+  completed boolean default false,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- ==========================================
+-- LOGS (actual sets, reps, weight performed in a workout)
+-- ==========================================
+create table if not exists logs (
+  id uuid primary key default gen_random_uuid(),
+  workout_id uuid references workouts(id) on delete cascade,
+  exercise_id uuid references exercises(id) on delete cascade,
+  set_number int not null,
+  reps int,
+  weight numeric,
+  notes text,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- ==========================================
+-- BODYWEIGHT LOGS
+-- ==========================================
+create table if not exists bodyweight (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  weight numeric not null,
+  logged_at date not null default current_date,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- ==========================================
+-- RLS (Row Level Security)
+-- Enable RLS for new table and existing tables
+-- ==========================================
+alter table profiles enable row level security;
+alter table days enable row level security;
+alter table exercises enable row level security;
+alter table splits enable row level security;
+alter table split_runs enable row level security;
+alter table split_days enable row level security;
+alter table workouts enable row level security;
+alter table logs enable row level security;
+alter table bodyweight enable row level security;
+
+-- Policies: each user only sees/manages their own data
+
+create policy "Users can view own profile" on profiles
+  for select using (auth.uid() = id);
+
+create policy "Users can update own profile" on profiles
+  for update using (auth.uid() = id);
+
+create policy "Users can insert own profile" on profiles
+  for insert with check (auth.uid() = id);
+
+-- Generic per-user policies for user-owned tables
+
+create policy "User can manage own rows" on days
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "User can manage own rows" on exercises
+  for all using (exists (
+    select 1 from days d where d.id = day_id and d.user_id = auth.uid()
+  ));
+
+create policy "User can manage own rows" on splits
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "User can manage own rows" on split_runs
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "User can manage own rows" on split_days
+  for all using (exists (
+    select 1 from splits s where s.id = split_id and s.user_id = auth.uid()
+  ));
+
+create policy "User can manage own rows" on workouts
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "User can manage own rows" on logs
+  for all using (exists (
+    select 1 from workouts w where w.id = workout_id and w.user_id = auth.uid()
+  ));
+
+create policy "User can manage own rows" on bodyweight
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
