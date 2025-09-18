@@ -150,6 +150,9 @@ export default function SplitsTab() {
           e.setHours(0, 0, 0, 0);
           const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
           weeks = String(Math.max(1, Math.ceil(diffDays / 7)));
+        } else {
+          // Forever preset - set a large number of weeks or handle differently
+          weeks = '999';
         }
         await safeStorage.setItem('splitNumWeeks', weeks);
         await safeStorage.removeItem('splitNumRotations');
@@ -162,7 +165,7 @@ export default function SplitsTab() {
             user_id: profile.id,
             start_date: toDateOnly(calendarDate),
             end_date: endDate ? toDateOnly(endDate) : null,
-            num_weeks: parseInt(weeks, 10) || 1,
+            num_weeks: endDate ? parseInt(weeks, 10) || 1 : null,
             num_rotations: null,
             active: true,
           });
@@ -409,7 +412,7 @@ export default function SplitsTab() {
         onRequestClose={() => setShowSetModal(false)}
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: 320 }}>
+          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: 320, maxWidth: '90%' }}>
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Schedule Split</Text>
             
             {pendingSplit?.mode === 'week' ? (
@@ -439,7 +442,7 @@ export default function SplitsTab() {
                         }
                       }
                     }}
-                    style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', height: iosInlineSupported ? 220 : undefined }}
+                    style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', maxWidth: 280, height: iosInlineSupported ? 220 : undefined }}
                   />
                 )}
 
@@ -467,7 +470,7 @@ export default function SplitsTab() {
                         setWeeksPreset(null);
                       }
                     }}
-                    style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', height: iosInlineSupported ? 220 : undefined }}
+                    style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', maxWidth: 280, height: iosInlineSupported ? 220 : undefined }}
                   />
                 )}
 
@@ -487,13 +490,25 @@ export default function SplitsTab() {
                       <Text style={{ color: weeksPreset === w ? '#fff' : '#333', fontWeight: 'bold' }}>{w} weeks</Text>
                     </TouchableOpacity>
                   ))}
+                  <TouchableOpacity
+                    style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, backgroundColor: weeksPreset === -1 ? '#007AFF' : '#e0e0e0', marginRight: 8, marginBottom: 8 }}
+                    onPress={() => {
+                      setWeeksPreset(-1);
+                      setEndManuallyEdited(false);
+                      setEndDate(null);
+                    }}
+                  >
+                    <Text style={{ color: weeksPreset === -1 ? '#fff' : '#333', fontWeight: 'bold' }}>Forever</Text>
+                  </TouchableOpacity>
                 </View>
 
                 {/* Inline summary */}
                 <Text style={{ marginBottom: 4 }}>
-                  {endDate ? `${calendarDate.toDateString()} → ${endDate.toDateString()}` : 'Select a date range'}
+                  {endDate ? `${calendarDate.toDateString()} → ${endDate.toDateString()}` : `${calendarDate.toDateString()} → Forever`}
                 </Text>
-                <Text style={{ marginBottom: 8 }}>Duration: {computedWeeks} {computedWeeks === 1 ? 'week' : 'weeks'}</Text>
+                <Text style={{ marginBottom: 8 }}>
+                  {endDate ? `Duration: ${computedWeeks} ${computedWeeks === 1 ? 'week' : 'weeks'}` : 'Duration: Forever'}
+                </Text>
                 {endBeforeStart && <Text style={{ color: 'red', marginBottom: 8 }}>End date must be the same or after start date.</Text>}
               </>
             ) : (
@@ -524,7 +539,7 @@ export default function SplitsTab() {
                   <Text style={{ fontStyle: 'italic', color: '#666' }}>
                     {splitStartDate ? `Start: ${new Date(splitStartDate).toLocaleDateString()}` : 'Start: —'}
                     {`  •  `}
-                    {splitEndDate ? `End: ${new Date(splitEndDate).toLocaleDateString()}` : 'End: —'}
+                    {splitEndDate ? `End: ${new Date(splitEndDate).toLocaleDateString()}` : 'End: Forever'}
                   </Text>
                 </View>
               )}
