@@ -118,9 +118,35 @@ export default function SplitsTab() {
   // Open modal to set current split
   const handleSetCurrentSplit = (split: any) => {
     setPendingSplit(split);
+    // If this split is currently active, prefill with the active run dates
+    if (isSplitCurrentlyActive(split.id) && splitStartDate) {
+      const s = new Date(splitStartDate);
+      setCalendarDate(s);
+      if (splitEndDate) {
+        const e = new Date(splitEndDate);
+        setEndDate(e);
+        // compute weeks between
+        const msPerDay = 24 * 60 * 60 * 1000;
+        const s0 = new Date(s);
+        s0.setHours(0, 0, 0, 0);
+        const e0 = new Date(e);
+        e0.setHours(0, 0, 0, 0);
+        const diffDays = Math.floor((e0.getTime() - s0.getTime()) / msPerDay) + 1;
+        const weeks = Math.max(1, Math.ceil(diffDays / 7));
+        setWeeksPreset(weeks);
+      } else {
+        setEndDate(null);
+        setWeeksPreset(-1);
+      }
+      setEndManuallyEdited(false);
+      setNumRotations('1');
+      setShowSetModal(true);
+      return;
+    }
+
+    // Otherwise use sensible defaults
     const defaultStart = getNextMonday(new Date());
     setCalendarDate(defaultStart);
-    // default end date = start + 4 weeks (inclusive)
     const defaultWeeks = 4;
     setWeeksPreset(defaultWeeks);
     setEndDate(getEndDateForWeeks(defaultStart, defaultWeeks));
@@ -278,6 +304,8 @@ export default function SplitsTab() {
   const [weekdayModalFromAdd, setWeekdayModalFromAdd] = useState(false);
   // Track whether weekday modal was opened from Edit Split flow
   const [weekdayModalFromEdit, setWeekdayModalFromEdit] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   // Helper to fetch active run after scheduling
   const fetchActiveRun = async () => {
@@ -316,6 +344,130 @@ export default function SplitsTab() {
     e.setHours(0, 0, 0, 0);
     if (today.getTime() > e.getTime()) return false;
     return true;
+  };
+
+  // Reusable schedule editor used by both Add and Edit modals
+  const ScheduleEditor = ({
+    mode,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    showStartPicker,
+    setShowStartPicker,
+    showEndPicker,
+    setShowEndPicker,
+    weeksPreset,
+    setWeeksPreset,
+  }: any) => {
+    const computedWeeks = (() => {
+      if (!startDate || !endDate) return 0;
+      const msPerDay = 24 * 60 * 60 * 1000;
+      const s = new Date(startDate);
+      s.setHours(0, 0, 0, 0);
+      const e = new Date(endDate);
+      e.setHours(0, 0, 0, 0);
+      const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
+      if (diffDays <= 0) return 0;
+      return Math.max(1, Math.ceil(diffDays / 7));
+    })();
+
+    const endBeforeStart = !!endDate && new Date(endDate).setHours(0, 0, 0, 0) < new Date(startDate).setHours(0, 0, 0, 0);
+
+    return (
+      <View>
+        <Text style={{ marginBottom: 4, fontWeight: '500' }}>Start Date:</Text>
+        <TouchableOpacity
+          style={{ padding: 10, backgroundColor: '#eee', borderRadius: 6, marginBottom: 8 }}
+          onPress={() => { setShowStartPicker((v: boolean) => !v); setShowEndPicker(false); }}
+        >
+          <Text>{startDate.toDateString()}</Text>
+        </TouchableOpacity>
+        {showStartPicker && (
+          <DateTimePicker
+            value={startDate}
+            mode="date"
+            display={Platform.OS === 'ios' ? (iosInlineSupported ? 'inline' : 'spinner') : 'calendar'}
+            // @ts-ignore: iOS specific prop
+            preferredDatePickerStyle={iosInlineSupported ? 'inline' : undefined}
+            // @ts-ignore: iOS specific prop
+            themeVariant={Platform.OS === 'ios' ? 'light' : undefined}
+            onChange={(event, date) => {
+              if (Platform.OS === 'android') setShowStartPicker(false);
+              if (date) {
+                setStartDate(date);
+                if (weeksPreset && endDate) {
+                  setEndDate(getEndDateForWeeks(date, weeksPreset));
+                }
+              }
+            }}
+            style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', maxWidth: 320, height: iosInlineSupported ? 200 : undefined }}
+          />
+        )}
+
+        {mode === 'week' && (
+          <>
+            <Text style={{ marginBottom: 4, fontWeight: '500' }}>End Date:</Text>
+            <TouchableOpacity
+              style={{ padding: 10, backgroundColor: '#eee', borderRadius: 6, marginBottom: 8 }}
+              onPress={() => { setShowEndPicker((v: boolean) => !v); setShowStartPicker(false); }}
+            >
+              <Text>{endDate ? endDate.toDateString() : 'Select end date'}</Text>
+            </TouchableOpacity>
+            {showEndPicker && (
+              <DateTimePicker
+                value={endDate ?? startDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? (iosInlineSupported ? 'inline' : 'spinner') : 'calendar'}
+                // @ts-ignore: iOS specific prop
+                preferredDatePickerStyle={iosInlineSupported ? 'inline' : undefined}
+                // @ts-ignore: iOS specific prop
+                themeVariant={Platform.OS === 'ios' ? 'light' : undefined}
+                onChange={(event, date) => {
+                  if (Platform.OS === 'android') setShowEndPicker(false);
+                  if (date) {
+                    setEndDate(date);
+                    setWeeksPreset(null);
+                  }
+                }}
+                style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', maxWidth: 320, height: iosInlineSupported ? 200 : undefined }}
+              />
+            )}
+
+            <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Duration Presets:</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
+              {[4, 6, 8, 12].map(w => (
+                <TouchableOpacity
+                  key={w}
+                  style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, backgroundColor: weeksPreset === w ? '#007AFF' : '#e0e0e0', marginRight: 8, marginBottom: 8 }}
+                  onPress={() => {
+                    setWeeksPreset(w);
+                    setEndDate(getEndDateForWeeks(startDate, w));
+                  }}
+                >
+                  <Text style={{ color: weeksPreset === w ? '#fff' : '#333', fontWeight: 'bold' }}>{w} weeks</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, backgroundColor: weeksPreset === -1 ? '#007AFF' : '#e0e0e0', marginRight: 8, marginBottom: 8 }}
+                onPress={() => {
+                  setWeeksPreset(-1);
+                  setEndDate(null);
+                }}
+              >
+                <Text style={{ color: weeksPreset === -1 ? '#fff' : '#333', fontWeight: 'bold' }}>Forever</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ marginBottom: 4, fontWeight: '500' }}>
+              {endDate ? `${startDate.toDateString()} → ${endDate.toDateString()}` : `${startDate.toDateString()} → Forever`}
+            </Text>
+            <Text style={{ marginBottom: 8 }}>{endDate ? `Duration: ${computedWeeks} ${computedWeeks === 1 ? 'week' : 'weeks'}` : 'Duration: Forever'}</Text>
+            {endBeforeStart && <Text style={{ color: 'red', marginBottom: 8 }}>End date must be the same or after start date.</Text>}
+          </>
+        )}
+      </View>
+    );
   };
 
   // Fetch all days for the user
@@ -697,18 +849,24 @@ export default function SplitsTab() {
               <View style={styles.splitActions}>
                 <TouchableOpacity
                   style={[styles.actionBtn, styles.dangerBtn]}
-                  onPress={() => handleDeleteSplit(item.id)}
+                  onPress={() => { setDeleteTargetId(item.id); setShowDeleteConfirm(true); }}
                 >
                   <Text style={[styles.actionBtnText, styles.dangerBtnText]}>Delete</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionBtn, styles.primaryBtn]}
-                  onPress={() => currentSplitId === item.id ? handleEditSplit(item) : handleSetCurrentSplit(item)}
+                  onPress={() => handleEditSplit(item)}
                 >
-                  <Text style={[styles.actionBtnText, styles.primaryBtnText]}>
-                    {currentSplitId === item.id ? 'Edit' : 'Schedule'}
-                  </Text>
+                  <Text style={[styles.actionBtnText, styles.primaryBtnText]}>Edit</Text>
                 </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: '#4CAF50' }]}
+                    onPress={() => handleSetCurrentSplit(item)}
+                  >
+                    <Text style={[styles.actionBtnText, { color: '#fff', fontWeight: '700' }]}>
+                      {isSplitCurrentlyActive(item.id) ? 'Change Timeframe' : 'Schedule'}
+                    </Text>
+                  </TouchableOpacity>
       {/* Modal for setting current split with calendar and weeks/rotations */}
       <Modal
         visible={showSetModal}
@@ -1059,96 +1217,19 @@ export default function SplitsTab() {
             )}
 
             {newSplitTab === 2 && (
-              <View>
-                <Text style={{ marginBottom: 4, fontWeight: '500' }}>Start Date:</Text>
-                <TouchableOpacity
-                  style={{ padding: 10, backgroundColor: '#eee', borderRadius: 6, marginBottom: 8 }}
-                  onPress={() => { setShowNewSplitStartPicker(v => !v); setShowNewSplitEndPicker(false); }}
-                >
-                  <Text>{newSplitStartDate.toDateString()}</Text>
-                </TouchableOpacity>
-                {showNewSplitStartPicker && (
-                  <DateTimePicker
-                    value={newSplitStartDate}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? (iosInlineSupported ? 'inline' : 'spinner') : 'calendar'}
-                    // @ts-ignore: iOS specific prop
-                    preferredDatePickerStyle={iosInlineSupported ? 'inline' : undefined}
-                    // @ts-ignore: iOS specific prop
-                    themeVariant={Platform.OS === 'ios' ? 'light' : undefined}
-                    onChange={(event, date) => {
-                      if (Platform.OS === 'android') setShowNewSplitStartPicker(false);
-                      if (date) {
-                        setNewSplitStartDate(date);
-                        if (newSplitWeeksPreset && newSplitEndDate) {
-                          setNewSplitEndDate(getEndDateForWeeks(date, newSplitWeeksPreset));
-                        }
-                      }
-                    }}
-                    style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', maxWidth: 320, height: iosInlineSupported ? 200 : undefined }}
-                  />
-                )}
-
-                {newSplit.mode === 'week' && (
-                  <>
-                    <Text style={{ marginBottom: 4, fontWeight: '500' }}>End Date:</Text>
-                    <TouchableOpacity
-                      style={{ padding: 10, backgroundColor: '#eee', borderRadius: 6, marginBottom: 8 }}
-                      onPress={() => { setShowNewSplitEndPicker(v => !v); setShowNewSplitStartPicker(false); }}
-                    >
-                      <Text>{newSplitEndDate ? newSplitEndDate.toDateString() : 'Select end date'}</Text>
-                    </TouchableOpacity>
-                    {showNewSplitEndPicker && (
-                      <DateTimePicker
-                        value={newSplitEndDate ?? newSplitStartDate}
-                        mode="date"
-                        display={Platform.OS === 'ios' ? (iosInlineSupported ? 'inline' : 'spinner') : 'calendar'}
-                        // @ts-ignore: iOS specific prop
-                        preferredDatePickerStyle={iosInlineSupported ? 'inline' : undefined}
-                        // @ts-ignore: iOS specific prop
-                        themeVariant={Platform.OS === 'ios' ? 'light' : undefined}
-                        onChange={(event, date) => {
-                          if (Platform.OS === 'android') setShowNewSplitEndPicker(false);
-                          if (date) {
-                            setNewSplitEndDate(date);
-                            setNewSplitWeeksPreset(null);
-                          }
-                        }}
-                        style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', maxWidth: 320, height: iosInlineSupported ? 200 : undefined }}
-                      />
-                    )}
-
-                    <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Duration Presets:</Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
-                      {[4, 6, 8, 12].map(w => (
-                        <TouchableOpacity
-                          key={w}
-                          style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, backgroundColor: newSplitWeeksPreset === w ? '#007AFF' : '#e0e0e0', marginRight: 8, marginBottom: 8 }}
-                          onPress={() => {
-                            setNewSplitWeeksPreset(w);
-                            setNewSplitEndDate(getEndDateForWeeks(newSplitStartDate, w));
-                          }}
-                        >
-                          <Text style={{ color: newSplitWeeksPreset === w ? '#fff' : '#333', fontWeight: 'bold' }}>{w} weeks</Text>
-                        </TouchableOpacity>
-                      ))}
-                      <TouchableOpacity
-                        style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, backgroundColor: newSplitWeeksPreset === -1 ? '#007AFF' : '#e0e0e0', marginRight: 8, marginBottom: 8 }}
-                        onPress={() => {
-                          setNewSplitWeeksPreset(-1);
-                          setNewSplitEndDate(null);
-                        }}
-                      >
-                        <Text style={{ color: newSplitWeeksPreset === -1 ? '#fff' : '#333', fontWeight: 'bold' }}>Forever</Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    <Text style={{ marginBottom: 4, fontWeight: '500' }}>
-                      {newSplitEndDate ? `${newSplitStartDate.toDateString()} → ${newSplitEndDate.toDateString()}` : `${newSplitStartDate.toDateString()} → Forever`}
-                    </Text>
-                  </>
-                )}
-              </View>
+              <ScheduleEditor
+                mode={newSplit.mode}
+                startDate={newSplitStartDate}
+                setStartDate={setNewSplitStartDate}
+                endDate={newSplitEndDate}
+                setEndDate={setNewSplitEndDate}
+                showStartPicker={showNewSplitStartPicker}
+                setShowStartPicker={setShowNewSplitStartPicker}
+                showEndPicker={showNewSplitEndPicker}
+                setShowEndPicker={setShowNewSplitEndPicker}
+                weeksPreset={newSplitWeeksPreset}
+                setWeeksPreset={setNewSplitWeeksPreset}
+              />
             )}
 
             {/* Navigation Buttons */}
@@ -1218,12 +1299,7 @@ export default function SplitsTab() {
               >
                 <Text style={{ color: editSplitTab === 1 ? '#fff' : '#333', fontWeight: 'bold', fontSize: 12 }}>2. Days</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.tabButton, { backgroundColor: editSplitTab === 2 ? '#007AFF' : 'transparent' }]}
-                onPress={() => setEditSplitTab(2)}
-              >
-                <Text style={{ color: editSplitTab === 2 ? '#fff' : '#333', fontWeight: 'bold', fontSize: 12 }}>3. Schedule</Text>
-              </TouchableOpacity>
+              {/* Edit modal only has Basic and Days tabs now; Schedule is separate */}
             </View>
 
             {/* Tab Content */}
@@ -1331,98 +1407,7 @@ export default function SplitsTab() {
               </View>
             )}
 
-            {editSplitTab === 2 && (
-              <View>
-                <Text style={{ marginBottom: 4, fontWeight: '500' }}>Start Date:</Text>
-                <TouchableOpacity
-                  style={{ padding: 10, backgroundColor: '#eee', borderRadius: 6, marginBottom: 8 }}
-                  onPress={() => { setShowEditStartPicker(v => !v); setShowEditEndPicker(false); }}
-                >
-                  <Text>{editSplitStartDate.toDateString()}</Text>
-                </TouchableOpacity>
-                {showEditStartPicker && (
-                  <DateTimePicker
-                    value={editSplitStartDate}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? (iosInlineSupported ? 'inline' : 'spinner') : 'calendar'}
-                    // @ts-ignore: iOS specific prop
-                    preferredDatePickerStyle={iosInlineSupported ? 'inline' : undefined}
-                    // @ts-ignore: iOS specific prop
-                    themeVariant={Platform.OS === 'ios' ? 'light' : undefined}
-                    onChange={(event, date) => {
-                      if (Platform.OS === 'android') setShowEditStartPicker(false);
-                      if (date) {
-                        setEditSplitStartDate(date);
-                        if (editSplitWeeksPreset && editSplitEndDate) {
-                          setEditSplitEndDate(getEndDateForWeeks(date, editSplitWeeksPreset));
-                        }
-                      }
-                    }}
-                    style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', maxWidth: 320, height: iosInlineSupported ? 200 : undefined }}
-                  />
-                )}
-
-                {editingSplit?.mode === 'week' && (
-                  <>
-                    <Text style={{ marginBottom: 4, fontWeight: '500' }}>End Date:</Text>
-                    <TouchableOpacity
-                      style={{ padding: 10, backgroundColor: '#eee', borderRadius: 6, marginBottom: 8 }}
-                      onPress={() => { setShowEditEndPicker(v => !v); setShowEditStartPicker(false); }}
-                    >
-                      <Text>{editSplitEndDate ? editSplitEndDate.toDateString() : 'Select end date'}</Text>
-                    </TouchableOpacity>
-                    {showEditEndPicker && (
-                      <DateTimePicker
-                        value={editSplitEndDate ?? editSplitStartDate}
-                        mode="date"
-                        display={Platform.OS === 'ios' ? (iosInlineSupported ? 'inline' : 'spinner') : 'calendar'}
-                        // @ts-ignore: iOS specific prop
-                        preferredDatePickerStyle={iosInlineSupported ? 'inline' : undefined}
-                        // @ts-ignore: iOS specific prop
-                        themeVariant={Platform.OS === 'ios' ? 'light' : undefined}
-                        onChange={(event, date) => {
-                          if (Platform.OS === 'android') setShowEditEndPicker(false);
-                          if (date) {
-                            setEditSplitEndDate(date);
-                            setEditSplitWeeksPreset(null);
-                          }
-                        }}
-                        style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', maxWidth: 320, height: iosInlineSupported ? 200 : undefined }}
-                      />
-                    )}
-
-                    <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Duration Presets:</Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
-                      {[4, 6, 8, 12].map(w => (
-                        <TouchableOpacity
-                          key={w}
-                          style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, backgroundColor: editSplitWeeksPreset === w ? '#007AFF' : '#e0e0e0', marginRight: 8, marginBottom: 8 }}
-                          onPress={() => {
-                            setEditSplitWeeksPreset(w);
-                            setEditSplitEndDate(getEndDateForWeeks(editSplitStartDate, w));
-                          }}
-                        >
-                          <Text style={{ color: editSplitWeeksPreset === w ? '#fff' : '#333', fontWeight: 'bold' }}>{w} weeks</Text>
-                        </TouchableOpacity>
-                      ))}
-                      <TouchableOpacity
-                        style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, backgroundColor: editSplitWeeksPreset === -1 ? '#007AFF' : '#e0e0e0', marginRight: 8, marginBottom: 8 }}
-                        onPress={() => {
-                          setEditSplitWeeksPreset(-1);
-                          setEditSplitEndDate(null);
-                        }}
-                      >
-                        <Text style={{ color: editSplitWeeksPreset === -1 ? '#fff' : '#333', fontWeight: 'bold' }}>Forever</Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    <Text style={{ marginBottom: 4, fontWeight: '500' }}>
-                      {editSplitEndDate ? `${editSplitStartDate.toDateString()} → ${editSplitEndDate.toDateString()}` : `${editSplitStartDate.toDateString()} → Forever`}
-                    </Text>
-                  </>
-                )}
-              </View>
-            )}
+            {/* Schedule removed from Edit modal; scheduling is handled via the Schedule button on the split card */}
 
             {/* Navigation Buttons */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
@@ -1442,11 +1427,12 @@ export default function SplitsTab() {
                 </TouchableOpacity>
               )}
               
-              {editSplitTab < 2 ? (
+              {/* In Edit modal: if on Basic tab show Next, otherwise show Save */}
+              {editSplitTab === 0 ? (
                 <TouchableOpacity
                   style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
-                  onPress={() => setEditSplitTab(editSplitTab + 1)}
-                  disabled={editSplitTab === 0 && !editingSplit?.name?.trim()}
+                  onPress={() => setEditSplitTab(1)}
+                  disabled={!editingSplit?.name?.trim()}
                 >
                   <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>Next</Text>
                 </TouchableOpacity>
@@ -1580,6 +1566,33 @@ export default function SplitsTab() {
               }
               setPendingDayId(null);
             }} />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteConfirm(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: 320 }}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Delete Split?</Text>
+            <Text style={{ marginBottom: 16 }}>Are you sure you want to permanently delete this split? This action cannot be undone.</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+              <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#e0e0e0', marginRight: 8 }]} onPress={() => { setShowDeleteConfirm(false); setDeleteTargetId(null); }}>
+                <Text style={{ textAlign: 'center', fontWeight: '700' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#ff3b30' }]} onPress={async () => {
+                if (deleteTargetId) await handleDeleteSplit(deleteTargetId);
+                setShowDeleteConfirm(false);
+                setDeleteTargetId(null);
+              }}>
+                <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>Delete</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
