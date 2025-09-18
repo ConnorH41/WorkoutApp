@@ -1019,22 +1019,9 @@ export default function SplitsTab() {
                         return (
                           <View key={wd} style={styles.splitDayBox}>
                             <Text style={{ width: 60 }}>{wd}:</Text>
-                            <TouchableOpacity
-                              style={styles.assignBtn}
-                              onPress={() => {
-                                  setPendingDayId(`${idx}`); // use weekday as pendingDayId
-                                  if (showAddModal) {
-                                    setShowAddModal(false);
-                                    setWeekdayModalFromAdd(true);
-                                  } else {
-                                    setWeekdayModalFromAdd(false);
-                                  }
-                                  setShowWeekdayModal(true);
-                                }}
-                            >
-                              <Text style={styles.assignBtnText}>{assignedDay ? assignedDay.name : 'Rest'}</Text>
-                            </TouchableOpacity>
-                            {/* Remove button column removed for week splits; use picker to set to Rest */}
+                            <View style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6 }}>
+                              <Text style={{ color: '#333' }}>{assignedDay ? assignedDay.name : 'Rest'}</Text>
+                            </View>
                           </View>
                         );
                       })}
@@ -1042,35 +1029,14 @@ export default function SplitsTab() {
                   ) : (
                     <>
                       <Text style={styles.splitDaysTitle}>Rotation Days</Text>
-                      <FlatList
-                        data={splitDays}
-                        keyExtractor={sd => sd.id}
-                        renderItem={({ item: sd, index }) => {
-                          const day = days.find(d => d.id === sd.day_id);
-                          return (
-                            <View style={styles.splitDayBox}>
-                              <Text>{`#${sd.order_index + 1}`}: {day?.name}</Text>
-                              <TouchableOpacity onPress={() => handleRemoveSplitDay(sd.id)}>
-                                <Text style={styles.deleteBtn}>Remove</Text>
-                              </TouchableOpacity>
-                            </View>
-                          );
-                        }}
-                      />
-                      <Text style={styles.splitDaysTitle}>Add Day to Rotation</Text>
-                      <FlatList
-                        data={days.filter(d => !splitDays.some(sd => sd.day_id === d.id))}
-                        keyExtractor={d => d.id}
-                        renderItem={({ item: d }) => (
-                          <TouchableOpacity
-                            style={styles.addDayBtn}
-                            onPress={() => handleLinkDay(d.id, item)}
-                            disabled={linking}
-                          >
-                            <Text style={styles.addDayBtnText}>Add {d.name}</Text>
-                          </TouchableOpacity>
-                        )}
-                      />
+                      {splitDays.map((sd, index) => {
+                        const day = days.find(d => d.id === sd.day_id);
+                        return (
+                          <View key={sd.id} style={styles.splitDayBox}>
+                            <Text>{`#${(sd.order_index ?? index) + 1}`}: {day?.name || '—'}</Text>
+                          </View>
+                        );
+                      })}
                     </>
                   )}
 
@@ -1652,9 +1618,9 @@ const styles = StyleSheet.create({
   splitBox: {
     borderWidth: 1,
     borderColor: '#eee',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 14,
     backgroundColor: '#fafafa',
   },
   splitName: {
@@ -1683,7 +1649,9 @@ const styles = StyleSheet.create({
   },
   splitActions: {
     flexDirection: 'row',
-    marginTop: 4,
+    marginTop: 8,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   deleteBtn: {
     color: 'red',
@@ -1752,12 +1720,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 6,
-    marginLeft: 8,
-    minWidth: 72,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginLeft: 10,
+    minWidth: 78,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   actionBtnText: {
     fontSize: 13,
