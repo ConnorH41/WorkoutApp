@@ -54,7 +54,7 @@ create table if not exists split_runs (
   id uuid primary key default gen_random_uuid(),
   split_id uuid references splits(id) on delete cascade,
   user_id uuid references auth.users(id) on delete cascade,
-  start_date date not null,
+  start_date date,
   end_date date,
   num_weeks int,       -- set when mode = 'week'
   num_rotations int,   -- set when mode = 'rotation'

@@ -284,11 +284,11 @@ export default function SplitsTab() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedDaysForNewSplit, setSelectedDaysForNewSplit] = useState<string[]>([]);
   const [newSplitWeekdays, setNewSplitWeekdays] = useState<(string | null)[]>(new Array(7).fill(null));
-  const [newSplitStartDate, setNewSplitStartDate] = useState<Date>(getNextMonday(new Date()));
-  const [newSplitEndDate, setNewSplitEndDate] = useState<Date | null>(getEndDateForWeeks(getNextMonday(new Date()), 4));
+  const [newSplitStartDate, setNewSplitStartDate] = useState<Date | null>(null);
+  const [newSplitEndDate, setNewSplitEndDate] = useState<Date | null>(null);
   const [showNewSplitStartPicker, setShowNewSplitStartPicker] = useState(false);
   const [showNewSplitEndPicker, setShowNewSplitEndPicker] = useState(false);
-  const [newSplitDurationWeeks, setNewSplitDurationWeeks] = useState<number | null>(4);
+  const [newSplitDurationWeeks, setNewSplitDurationWeeks] = useState<number | null>(null);
   const [newSplitTab, setNewSplitTab] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingSplit, setEditingSplit] = useState<any>(null);
@@ -387,11 +387,11 @@ export default function SplitsTab() {
           style={{ padding: 10, backgroundColor: '#eee', borderRadius: 6, marginBottom: 8 }}
           onPress={() => { setShowStartPicker((v: boolean) => !v); setShowEndPicker(false); }}
         >
-          <Text>{startDate.toDateString()}</Text>
+          <Text>{startDate ? startDate.toDateString() : 'Select start date'}</Text>
         </TouchableOpacity>
         {showStartPicker && (
           <DateTimePicker
-            value={startDate}
+            value={startDate ?? getNextMonday(new Date())}
             mode="date"
             display={Platform.OS === 'ios' ? (iosInlineSupported ? 'inline' : 'spinner') : 'calendar'}
             // @ts-ignore: iOS specific prop
@@ -402,8 +402,10 @@ export default function SplitsTab() {
               if (Platform.OS === 'android') setShowStartPicker(false);
               if (date) {
                 setStartDate(date);
-                if (durationWeeks && endDate) {
-                  setEndDate(getEndDateForWeeks(date, durationWeeks));
+                if (durationWeeks !== null && durationWeeks !== -1) {
+                  // compute end date from fractional weeks
+                  const days = durationWeeks * 7 - 1;
+                  setEndDate(addDaysFloat(date, days));
                 }
               }
             }}
@@ -416,13 +418,13 @@ export default function SplitsTab() {
             <Text style={{ marginBottom: 4, fontWeight: '500' }}>End Date:</Text>
             <TouchableOpacity
               style={{ padding: 10, backgroundColor: '#eee', borderRadius: 6, marginBottom: 8 }}
-              onPress={() => { setShowEndPicker((v: boolean) => !v); setShowStartPicker(false); }}
+                  onPress={() => { setShowEndPicker((v: boolean) => !v); setShowStartPicker(false); }}
             >
-              <Text>{endDate ? endDate.toDateString() : 'Select end date'}</Text>
+                  <Text>{endDate ? endDate.toDateString() : 'Select end date'}</Text>
             </TouchableOpacity>
             {showEndPicker && (
               <DateTimePicker
-                value={endDate ?? startDate}
+                    value={endDate ?? startDate ?? getNextMonday(new Date())}
                 mode="date"
                 display={Platform.OS === 'ios' ? (iosInlineSupported ? 'inline' : 'spinner') : 'calendar'}
                 // @ts-ignore: iOS specific prop
@@ -454,10 +456,10 @@ export default function SplitsTab() {
                   const parsed = parseFloat(text);
                   if (!isNaN(parsed)) {
                     setDurationWeeks(parsed);
-                    if (startDate) {
-                      const days = parsed * 7 - 1;
-                      setEndDate(addDaysFloat(startDate, days));
-                    }
+                    const baseStart = startDate ?? getNextMonday(new Date());
+                    const days = parsed * 7 - 1;
+                    setEndDate(addDaysFloat(baseStart, days));
+                    if (!startDate) setStartDate(baseStart);
                   }
                 }}
                 keyboardType="numeric"
@@ -471,6 +473,7 @@ export default function SplitsTab() {
                   } else {
                     setDurationWeeks(-1);
                     setEndDate(null);
+                    if (!startDate) setStartDate(getNextMonday(new Date()));
                   }
                 }}
               >
@@ -568,51 +571,53 @@ export default function SplitsTab() {
         }
       }
       
-      // Schedule the split (create split_run)
-      if (newSplit.mode === 'week') {
-        const msPerDay = 24 * 60 * 60 * 1000;
-        let weeks = '0';
-        if (newSplitEndDate) {
-          const s = new Date(newSplitStartDate);
-          s.setHours(0, 0, 0, 0);
-          const e = new Date(newSplitEndDate);
-          e.setHours(0, 0, 0, 0);
-          const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
-          weeks = String(Math.max(1, Math.ceil(diffDays / 7)));
+      // Schedule the split (create split_run) only if a start date was provided
+      if (newSplitStartDate) {
+        if (newSplit.mode === 'week') {
+          const msPerDay = 24 * 60 * 60 * 1000;
+          let weeks = '0';
+          if (newSplitEndDate) {
+            const s = new Date(newSplitStartDate);
+            s.setHours(0, 0, 0, 0);
+            const e = new Date(newSplitEndDate);
+            e.setHours(0, 0, 0, 0);
+            const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
+            weeks = String(Math.max(1, Math.ceil(diffDays / 7)));
+          } else {
+            weeks = '999'; // Forever
+          }
+
+          await supabase.from('split_runs').update({ active: false }).eq('user_id', profile.id).eq('active', true);
+          await supabase.from('split_runs').insert({
+            split_id: newSplitId,
+            user_id: profile.id,
+            start_date: toDateOnly(newSplitStartDate),
+            end_date: newSplitEndDate ? toDateOnly(newSplitEndDate) : null,
+            num_weeks: newSplitEndDate ? parseInt(weeks, 10) || 1 : null,
+            num_rotations: null,
+            active: true,
+          });
         } else {
-          weeks = '999'; // Forever
+          await supabase.from('split_runs').update({ active: false }).eq('user_id', profile.id).eq('active', true);
+          await supabase.from('split_runs').insert({
+            split_id: newSplitId,
+            user_id: profile.id,
+            start_date: toDateOnly(newSplitStartDate),
+            end_date: null,
+            num_weeks: null,
+            num_rotations: 1,
+            active: true,
+          });
         }
-        
-        await supabase.from('split_runs').update({ active: false }).eq('user_id', profile.id).eq('active', true);
-        await supabase.from('split_runs').insert({
-          split_id: newSplitId,
-          user_id: profile.id,
-          start_date: toDateOnly(newSplitStartDate),
-          end_date: newSplitEndDate ? toDateOnly(newSplitEndDate) : null,
-          num_weeks: newSplitEndDate ? parseInt(weeks, 10) || 1 : null,
-          num_rotations: null,
-          active: true,
-        });
-      } else {
-        await supabase.from('split_runs').update({ active: false }).eq('user_id', profile.id).eq('active', true);
-        await supabase.from('split_runs').insert({
-          split_id: newSplitId,
-          user_id: profile.id,
-          start_date: toDateOnly(newSplitStartDate),
-          end_date: null,
-          num_weeks: null,
-          num_rotations: 1,
-          active: true,
-        });
       }
       
       // Reset form and close modal
-      setNewSplit({ name: '', mode: 'week' });
+    setNewSplit({ name: '', mode: 'week' });
       setSelectedDaysForNewSplit([]);
       setNewSplitWeekdays(new Array(7).fill(null));
-      setNewSplitStartDate(getNextMonday(new Date()));
-      setNewSplitEndDate(getEndDateForWeeks(getNextMonday(new Date()), 4));
-  setNewSplitDurationWeeks(4);
+    setNewSplitStartDate(null);
+    setNewSplitEndDate(null);
+    setNewSplitDurationWeeks(null);
       setNewSplitTab(0);
       setShowAddModal(false);
       fetchSplits();
