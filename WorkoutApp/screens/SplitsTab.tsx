@@ -1037,15 +1037,17 @@ export default function SplitsTab() {
             {newSplitTab === 0 && (
               <View>
                 <Text style={{ marginBottom: 4, fontWeight: '500' }}>Split Name:</Text>
-                <TextInput
-                  style={[styles.input, { marginBottom: 16, height: 50, fontSize: 16 }]}
-                  placeholder="e.g. PPL, Upper/Lower"
-                  value={newSplit.name}
-                  onChangeText={v => setNewSplit(s => ({ ...s, name: v }))}
-                  returnKeyType="done"
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                />
-                
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                  <TextInput
+                    style={[styles.input, { marginBottom: 8, height: 35, fontSize: 16 }]}
+                    placeholder="e.g. PPL, Upper/Lower"
+                    value={newSplit.name}
+                    onChangeText={v => setNewSplit(s => ({ ...s, name: v }))}
+                    returnKeyType="done"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                  />
+                </View>
+
                 <Text style={{ marginBottom: 4, fontWeight: '500' }}>Mode:</Text>
                 <View style={{ flexDirection: 'row', marginBottom: 16 }}>
                   <TouchableOpacity
@@ -1264,12 +1266,14 @@ export default function SplitsTab() {
               <View>
                 <Text style={{ marginBottom: 4, fontWeight: '500' }}>Split Name:</Text>
                 <TextInput
-                  style={[styles.input, { marginBottom: 16, height: 50, fontSize: 16 }]}
+                  style={{ width: '100%', marginBottom: 16, height: 100, fontSize: 16, textAlignVertical: 'top', padding: 8, borderWidth: 1, borderColor: '#ccc', borderRadius: 4 }}
                   placeholder="e.g. PPL, Upper/Lower"
                   value={editingSplit?.name || ''}
                   onChangeText={v => setEditingSplit((prev: any) => ({ ...prev, name: v }))}
                   returnKeyType="done"
                   onSubmitEditing={() => Keyboard.dismiss()}
+                  multiline
+                  numberOfLines={3}
                 />
                 
                 <Text style={{ marginBottom: 4, fontWeight: '500' }}>Mode:</Text>
