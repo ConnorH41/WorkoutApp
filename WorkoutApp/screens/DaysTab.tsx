@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert, Keyboard } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
 
@@ -171,6 +171,8 @@ export default function DaysTab() {
           placeholder="Add new day (e.g. Upper A)"
           value={newDayName}
           onChangeText={setNewDayName}
+          returnKeyType="done"
+          onSubmitEditing={() => Keyboard.dismiss()}
         />
         <Button title={adding ? 'Adding...' : 'Add'} onPress={handleAddDay} disabled={adding} />
       </View>
@@ -188,6 +190,8 @@ export default function DaysTab() {
                     style={styles.input}
                     value={editingDayName}
                     onChangeText={setEditingDayName}
+                    returnKeyType="done"
+                    onSubmitEditing={() => Keyboard.dismiss()}
                   />
                   <Button title="Save" onPress={handleSaveEditDay} />
                   <Button title="Cancel" onPress={() => setEditingDayId(null)} />
@@ -221,6 +225,8 @@ export default function DaysTab() {
                           placeholder="Exercise name"
                           value={newExercise.name}
                           onChangeText={v => setNewExercise(e => ({ ...e, name: v }))}
+                          returnKeyType="done"
+                          onSubmitEditing={() => Keyboard.dismiss()}
                         />
                         <TextInput
                           style={styles.input}
@@ -228,6 +234,8 @@ export default function DaysTab() {
                           value={newExercise.sets}
                           onChangeText={v => setNewExercise(e => ({ ...e, sets: v }))}
                           keyboardType="numeric"
+                          returnKeyType="done"
+                          onSubmitEditing={() => Keyboard.dismiss()}
                         />
                         <TextInput
                           style={styles.input}
@@ -235,6 +243,8 @@ export default function DaysTab() {
                           value={newExercise.reps}
                           onChangeText={v => setNewExercise(e => ({ ...e, reps: v }))}
                           keyboardType="numeric"
+                          returnKeyType="done"
+                          onSubmitEditing={() => Keyboard.dismiss()}
                         />
                       </View>
                       <TextInput
@@ -242,6 +252,8 @@ export default function DaysTab() {
                         placeholder="Notes (optional)"
                         value={newExercise.notes}
                         onChangeText={v => setNewExercise(e => ({ ...e, notes: v }))}
+                        returnKeyType="done"
+                        onSubmitEditing={() => Keyboard.dismiss()}
                       />
                       <Button title={addingEx ? 'Adding...' : 'Add Exercise'} onPress={handleAddExercise} disabled={addingEx} />
                       {exLoading ? <Text>Loading...</Text> : (
@@ -256,23 +268,31 @@ export default function DaysTab() {
                                     style={styles.input}
                                     value={editingEx.name}
                                     onChangeText={v => setEditingEx(e => ({ ...e, name: v }))}
+                                    returnKeyType="done"
+                                    onSubmitEditing={() => Keyboard.dismiss()}
                                   />
                                   <TextInput
                                     style={styles.input}
                                     value={editingEx.sets}
                                     onChangeText={v => setEditingEx(e => ({ ...e, sets: v }))}
                                     keyboardType="numeric"
+                                    returnKeyType="done"
+                                    onSubmitEditing={() => Keyboard.dismiss()}
                                   />
                                   <TextInput
                                     style={styles.input}
                                     value={editingEx.reps}
                                     onChangeText={v => setEditingEx(e => ({ ...e, reps: v }))}
                                     keyboardType="numeric"
+                                    returnKeyType="done"
+                                    onSubmitEditing={() => Keyboard.dismiss()}
                                   />
                                   <TextInput
                                     style={styles.input}
                                     value={editingEx.notes}
                                     onChangeText={v => setEditingEx(e => ({ ...e, notes: v }))}
+                                    returnKeyType="done"
+                                    onSubmitEditing={() => Keyboard.dismiss()}
                                   />
                                   <Button title="Save" onPress={handleSaveEditExercise} />
                                   <Button title="Cancel" onPress={() => setEditingExId(null)} />

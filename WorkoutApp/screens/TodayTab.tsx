@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Button, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Button, FlatList, ActivityIndicator, Alert, Keyboard } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
 
@@ -172,6 +172,8 @@ export default function TodayTab() {
           value={bodyweight}
           onChangeText={setBodyweight}
           keyboardType="numeric"
+          returnKeyType="done"
+          onSubmitEditing={() => Keyboard.dismiss()}
         />
         <Button title={submitting ? 'Logging...' : 'Log'} onPress={handleLogBodyweight} disabled={submitting} />
       </View>
@@ -205,6 +207,8 @@ export default function TodayTab() {
                 value={logs[item.id]?.sets || ''}
                 onChangeText={(v) => handleLogChange(item.id, 'sets', v)}
                 keyboardType="numeric"
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
               />
               <TextInput
                 style={styles.input}
@@ -212,6 +216,8 @@ export default function TodayTab() {
                 value={logs[item.id]?.reps || ''}
                 onChangeText={(v) => handleLogChange(item.id, 'reps', v)}
                 keyboardType="numeric"
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
               />
               <TextInput
                 style={styles.input}
@@ -219,12 +225,16 @@ export default function TodayTab() {
                 value={logs[item.id]?.weight || ''}
                 onChangeText={(v) => handleLogChange(item.id, 'weight', v)}
                 keyboardType="numeric"
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Notes (optional)"
                 value={logs[item.id]?.notes || ''}
                 onChangeText={(v) => handleLogChange(item.id, 'notes', v)}
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
               />
               <Button
                 title={savingLog ? 'Saving...' : 'Save Log'}

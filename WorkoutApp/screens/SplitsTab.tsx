@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert, Modal, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert, Modal, Platform, Keyboard } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
@@ -935,6 +935,8 @@ export default function SplitsTab() {
                   value={numRotations}
                   onChangeText={setNumRotations}
                   keyboardType="numeric"
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
                 />
               </>
             )}
@@ -1040,6 +1042,8 @@ export default function SplitsTab() {
                   placeholder="e.g. PPL, Upper/Lower"
                   value={newSplit.name}
                   onChangeText={v => setNewSplit(s => ({ ...s, name: v }))}
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
                 />
                 
                 <Text style={{ marginBottom: 4, fontWeight: '500' }}>Mode:</Text>
@@ -1264,6 +1268,8 @@ export default function SplitsTab() {
                   placeholder="e.g. PPL, Upper/Lower"
                   value={editingSplit?.name || ''}
                   onChangeText={v => setEditingSplit((prev: any) => ({ ...prev, name: v }))}
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
                 />
                 
                 <Text style={{ marginBottom: 4, fontWeight: '500' }}>Mode:</Text>
