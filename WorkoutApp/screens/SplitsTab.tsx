@@ -73,12 +73,13 @@ export default function SplitsTab() {
   const [splitEndDate, setSplitEndDate] = useState<string | null>(null);
   const [showSetModal, setShowSetModal] = useState(false);
   const [pendingSplit, setPendingSplit] = useState<any>(null);
+  const [pendingRotationLength, setPendingRotationLength] = useState<number | null>(null);
   const [calendarDate, setCalendarDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
-  const [numRotations, setNumRotations] = useState('1');
+  // number of rotations is auto-calculated for rotation-mode when scheduling
   // UX: optional duration in weeks (can be fractional). If null, duration is auto-calculated from start/end.
   const [durationWeeks, setDurationWeeks] = useState<number | null>(4);
   const [endManuallyEdited, setEndManuallyEdited] = useState(false);
@@ -122,8 +123,36 @@ export default function SplitsTab() {
 
 
   // Open modal to set current split
-  const handleSetCurrentSplit = (split: any) => {
+  const handleSetCurrentSplit = async (split: any) => {
     setPendingSplit(split);
+    // If rotation mode, fetch split_days to determine rotation length (number of slots)
+    if (split?.mode === 'rotation') {
+      try {
+        const { data: sdData, error: sdError } = await supabase
+          .from('split_days')
+          .select('*')
+          .eq('split_id', split.id)
+          .order('order_index', { ascending: true });
+        if (!sdError && sdData) {
+          // Determine length from max order_index or count
+          const withIndex = sdData.filter((sd: any) => sd.order_index !== null && sd.order_index !== undefined);
+          if (withIndex.length > 0) {
+            const maxIndex = Math.max(...withIndex.map((sd: any) => sd.order_index ?? 0));
+            setPendingRotationLength(maxIndex + 1);
+          } else if (sdData.length > 0) {
+            setPendingRotationLength(sdData.length);
+          } else {
+            setPendingRotationLength(3);
+          }
+        } else {
+          setPendingRotationLength(3);
+        }
+      } catch (e) {
+        setPendingRotationLength(3);
+      }
+    } else {
+      setPendingRotationLength(null);
+    }
     // If this split is currently active, prefill with the active run dates
     if (isSplitCurrentlyActive(split.id) && splitStartDate) {
       const s = new Date(splitStartDate);
@@ -145,7 +174,7 @@ export default function SplitsTab() {
         setDurationWeeks(-1);
       }
       setEndManuallyEdited(false);
-      setNumRotations('1');
+  // reset rotations placeholder
       setShowSetModal(true);
       return;
     }
@@ -157,7 +186,7 @@ export default function SplitsTab() {
   setDurationWeeks(defaultWeeks);
     setEndDate(getEndDateForWeeks(defaultStart, defaultWeeks));
     setEndManuallyEdited(false);
-    setNumRotations('1');
+  // reset rotations placeholder
     setShowSetModal(true);
   };
 
@@ -251,7 +280,18 @@ export default function SplitsTab() {
           await fetchActiveRun();
         }
       } else {
-        await safeStorage.setItem('splitNumRotations', numRotations);
+        // For rotation mode, compute number of rotations from calendarDate->endDate range and rotation length
+        let computedRotations = 1;
+        if (calendarDate && endDate && pendingRotationLength && pendingRotationLength > 0) {
+          const msPerDay = 24 * 60 * 60 * 1000;
+          const s = new Date(calendarDate);
+          s.setHours(0, 0, 0, 0);
+          const e = new Date(endDate);
+          e.setHours(0, 0, 0, 0);
+          const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
+          computedRotations = Math.max(0, Math.floor(diffDays / pendingRotationLength));
+        }
+        await safeStorage.setItem('splitNumRotations', String(computedRotations));
         await safeStorage.removeItem('splitNumWeeks');
         // Persist to split_runs
         if (profile?.id) {
@@ -260,9 +300,9 @@ export default function SplitsTab() {
             split_id: pendingSplit.id,
             user_id: profile.id,
             start_date: toDateOnly(calendarDate),
-            end_date: null,
+            end_date: endDate ? toDateOnly(endDate) : null,
             num_weeks: null,
-            num_rotations: parseInt(numRotations, 10) || 1,
+            num_rotations: computedRotations || 1,
             active: true,
           });
           await fetchActiveRun();
@@ -379,6 +419,7 @@ export default function SplitsTab() {
     setShowEndPicker,
     durationWeeks,
     setDurationWeeks,
+    rotationLength,
   }: any) => {
     const computedWeeks = (() => {
       if (!startDate || !endDate) return 0;
@@ -417,7 +458,6 @@ export default function SplitsTab() {
               if (date) {
                 setStartDate(date);
                 if (durationWeeks !== null && durationWeeks !== -1) {
-                  // compute end date from fractional weeks
                   const days = durationWeeks * 7 - 1;
                   setEndDate(addDaysFloat(date, days));
                 }
@@ -427,74 +467,93 @@ export default function SplitsTab() {
           />
         )}
 
-            {mode === 'week' && (
-          <>
-            <Text style={{ marginBottom: 4, fontWeight: '500' }}>End Date:</Text>
-            <TouchableOpacity
-              style={{ padding: 10, backgroundColor: '#eee', borderRadius: 6, marginBottom: 8 }}
-                  onPress={() => { setShowEndPicker((v: boolean) => !v); setShowStartPicker(false); }}
-            >
-                  <Text>{endDate ? endDate.toDateString() : 'Select end date'}</Text>
-            </TouchableOpacity>
-            {showEndPicker && (
-              <DateTimePicker
-                    value={endDate ?? startDate ?? getNextMonday(new Date())}
-                mode="date"
-                display={Platform.OS === 'ios' ? (iosInlineSupported ? 'inline' : 'spinner') : 'calendar'}
-                // @ts-ignore: iOS specific prop
-                preferredDatePickerStyle={iosInlineSupported ? 'inline' : undefined}
-                // @ts-ignore: iOS specific prop
-                themeVariant={Platform.OS === 'ios' ? 'light' : undefined}
-                onChange={(event, date) => {
-                  if (Platform.OS === 'android') setShowEndPicker(false);
-                  if (date) {
-                    setEndDate(date);
-                    setDurationWeeks(null);
-                  }
-                }}
-                style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', maxWidth: 320, height: iosInlineSupported ? 200 : undefined }}
-              />
-            )}
+        <Text style={{ marginBottom: 4, fontWeight: '500' }}>End Date:</Text>
+        <TouchableOpacity
+          style={{ padding: 10, backgroundColor: '#eee', borderRadius: 6, marginBottom: 8 }}
+          onPress={() => { setShowEndPicker((v: boolean) => !v); setShowStartPicker(false); }}
+        >
+          <Text>{endDate ? endDate.toDateString() : 'Select end date'}</Text>
+        </TouchableOpacity>
+        {showEndPicker && (
+          <DateTimePicker
+            value={endDate ?? startDate ?? getNextMonday(new Date())}
+            mode="date"
+            display={Platform.OS === 'ios' ? (iosInlineSupported ? 'inline' : 'spinner') : 'calendar'}
+            // @ts-ignore: iOS specific prop
+            preferredDatePickerStyle={iosInlineSupported ? 'inline' : undefined}
+            // @ts-ignore: iOS specific prop
+            themeVariant={Platform.OS === 'ios' ? 'light' : undefined}
+            onChange={(event, date) => {
+              if (Platform.OS === 'android') setShowEndPicker(false);
+              if (date) {
+                setEndDate(date);
+                setDurationWeeks(null);
+              }
+            }}
+            style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', maxWidth: 320, height: iosInlineSupported ? 200 : undefined }}
+          />
+        )}
 
-            <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Duration (weeks):</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-              <TextInput
-                placeholder="e.g. 4 or 4.5 (leave blank to auto-calc)"
-                style={[styles.input, { flex: 1, marginRight: 8 }]}
-                value={durationWeeks === null || durationWeeks === -1 ? '' : String(durationWeeks)}
-                onChangeText={(text) => {
-                  if (text.trim() === '') {
-                    setDurationWeeks(null);
-                    return;
-                  }
-                  const parsed = parseFloat(text);
-                  if (!isNaN(parsed)) {
-                    setDurationWeeks(parsed);
-                    const baseStart = startDate ?? getNextMonday(new Date());
-                    const days = parsed * 7 - 1;
-                    setEndDate(addDaysFloat(baseStart, days));
-                    if (!startDate) setStartDate(baseStart);
-                  }
-                }}
-                keyboardType="numeric"
-              />
-              <Text style={{ marginHorizontal: 6, color: '#666', fontWeight: '600' }}>or</Text>
-              <TouchableOpacity
-                style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: durationWeeks === -1 ? '#007AFF' : '#e0e0e0' }}
-                onPress={() => {
-                  if (durationWeeks === -1) {
-                    setDurationWeeks(null);
-                  } else {
-                    setDurationWeeks(-1);
-                    setEndDate(null);
-                    if (!startDate) setStartDate(getNextMonday(new Date()));
-                  }
-                }}
-              >
-                <Text style={{ color: durationWeeks === -1 ? '#fff' : '#333', fontWeight: '700' }}>Forever</Text>
-              </TouchableOpacity>
-            </View>
-                {endBeforeStart && <Text style={{ color: 'red', marginBottom: 8 }}>End date must be the same or after start date.</Text>}
+        <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Duration (weeks):</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          <TextInput
+            placeholder="e.g. 4 or 4.5 (leave blank to auto-calc)"
+            style={[styles.input, { flex: 1, marginRight: 8 }]}
+            value={durationWeeks === null || durationWeeks === -1 ? '' : String(durationWeeks)}
+            onChangeText={(text) => {
+              if (text.trim() === '') {
+                setDurationWeeks(null);
+                return;
+              }
+              const parsed = parseFloat(text);
+              if (!isNaN(parsed)) {
+                setDurationWeeks(parsed);
+                const baseStart = startDate ?? getNextMonday(new Date());
+                const days = parsed * 7 - 1;
+                setEndDate(addDaysFloat(baseStart, days));
+                if (!startDate) setStartDate(baseStart);
+              }
+            }}
+            keyboardType="numeric"
+          />
+          <Text style={{ marginHorizontal: 6, color: '#666', fontWeight: '600' }}>or</Text>
+          <TouchableOpacity
+            style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: durationWeeks === -1 ? '#007AFF' : '#e0e0e0' }}
+            onPress={() => {
+              if (durationWeeks === -1) {
+                setDurationWeeks(null);
+              } else {
+                setDurationWeeks(-1);
+                setEndDate(null);
+                if (!startDate) setStartDate(getNextMonday(new Date()));
+              }
+            }}
+          >
+            <Text style={{ color: durationWeeks === -1 ? '#fff' : '#333', fontWeight: '700' }}>Forever</Text>
+          </TouchableOpacity>
+        </View>
+        {endBeforeStart && <Text style={{ color: 'red', marginBottom: 8 }}>End date must be the same or after start date.</Text>}
+
+        {mode === 'rotation' && (
+          <>
+            <Text style={{ marginBottom: 4, fontWeight: '500' }}>Number of Rotations (auto-calculated):</Text>
+            <TextInput
+              style={[styles.input, { marginBottom: 8 }]}
+              value={(() => {
+                if (!startDate || !endDate) return '';
+                const msPerDay = 24 * 60 * 60 * 1000;
+                const s = new Date(startDate);
+                s.setHours(0, 0, 0, 0);
+                const e = new Date(endDate);
+                e.setHours(0, 0, 0, 0);
+                const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
+                if (diffDays <= 0) return '';
+                const rotLen = rotationLength || 3;
+                const rotations = Math.floor(diffDays / rotLen) || 0;
+                return String(rotations || 0);
+              })()}
+              editable={false}
+            />
           </>
         )}
       </View>
@@ -913,32 +972,43 @@ export default function SplitsTab() {
           <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: 320, maxWidth: '90%' }}>
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Schedule Split</Text>
             
-            {pendingSplit?.mode === 'week' ? (
-              <ScheduleEditor
-                mode={pendingSplit.mode}
-                startDate={calendarDate}
-                setStartDate={setCalendarDate}
-                endDate={endDate}
-                setEndDate={setEndDate}
-                showStartPicker={showStartPicker}
-                setShowStartPicker={setShowStartPicker}
-                showEndPicker={showEndPicker}
-                setShowEndPicker={setShowEndPicker}
-                durationWeeks={durationWeeks}
-                setDurationWeeks={setDurationWeeks}
-              />
-            ) : (
-              <>
-                <Text style={{ marginBottom: 4 }}>Number of Rotations:</Text>
+            <ScheduleEditor
+              mode={pendingSplit?.mode}
+              startDate={calendarDate}
+              setStartDate={setCalendarDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+              showStartPicker={showStartPicker}
+              setShowStartPicker={setShowStartPicker}
+              showEndPicker={showEndPicker}
+              setShowEndPicker={setShowEndPicker}
+              durationWeeks={durationWeeks}
+              setDurationWeeks={setDurationWeeks}
+              rotationLength={pendingRotationLength}
+            />
+
+            {pendingSplit?.mode === 'rotation' && (
+              <View style={{ marginTop: 8 }}>
+                <Text style={{ marginBottom: 4 }}>Number of Rotations (auto-calculated):</Text>
                 <TextInput
                   style={[styles.input, { marginBottom: 12 }]}
-                  value={numRotations}
-                  onChangeText={setNumRotations}
-                  keyboardType="numeric"
-                  returnKeyType="done"
-                  onSubmitEditing={() => Keyboard.dismiss()}
+                  value={(() => {
+                    // If no endDate but durationWeeks === -1 (forever), show empty
+                    if (!calendarDate || !endDate) return '';
+                    const msPerDay = 24 * 60 * 60 * 1000;
+                    const s = new Date(calendarDate);
+                    s.setHours(0, 0, 0, 0);
+                    const e = new Date(endDate);
+                    e.setHours(0, 0, 0, 0);
+                    const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
+                    if (diffDays <= 0) return '';
+                    const rotationLen = pendingRotationLength || 3;
+                    const rotations = Math.floor(diffDays / rotationLen) || 0;
+                    return String(rotations || 0);
+                  })()}
+                  editable={false}
                 />
-              </>
+              </View>
             )}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
               <View style={{ flex: 1, marginRight: 8 }}>
@@ -1184,6 +1254,7 @@ export default function SplitsTab() {
                 setShowEndPicker={setShowNewSplitEndPicker}
                 durationWeeks={newSplitDurationWeeks}
                 setDurationWeeks={setNewSplitDurationWeeks}
+                rotationLength={newSplitRotationLength}
               />
             )}
 
