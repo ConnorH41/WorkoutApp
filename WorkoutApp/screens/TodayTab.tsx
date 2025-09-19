@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Button, ScrollView, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity } from 'react-native';
 import ModalButtons from '../components/ModalButtons';
+import { Feather } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
 
@@ -21,6 +22,8 @@ export default function TodayTab() {
   const [splitDayName, setSplitDayName] = useState<string | null>(null);
   const [logs, setLogs] = useState<{ [exerciseId: string]: Array<{ setNumber: number; reps: string; weight: string }> }>({});
   const [notesByExercise, setNotesByExercise] = useState<{ [exerciseId: string]: string }>({});
+  const [nameByExercise, setNameByExercise] = useState<{ [exerciseId: string]: string }>({});
+  const [editingByExercise, setEditingByExercise] = useState<{ [exerciseId: string]: boolean }>({});
   const [creatingWorkout, setCreatingWorkout] = useState(false);
   const [savingLog, setSavingLog] = useState(false);
 
@@ -30,6 +33,18 @@ export default function TodayTab() {
       fetchActiveSplitRun();
     }
   }, [profile?.id]);
+
+  // initialize nameByExercise from exercises when they change
+  useEffect(() => {
+    const map: { [k: string]: string } = {};
+    exercises.forEach(ex => { if (ex && ex.id) map[ex.id] = ex.name; });
+    splitDayExercises.forEach(ex => { if (ex && ex.id) map[ex.id] = ex.name; });
+    setNameByExercise(prev => ({ ...map, ...prev }));
+    // ensure editing flags exist (default false)
+    const editMap: { [k: string]: boolean } = {};
+    Object.keys(map).forEach(k => { editMap[k] = false; });
+    setEditingByExercise(prev => ({ ...editMap, ...prev }));
+  }, [exercises, splitDayExercises]);
 
   // Fetch currently active split_run for the user and load the day template/exercises
   const fetchActiveSplitRun = async () => {
@@ -211,6 +226,37 @@ export default function TodayTab() {
     }
   };
 
+  // Create a new exercise row when the user renames a card to a new name
+  const createExercise = async (originalExercise: any, newName: string) => {
+    if (!profile || !profile.id) return null;
+    // Determine day_id to attach the exercise to: prefer today's workout.day_id, fallback to original's day_id
+    const dayId = todayWorkout?.day_id || originalExercise?.day_id || null;
+    try {
+      const payload: any = {
+        name: newName,
+        user_id: profile.id,
+        day_id: dayId,
+        sets: originalExercise?.sets || 3,
+        reps: originalExercise?.reps || 8,
+      };
+      const { data, error } = await supabase.from('exercises').insert([payload]).select().limit(1);
+      if (error) {
+        Alert.alert('Error', error.message);
+        return null;
+      }
+      if (data && data.length > 0) {
+        const ex = data[0];
+        // update local exercises list
+        setExercises(prev => [...prev, ex]);
+        ensureSetsForExercise(ex);
+        return ex;
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message || String(e));
+    }
+    return null;
+  };
+
   // Manage per-exercise set rows
   const addSetRow = (exerciseId: string) => {
     setLogs(prev => {
@@ -277,6 +323,16 @@ export default function TodayTab() {
           return;
         }
       }
+      // If the displayed name has been changed, create a new exercise and use its id
+      const displayedName = nameByExercise[exerciseId];
+      const originalExercise = exercises.find(e => e.id === exerciseId) || splitDayExercises.find(e => e.id === exerciseId);
+      let targetExerciseId = exerciseId;
+      if (displayedName && originalExercise && displayedName.trim() !== originalExercise.name) {
+        const created = await createExercise(originalExercise, displayedName.trim());
+        if (created && created.id) {
+          targetExerciseId = created.id;
+        }
+      }
       const setRows = logs[exerciseId] || [];
       if (setRows.length === 0) {
         Alert.alert('No sets', 'Please add at least one set to save.');
@@ -292,7 +348,7 @@ export default function TodayTab() {
       setSavingLog(true);
       const payload = setRows.map(r => ({
         workout_id: workout.id,
-        exercise_id: exerciseId,
+        exercise_id: targetExerciseId,
         set_number: r.setNumber,
         reps: parseInt(r.reps, 10),
         weight: parseFloat(r.weight),
@@ -422,7 +478,18 @@ export default function TodayTab() {
               <View style={styles.goalBadge}>
                 <Text style={styles.goalBadgeText}>{`${item.sets}×${item.reps}`}</Text>
               </View>
-              <Text style={styles.exerciseTitle}>{item.name}</Text>
+              <View style={styles.titleRow}>
+                {!editingByExercise[item.id] ? (
+                  <>
+                    <Text style={styles.exerciseTitle}>{nameByExercise[item.id] || item.name}</Text>
+                    <TouchableOpacity style={styles.editPencil} onPress={() => setEditingByExercise(prev => ({ ...prev, [item.id]: true }))}>
+                      <Feather name="edit-2" size={16} color="#666" />
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <TextInput value={nameByExercise[item.id] || item.name} onChangeText={(v) => setNameByExercise(prev => ({ ...prev, [item.id]: v }))} style={styles.exerciseTitleInput} autoFocus onBlur={() => setEditingByExercise(prev => ({ ...prev, [item.id]: false }))} />
+                )}
+              </View>
               {(logs[item.id] || [{ setNumber: 1, reps: '', weight: '' }]).map((s, idx) => (
                 <View key={`${item.id}-set-${idx}`} style={styles.setRow}>
                   <Text style={styles.setLabel}>{`Set ${s.setNumber}`}</Text>
@@ -456,7 +523,18 @@ export default function TodayTab() {
               <View style={styles.goalBadge}>
                 <Text style={styles.goalBadgeText}>{`${item.sets}×${item.reps}`}</Text>
               </View>
-              <Text style={styles.exerciseTitle}>{item.name}</Text>
+              <View style={styles.titleRow}>
+                {!editingByExercise[item.id] ? (
+                  <>
+                    <Text style={styles.exerciseTitle}>{nameByExercise[item.id] || item.name}</Text>
+                    <TouchableOpacity style={styles.editPencil} onPress={() => setEditingByExercise(prev => ({ ...prev, [item.id]: true }))}>
+                      <Feather name="edit-2" size={16} color="#666" />
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <TextInput value={nameByExercise[item.id] || item.name} onChangeText={(v) => setNameByExercise(prev => ({ ...prev, [item.id]: v }))} style={styles.exerciseTitleInput} autoFocus onBlur={() => setEditingByExercise(prev => ({ ...prev, [item.id]: false }))} />
+                )}
+              </View>
               {/* Per-set rows */}
               {(logs[item.id] || [{ setNumber: 1, reps: '', weight: '' }]).map((s, idx) => (
                 <View key={`${item.id}-set-${idx}`} style={styles.setRow}>
@@ -695,5 +773,29 @@ const styles = StyleSheet.create({
   saveButtonWrap: {
     marginTop: 10,
     alignSelf: 'flex-start',
+  },
+  exerciseTitleInput: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'transparent',
+    paddingVertical: 2,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  editPencil: {
+    marginLeft: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#eee',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editPencilText: {
+    fontSize: 14,
   },
 });
