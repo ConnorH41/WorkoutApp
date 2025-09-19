@@ -229,6 +229,17 @@ export default function TodayTab() {
     });
   };
 
+  const confirmRemoveSetRow = (exerciseId: string, index: number) => {
+    Alert.alert(
+      'Remove Set',
+      'Are you sure you want to remove this set?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: () => removeSetRow(exerciseId, index) },
+      ],
+    );
+  };
+
   const handleSetChange = (exerciseId: string, index: number, field: 'reps' | 'weight', value: string) => {
     setLogs(prev => {
       const arr = prev[exerciseId] ? [...prev[exerciseId]] : [];
@@ -413,20 +424,22 @@ export default function TodayTab() {
               </View>
               <Text style={styles.exerciseTitle}>{item.name}</Text>
               {(logs[item.id] || [{ setNumber: 1, reps: '', weight: '' }]).map((s, idx) => (
-                <View key={`${item.id}-set-${idx}`} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                  <Text style={{ width: 56, fontWeight: '600' }}>{`Set ${s.setNumber}`}</Text>
-                  <TextInput style={[styles.input, { width: 100 }]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => handleSetChange(item.id, idx, 'weight', v)} />
-                  <TextInput style={[styles.input, { width: 80, marginLeft: 8 }]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => handleSetChange(item.id, idx, 'reps', v)} />
-                  <TouchableOpacity onPress={() => removeSetRow(item.id, idx)} style={styles.removeBtn}>
+                <View key={`${item.id}-set-${idx}`} style={styles.setRow}>
+                  <Text style={styles.setLabel}>{`Set ${s.setNumber}`}</Text>
+                  <TextInput style={[styles.input, styles.inputWeight]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => handleSetChange(item.id, idx, 'weight', v)} />
+                  <TextInput style={[styles.input, styles.inputReps]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => handleSetChange(item.id, idx, 'reps', v)} />
+                  <TouchableOpacity onPress={() => confirmRemoveSetRow(item.id, idx)} style={styles.removeBtn}>
                     <Text style={styles.removeBtnText}>-</Text>
                   </TouchableOpacity>
                 </View>
               ))}
-              <TouchableOpacity onPress={() => addSetRow(item.id)} style={{ marginBottom: 8 }}>
-                <Text style={{ color: '#007AFF', fontWeight: '700' }}>+ Add Set</Text>
+              <TouchableOpacity onPress={() => addSetRow(item.id)} style={styles.addSetLink}>
+                <Text style={styles.addSetText}>+ Add Set</Text>
               </TouchableOpacity>
-              <TextInput style={[styles.input, styles.textInputMultiline]} placeholder="Notes (optional)" value={notesByExercise[item.id] || ''} onChangeText={(v) => handleNotesChange(item.id, v)} multiline numberOfLines={3} />
-              <Button title={savingLog ? 'Saving...' : 'Save Sets'} onPress={() => saveSetsForExercise(item.id)} disabled={savingLog} />
+              <TextInput style={[styles.input, styles.textInputMultiline, styles.notesInput]} placeholder="Notes (optional)" value={notesByExercise[item.id] || ''} onChangeText={(v) => handleNotesChange(item.id, v)} multiline numberOfLines={3} />
+              <View style={styles.saveButtonWrap}>
+                <Button title={savingLog ? 'Saving...' : 'Save Sets'} onPress={() => saveSetsForExercise(item.id)} disabled={savingLog} />
+              </View>
             </View>
           ))}
         </View>
@@ -446,20 +459,22 @@ export default function TodayTab() {
               <Text style={styles.exerciseTitle}>{item.name}</Text>
               {/* Per-set rows */}
               {(logs[item.id] || [{ setNumber: 1, reps: '', weight: '' }]).map((s, idx) => (
-                <View key={`${item.id}-set-${idx}`} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                  <Text style={{ width: 56, fontWeight: '600' }}>{`Set ${s.setNumber}`}</Text>
-                  <TextInput style={[styles.input, { width: 100 }]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => handleSetChange(item.id, idx, 'weight', v)} />
-                  <TextInput style={[styles.input, { width: 80, marginLeft: 8 }]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => handleSetChange(item.id, idx, 'reps', v)} />
-                  <TouchableOpacity onPress={() => removeSetRow(item.id, idx)} style={styles.removeBtn}>
+                <View key={`${item.id}-set-${idx}`} style={styles.setRow}>
+                  <Text style={styles.setLabel}>{`Set ${s.setNumber}`}</Text>
+                  <TextInput style={[styles.input, styles.inputWeight]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => handleSetChange(item.id, idx, 'weight', v)} />
+                  <TextInput style={[styles.input, styles.inputReps]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => handleSetChange(item.id, idx, 'reps', v)} />
+                  <TouchableOpacity onPress={() => confirmRemoveSetRow(item.id, idx)} style={styles.removeBtn}>
                     <Text style={styles.removeBtnText}>-</Text>
                   </TouchableOpacity>
                 </View>
               ))}
-              <TouchableOpacity onPress={() => addSetRow(item.id)} style={{ marginBottom: 8 }}>
-                <Text style={{ color: '#007AFF', fontWeight: '700' }}>+ Add Set</Text>
+              <TouchableOpacity onPress={() => addSetRow(item.id)} style={styles.addSetLink}>
+                <Text style={styles.addSetText}>+ Add Set</Text>
               </TouchableOpacity>
-              <TextInput style={[styles.input, styles.textInputMultiline]} placeholder="Notes (optional)" value={notesByExercise[item.id] || ''} onChangeText={(v) => handleNotesChange(item.id, v)} multiline numberOfLines={3} />
-              <Button title={savingLog ? 'Saving...' : 'Save Sets'} onPress={() => saveSetsForExercise(item.id)} disabled={savingLog} />
+              <TextInput style={[styles.input, styles.textInputMultiline, styles.notesInput]} placeholder="Notes (optional)" value={notesByExercise[item.id] || ''} onChangeText={(v) => handleNotesChange(item.id, v)} multiline numberOfLines={3} />
+              <View style={styles.saveButtonWrap}>
+                <Button title={savingLog ? 'Saving...' : 'Save Sets'} onPress={() => saveSetsForExercise(item.id)} disabled={savingLog} />
+              </View>
             </View>
           ))}
         </View>
@@ -641,16 +656,44 @@ const styles = StyleSheet.create({
   },
   removeBtn: {
     marginLeft: 8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#ff3b30',
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 0,
   },
   removeBtnText: {
-    color: '#fff',
+    color: '#ff3b30',
     fontWeight: '700',
     fontSize: 18,
+  },
+  setRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  setLabel: {
+    width: 64,
+    fontWeight: '600',
+    marginRight: 8,
+  },
+  inputWeight: {
+    width: 100,
+    marginRight: 8,
+  },
+  inputReps: {
+    width: 80,
+    marginRight: 8,
+  },
+  addSetLink: {
+    marginBottom: 8,
+  },
+  addSetText: {
+    color: '#007AFF',
+    fontWeight: '700',
+  },
+  notesInput: {
+    marginTop: 8,
+  },
+  saveButtonWrap: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
   },
 });
