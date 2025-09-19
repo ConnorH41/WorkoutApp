@@ -483,7 +483,7 @@ export default function TodayTab() {
                   <>
                     <Text style={styles.exerciseTitle}>{nameByExercise[item.id] || item.name}</Text>
                     <TouchableOpacity style={styles.editPencil} onPress={() => setEditingByExercise(prev => ({ ...prev, [item.id]: true }))}>
-                      <Feather name="edit-2" size={16} color="#666" />
+                      <Feather name="edit-2" size={14} color="#666" />
                     </TouchableOpacity>
                   </>
                 ) : (
@@ -528,7 +528,7 @@ export default function TodayTab() {
                   <>
                     <Text style={styles.exerciseTitle}>{nameByExercise[item.id] || item.name}</Text>
                     <TouchableOpacity style={styles.editPencil} onPress={() => setEditingByExercise(prev => ({ ...prev, [item.id]: true }))}>
-                      <Feather name="edit-2" size={16} color="#666" />
+                      <Feather name="edit-2" size={14} color="#666" />
                     </TouchableOpacity>
                   </>
                 ) : (
@@ -619,7 +619,7 @@ const styles = StyleSheet.create({
   exerciseTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: 0,
   },
   modalOverlay: {
     flex: 1,
@@ -785,13 +785,14 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 10,
   },
   editPencil: {
     marginLeft: 8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#eee',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#f2f2f2',
     alignItems: 'center',
     justifyContent: 'center',
   },
