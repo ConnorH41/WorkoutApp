@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Button, FlatList, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Button, ScrollView, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity } from 'react-native';
 import ModalButtons from '../components/ModalButtons';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
@@ -15,14 +15,101 @@ export default function TodayTab() {
   const [workoutLoading, setWorkoutLoading] = useState(false);
   const [todayWorkout, setTodayWorkout] = useState<any>(null);
   const [exercises, setExercises] = useState<any[]>([]);
-  const [logs, setLogs] = useState<{ [exerciseId: string]: { sets: string; reps: string; weight: string; notes: string } }>({});
+  const [activeSplitRun, setActiveSplitRun] = useState<any | null>(null);
+  const [splitTemplate, setSplitTemplate] = useState<any | null>(null);
+  const [splitDayExercises, setSplitDayExercises] = useState<any[]>([]);
+  const [splitDayName, setSplitDayName] = useState<string | null>(null);
+  const [logs, setLogs] = useState<{ [exerciseId: string]: Array<{ setNumber: number; reps: string; weight: string }> }>({});
+  const [notesByExercise, setNotesByExercise] = useState<{ [exerciseId: string]: string }>({});
+  const [creatingWorkout, setCreatingWorkout] = useState(false);
   const [savingLog, setSavingLog] = useState(false);
 
   useEffect(() => {
     if (profile && profile.id) {
       fetchTodayWorkout();
+      fetchActiveSplitRun();
     }
   }, [profile?.id]);
+
+  // Fetch currently active split_run for the user and load the day template/exercises
+  const fetchActiveSplitRun = async () => {
+    if (!profile || !profile.id) return;
+    try {
+      const { data } = await supabase
+        .from('split_runs')
+        .select('*')
+        .eq('user_id', profile.id)
+        .eq('active', true)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (!data || data.length === 0) {
+        setActiveSplitRun(null);
+        setSplitTemplate(null);
+        setSplitDayExercises([]);
+        setSplitDayName(null);
+        return;
+      }
+      const run = data[0];
+  setActiveSplitRun(run);
+  console.debug('Active split_run loaded:', run);
+
+      // load split template to know mode
+      const { data: splitData } = await supabase.from('splits').select('*').eq('id', run.split_id).limit(1);
+      const split = splitData && splitData.length > 0 ? splitData[0] : null;
+      setSplitTemplate(split);
+
+      // load split_days mapping for this split
+      const { data: sdData } = await supabase
+        .from('split_days')
+        .select('*')
+        .eq('split_id', run.split_id)
+        .order('order_index', { ascending: true });
+  const splitDays = sdData || [];
+  console.debug('Loaded split_days for split:', run.split_id, splitDays);
+
+      // Determine today's mapped day_id (week-mode only for now)
+      // We require an exact weekday match against `split_days.weekday` (0=Sunday..6=Saturday).
+      // Note: this uses the device local timezone via `getDay()`; adjust if you need server TZ.
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let mappedDayId: string | null = null;
+      if (split && typeof split.mode === 'string' && split.mode.toLowerCase().includes('week')) {
+        const wd = today.getDay();
+        console.debug('Today weekday index (0=Sun..6=Sat):', wd);
+        // Require exact match only (no fallback)
+        const match = splitDays.find((sd: any) => sd.weekday != null && Number(sd.weekday) === wd);
+        console.debug('Matched split_day for weekday lookup:', match);
+        if (match) {
+          mappedDayId = match.day_id;
+        } else {
+          console.debug(`No exact split_days.weekday match for today (weekday=${wd}).`);
+          mappedDayId = null;
+        }
+      }
+
+      if (mappedDayId) {
+        console.debug('Mapped day id for today:', mappedDayId);
+        // fetch day template and exercises
+        const { data: dayData } = await supabase.from('days').select('*').eq('id', mappedDayId).limit(1);
+        const day = dayData && dayData.length > 0 ? dayData[0] : null;
+  setSplitDayName(day ? day.name : null);
+  console.debug('Resolved split day:', day);
+
+  const { data: exData } = await supabase.from('exercises').select('*').eq('day_id', mappedDayId).order('created_at', { ascending: true });
+  console.debug('Fetched exercises for day_id', mappedDayId, exData);
+  setSplitDayExercises(exData || []);
+      } else {
+        console.debug('No mapped day found for this split run. splitDays:', splitDays);
+        setSplitDayExercises([]);
+        setSplitDayName(null);
+      }
+    } catch (e) {
+      setActiveSplitRun(null);
+      setSplitTemplate(null);
+      setSplitDayExercises([]);
+      setSplitDayName(null);
+    }
+  };
 
   
 
@@ -84,41 +171,122 @@ export default function TodayTab() {
     }
   };
 
-  // Handle logging sets/reps/weight/notes for an exercise
-  const handleLogChange = (exerciseId: string, field: string, value: string) => {
-    setLogs((prev) => ({
-      ...prev,
-      [exerciseId]: {
-        ...prev[exerciseId],
-        [field]: value,
-      },
-    }));
+  // Create a workout for today based on the scheduled day (if any)
+  const createWorkoutFromScheduledDay = async () => {
+    if (!profile || !profile.id || !splitDayName) return null;
+    setCreatingWorkout(true);
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const payload: any = { user_id: profile.id, date: today };
+      // If we have a mapped split day name and the day exists we can attach day_id after fetching it
+      // Try to resolve day by name
+      if (splitDayName) {
+        const { data: dayData } = await supabase.from('days').select('*').eq('name', splitDayName).limit(1);
+        if (dayData && dayData.length > 0) payload.day_id = dayData[0].id;
+      }
+      const { data, error } = await supabase.from('workouts').insert([payload]).select().limit(1);
+      setCreatingWorkout(false);
+      if (error) {
+        Alert.alert('Error', error.message);
+        return null;
+      }
+      if (data && data.length > 0) {
+        const w = data[0];
+        // refresh today's workout state
+        setTodayWorkout(w);
+        // fetch exercises for the workout's day_id if set
+        if (w.day_id) {
+          const { data: exData } = await supabase.from('exercises').select('*').eq('day_id', w.day_id);
+          setExercises(exData || []);
+        }
+        return w;
+      }
+      return null;
+    } catch (e: any) {
+      setCreatingWorkout(false);
+      return null;
+    }
   };
 
-  const handleSaveLog = async (exerciseId: string) => {
-    if (!todayWorkout || !profile || !profile.id) return;
-    const log = logs[exerciseId];
-    if (!log?.sets || !log?.reps || !log?.weight) {
-      Alert.alert('Missing fields', 'Please fill in sets, reps, and weight.');
-      return;
-    }
-    setSavingLog(true);
-    const { error } = await supabase.from('logs').insert({
-      workout_id: todayWorkout.id,
-      exercise_id: exerciseId,
-      set_number: parseInt(log.sets),
-      reps: parseInt(log.reps),
-      weight: parseFloat(log.weight),
-      notes: log.notes || '',
+  // Manage per-exercise set rows
+  const addSetRow = (exerciseId: string) => {
+    setLogs(prev => {
+      const arr = prev[exerciseId] ? [...prev[exerciseId]] : [];
+      arr.push({ setNumber: arr.length + 1, reps: '', weight: '' });
+      return { ...prev, [exerciseId]: arr };
     });
-    setSavingLog(false);
-    if (error) {
-      Alert.alert('Error', error.message);
-    } else {
-      Alert.alert('Success', 'Log saved!');
-      setLogs((prev) => ({ ...prev, [exerciseId]: { sets: '', reps: '', weight: '', notes: '' } }));
+  };
+
+  const removeSetRow = (exerciseId: string, index: number) => {
+    setLogs(prev => {
+      const arr = prev[exerciseId] ? [...prev[exerciseId]] : [];
+      arr.splice(index, 1);
+      arr.forEach((r, i) => (r.setNumber = i + 1));
+      return { ...prev, [exerciseId]: arr };
+    });
+  };
+
+  const handleSetChange = (exerciseId: string, index: number, field: 'reps' | 'weight', value: string) => {
+    setLogs(prev => {
+      const arr = prev[exerciseId] ? [...prev[exerciseId]] : [];
+      arr[index] = { ...(arr[index] || { setNumber: index + 1, reps: '', weight: '' }), [field]: value } as any;
+      return { ...prev, [exerciseId]: arr };
+    });
+  };
+
+  const handleNotesChange = (exerciseId: string, value: string) => {
+    setNotesByExercise(prev => ({ ...prev, [exerciseId]: value }));
+  };
+
+  // Save sets for an exercise; create workout first if missing
+  const saveSetsForExercise = async (exerciseId: string) => {
+    try {
+      let workout = todayWorkout;
+      if (!workout) {
+        workout = await createWorkoutFromScheduledDay();
+        if (!workout) {
+          Alert.alert('Error', 'Could not create workout for today');
+          return;
+        }
+      }
+      const setRows = logs[exerciseId] || [];
+      if (setRows.length === 0) {
+        Alert.alert('No sets', 'Please add at least one set to save.');
+        return;
+      }
+      // validate
+      for (const r of setRows) {
+        if (r.reps === '' || r.weight === '' || isNaN(Number(r.reps)) || isNaN(Number(r.weight))) {
+          Alert.alert('Invalid fields', 'Please enter numeric reps and weight for all sets.');
+          return;
+        }
+      }
+      setSavingLog(true);
+      const payload = setRows.map(r => ({
+        workout_id: workout.id,
+        exercise_id: exerciseId,
+        set_number: r.setNumber,
+        reps: parseInt(r.reps, 10),
+        weight: parseFloat(r.weight),
+        notes: notesByExercise[exerciseId] || '',
+      }));
+      const { error } = await supabase.from('logs').insert(payload);
+      setSavingLog(false);
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else {
+        Alert.alert('Saved', 'Sets saved successfully');
+        setLogs(prev => ({ ...prev, [exerciseId]: [] }));
+        setNotesByExercise(prev => ({ ...prev, [exerciseId]: '' }));
+      }
+    } catch (e: any) {
+      setSavingLog(false);
+      Alert.alert('Error', e.message || String(e));
     }
   };
+
+
+  
 
   // Complete/Rest button handlers
   const [completing, setCompleting] = useState(false);
@@ -158,7 +326,7 @@ export default function TodayTab() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
       <Text style={styles.title}>Today</Text>
       <Text style={styles.sectionTitle}>Bodyweight</Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
@@ -222,68 +390,66 @@ export default function TodayTab() {
       {workoutLoading ? (
         <ActivityIndicator />
       ) : todayWorkout && exercises.length > 0 ? (
-        <FlatList
-          data={exercises}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View style={styles.exerciseBox}>
+        <View>
+          {exercises.map((item) => (
+            <View key={item.id} style={styles.exerciseBox}>
               <Text style={styles.exerciseTitle}>{item.name}</Text>
               <Text>Goal: {item.sets} x {item.reps}</Text>
-              <TextInput
-                style={[styles.input, styles.textInput]}
-                placeholder="Sets"
-                value={logs[item.id]?.sets || ''}
-                onChangeText={(v) => handleLogChange(item.id, 'sets', v)}
-                keyboardType="numeric"
-                returnKeyType="done"
-                onSubmitEditing={() => Keyboard.dismiss()}
-              />
-              <TextInput
-                style={[styles.input, styles.textInput]}
-                placeholder="Reps"
-                value={logs[item.id]?.reps || ''}
-                onChangeText={(v) => handleLogChange(item.id, 'reps', v)}
-                keyboardType="numeric"
-                returnKeyType="done"
-                onSubmitEditing={() => Keyboard.dismiss()}
-              />
-              <TextInput
-                style={[styles.input, styles.textInput]}
-                placeholder="Weight (kg)"
-                value={logs[item.id]?.weight || ''}
-                onChangeText={(v) => handleLogChange(item.id, 'weight', v)}
-                keyboardType="numeric"
-                returnKeyType="done"
-                onSubmitEditing={() => Keyboard.dismiss()}
-              />
-              <TextInput
-                style={[styles.input, styles.textInputMultiline]}
-                placeholder="Notes (optional)"
-                value={logs[item.id]?.notes || ''}
-                onChangeText={(v) => handleLogChange(item.id, 'notes', v)}
-                returnKeyType="done"
-                onSubmitEditing={() => Keyboard.dismiss()}
-                multiline
-                numberOfLines={3}
-              />
-              <Button
-                title={savingLog ? 'Saving...' : 'Save Log'}
-                onPress={() => handleSaveLog(item.id)}
-                disabled={savingLog}
-              />
+              {(logs[item.id] || [{ setNumber: 1, reps: '', weight: '' }]).map((s, idx) => (
+                <View key={`${item.id}-set-${idx}`} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={{ width: 28 }}>{s.setNumber}.</Text>
+                  <TextInput style={[styles.input, { width: 80 }]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => handleSetChange(item.id, idx, 'reps', v)} />
+                  <TextInput style={[styles.input, { width: 100, marginLeft: 8 }]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => handleSetChange(item.id, idx, 'weight', v)} />
+                  <TouchableOpacity onPress={() => removeSetRow(item.id, idx)} style={{ marginLeft: 8 }}>
+                    <Text style={{ color: '#ff3b30' }}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+              <TouchableOpacity onPress={() => addSetRow(item.id)} style={{ marginBottom: 8 }}>
+                <Text style={{ color: '#007AFF', fontWeight: '700' }}>+ Add Set</Text>
+              </TouchableOpacity>
+              <TextInput style={[styles.input, styles.textInputMultiline]} placeholder="Notes (optional)" value={notesByExercise[item.id] || ''} onChangeText={(v) => handleNotesChange(item.id, v)} multiline numberOfLines={3} />
+              <Button title={savingLog ? 'Saving...' : 'Save Sets'} onPress={() => saveSetsForExercise(item.id)} disabled={savingLog} />
             </View>
-          )}
-        />
-      ) : todayWorkout ? (
+          ))}
+        </View>
+  ) : todayWorkout ? (
         <View style={{ marginVertical: 16 }}>
           <Text>No exercises for today's workout.</Text>
+        </View>
+      ) : (splitDayExercises.length > 0 ? (
+        <View>
+          <Text style={{ fontSize: 16, fontWeight: '700', marginBottom: 8 }}>{splitDayName ? `Scheduled: ${splitDayName}` : 'Scheduled Day'}</Text>
+          <Button title={todayWorkout ? 'Edit Workout' : creatingWorkout ? 'Creating...' : 'Create Today\'s Workout'} onPress={createWorkoutFromScheduledDay} disabled={creatingWorkout || !!todayWorkout} />
+          {splitDayExercises.map((item) => (
+            <View key={item.id} style={styles.exerciseBox}>
+              <Text style={styles.exerciseTitle}>{item.name}</Text>
+              <Text>Goal: {item.sets} x {item.reps}</Text>
+              {/* Per-set rows */}
+              {(logs[item.id] || [{ setNumber: 1, reps: '', weight: '' }]).map((s, idx) => (
+                <View key={`${item.id}-set-${idx}`} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={{ width: 28 }}>{s.setNumber}.</Text>
+                  <TextInput style={[styles.input, { width: 80 }]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => handleSetChange(item.id, idx, 'reps', v)} />
+                  <TextInput style={[styles.input, { width: 100, marginLeft: 8 }]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => handleSetChange(item.id, idx, 'weight', v)} />
+                  <TouchableOpacity onPress={() => removeSetRow(item.id, idx)} style={{ marginLeft: 8 }}>
+                    <Text style={{ color: '#ff3b30' }}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+              <TouchableOpacity onPress={() => addSetRow(item.id)} style={{ marginBottom: 8 }}>
+                <Text style={{ color: '#007AFF', fontWeight: '700' }}>+ Add Set</Text>
+              </TouchableOpacity>
+              <TextInput style={[styles.input, styles.textInputMultiline]} placeholder="Notes (optional)" value={notesByExercise[item.id] || ''} onChangeText={(v) => handleNotesChange(item.id, v)} multiline numberOfLines={3} />
+              <Button title={savingLog ? 'Saving...' : 'Save Sets'} onPress={() => saveSetsForExercise(item.id)} disabled={savingLog} />
+            </View>
+          ))}
         </View>
       ) : (
         <View style={{ marginVertical: 16 }}>
           <Text>No workout scheduled for today.</Text>
           <Button title={resting ? 'Logging...' : 'Log Rest Day'} onPress={handleRestDay} disabled={resting} />
         </View>
-      )}
+      ))}
 
       {todayWorkout && !todayWorkout.completed && (
         <Button
@@ -295,7 +461,7 @@ export default function TodayTab() {
       {todayWorkout && todayWorkout.completed && (
         <Text style={{ color: 'green', marginTop: 12 }}>Workout marked as complete!</Text>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
