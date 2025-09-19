@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert, Keyboard, Modal, Platform, ToastAndroid } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert, Keyboard, Modal, Platform, ToastAndroid, ScrollView } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
 
@@ -441,84 +441,86 @@ export default function DaysTab() {
         onRequestClose={() => setShowAddExerciseModal(false)}
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: 320, maxWidth: '90%' }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Add Exercise</Text>
-            
-            <Text style={{ marginBottom: 4, fontWeight: '500' }}>Exercise Name:</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Add Exercise</Text>
+              
+              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Exercise Name:</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <TextInput
+                  style={[styles.input, styles.textInput]}
+                  placeholder="e.g. Bench Press"
+                  value={newExercise.name}
+                  onChangeText={v => setNewExercise(e => ({ ...e, name: v }))}
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
+              </View>
+
+              <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={{ marginBottom: 4, fontWeight: '500' }}>Sets:</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
+                    <TextInput
+                      style={[styles.input, styles.textInput]}
+                      placeholder="3"
+                      value={newExercise.sets}
+                      onChangeText={v => setNewExercise(e => ({ ...e, sets: v }))}
+                      keyboardType="numeric"
+                      returnKeyType="done"
+                      onSubmitEditing={() => Keyboard.dismiss()}
+                    />
+                  </View>
+                </View>
+                <View style={{ flex: 1, marginLeft: 8 }}>
+                  <Text style={{ marginBottom: 4, fontWeight: '500' }}>Reps:</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
+                    <TextInput
+                      style={[styles.input, styles.textInput]}
+                      placeholder="8-12"
+                      value={newExercise.reps}
+                      onChangeText={v => setNewExercise(e => ({ ...e, reps: v }))}
+                      keyboardType="numeric"
+                      returnKeyType="done"
+                      onSubmitEditing={() => Keyboard.dismiss()}
+                    />
+                  </View>
+                </View>
+              </View>
+
+              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Notes (optional):</Text>
               <TextInput
-                style={[styles.input, styles.textInput]}
-                placeholder="e.g. Bench Press"
-                value={newExercise.name}
-                onChangeText={v => setNewExercise(e => ({ ...e, name: v }))}
+                style={[styles.input, styles.textInputMultiline, { marginBottom: 16 }]}
+                placeholder="e.g. Focus on form, increase weight next week"
+                value={newExercise.notes}
+                onChangeText={v => setNewExercise(e => ({ ...e, notes: v }))}
                 returnKeyType="done"
                 onSubmitEditing={() => Keyboard.dismiss()}
+                multiline
+                numberOfLines={3}
               />
-            </View>
 
-            <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={{ marginBottom: 4, fontWeight: '500' }}>Sets:</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
-                  <TextInput
-                    style={[styles.input, styles.textInput]}
-                    placeholder="3"
-                    value={newExercise.sets}
-                    onChangeText={v => setNewExercise(e => ({ ...e, sets: v }))}
-                    keyboardType="numeric"
-                    returnKeyType="done"
-                    onSubmitEditing={() => Keyboard.dismiss()}
-                  />
-                </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: '#e0e0e0', flex: 1, marginRight: 8 }]}
+                  onPress={() => {
+                    setNewExercise({ name: '', sets: '', reps: '', notes: '' });
+                    setShowAddExerciseModal(false);
+                  }}
+                >
+                  <Text style={{ color: '#333', fontWeight: 'bold', textAlign: 'center' }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
+                  onPress={handleAddExercise}
+                  disabled={addingEx}
+                >
+                  <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>
+                    {addingEx ? 'Adding...' : 'Add Exercise'}
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <View style={{ flex: 1, marginLeft: 8 }}>
-                <Text style={{ marginBottom: 4, fontWeight: '500' }}>Reps:</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
-                  <TextInput
-                    style={[styles.input, styles.textInput]}
-                    placeholder="8-12"
-                    value={newExercise.reps}
-                    onChangeText={v => setNewExercise(e => ({ ...e, reps: v }))}
-                    keyboardType="numeric"
-                    returnKeyType="done"
-                    onSubmitEditing={() => Keyboard.dismiss()}
-                  />
-                </View>
-              </View>
-            </View>
-
-            <Text style={{ marginBottom: 4, fontWeight: '500' }}>Notes (optional):</Text>
-            <TextInput
-              style={[styles.input, styles.textInputMultiline, { marginBottom: 16 }]}
-              placeholder="e.g. Focus on form, increase weight next week"
-              value={newExercise.notes}
-              onChangeText={v => setNewExercise(e => ({ ...e, notes: v }))}
-              returnKeyType="done"
-              onSubmitEditing={() => Keyboard.dismiss()}
-              multiline
-              numberOfLines={3}
-            />
-
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#e0e0e0', flex: 1, marginRight: 8 }]}
-                onPress={() => {
-                  setNewExercise({ name: '', sets: '', reps: '', notes: '' });
-                  setShowAddExerciseModal(false);
-                }}
-              >
-                <Text style={{ color: '#333', fontWeight: 'bold', textAlign: 'center' }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
-                onPress={handleAddExercise}
-                disabled={addingEx}
-              >
-                <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>
-                  {addingEx ? 'Adding...' : 'Add Exercise'}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -531,82 +533,84 @@ export default function DaysTab() {
         onRequestClose={() => setShowEditExerciseModal(false)}
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: 320, maxWidth: '90%' }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Edit Exercise</Text>
-            
-            <Text style={{ marginBottom: 4, fontWeight: '500' }}>Exercise Name:</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Edit Exercise</Text>
+              
+              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Exercise Name:</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <TextInput
+                  style={[styles.input, styles.textInput]}
+                  placeholder="e.g. Bench Press"
+                  value={editingEx.name}
+                  onChangeText={v => setEditingEx(e => ({ ...e, name: v }))}
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
+              </View>
+
+              <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={{ marginBottom: 4, fontWeight: '500' }}>Sets:</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
+                    <TextInput
+                      style={[styles.input, styles.textInput]}
+                      placeholder="3"
+                      value={editingEx.sets}
+                      onChangeText={v => setEditingEx(e => ({ ...e, sets: v }))}
+                      keyboardType="numeric"
+                      returnKeyType="done"
+                      onSubmitEditing={() => Keyboard.dismiss()}
+                    />
+                  </View>
+                </View>
+                <View style={{ flex: 1, marginLeft: 8 }}>
+                  <Text style={{ marginBottom: 4, fontWeight: '500' }}>Reps:</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
+                    <TextInput
+                      style={[styles.input, styles.textInput]}
+                      placeholder="8-12"
+                      value={editingEx.reps}
+                      onChangeText={v => setEditingEx(e => ({ ...e, reps: v }))}
+                      keyboardType="numeric"
+                      returnKeyType="done"
+                      onSubmitEditing={() => Keyboard.dismiss()}
+                    />
+                  </View>
+                </View>
+              </View>
+
+              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Notes (optional):</Text>
               <TextInput
-                style={[styles.input, styles.textInput]}
-                placeholder="e.g. Bench Press"
-                value={editingEx.name}
-                onChangeText={v => setEditingEx(e => ({ ...e, name: v }))}
+                style={[styles.input, styles.textInputMultiline, { marginBottom: 16 }]}
+                placeholder="e.g. Focus on form, increase weight next week"
+                value={editingEx.notes}
+                onChangeText={v => setEditingEx(e => ({ ...e, notes: v }))}
                 returnKeyType="done"
                 onSubmitEditing={() => Keyboard.dismiss()}
+                multiline
+                numberOfLines={3}
               />
-            </View>
 
-            <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={{ marginBottom: 4, fontWeight: '500' }}>Sets:</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
-                  <TextInput
-                    style={[styles.input, styles.textInput]}
-                    placeholder="3"
-                    value={editingEx.sets}
-                    onChangeText={v => setEditingEx(e => ({ ...e, sets: v }))}
-                    keyboardType="numeric"
-                    returnKeyType="done"
-                    onSubmitEditing={() => Keyboard.dismiss()}
-                  />
-                </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: '#e0e0e0', flex: 1, marginRight: 8 }]}
+                  onPress={() => {
+                    setEditingExId(null);
+                    setEditingEx({ name: '', sets: '', reps: '', notes: '' });
+                    setShowEditExerciseModal(false);
+                  }}
+                >
+                  <Text style={{ color: '#333', fontWeight: 'bold', textAlign: 'center' }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
+                  onPress={handleSaveEditExercise}
+                >
+                  <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>Save</Text>
+                </TouchableOpacity>
               </View>
-              <View style={{ flex: 1, marginLeft: 8 }}>
-                <Text style={{ marginBottom: 4, fontWeight: '500' }}>Reps:</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
-                  <TextInput
-                    style={[styles.input, styles.textInput]}
-                    placeholder="8-12"
-                    value={editingEx.reps}
-                    onChangeText={v => setEditingEx(e => ({ ...e, reps: v }))}
-                    keyboardType="numeric"
-                    returnKeyType="done"
-                    onSubmitEditing={() => Keyboard.dismiss()}
-                  />
-                </View>
-              </View>
-            </View>
-
-            <Text style={{ marginBottom: 4, fontWeight: '500' }}>Notes (optional):</Text>
-            <TextInput
-              style={[styles.input, styles.textInputMultiline, { marginBottom: 16 }]}
-              placeholder="e.g. Focus on form, increase weight next week"
-              value={editingEx.notes}
-              onChangeText={v => setEditingEx(e => ({ ...e, notes: v }))}
-              returnKeyType="done"
-              onSubmitEditing={() => Keyboard.dismiss()}
-              multiline
-              numberOfLines={3}
-            />
-
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#e0e0e0', flex: 1, marginRight: 8 }]}
-                onPress={() => {
-                  setEditingExId(null);
-                  setEditingEx({ name: '', sets: '', reps: '', notes: '' });
-                  setShowEditExerciseModal(false);
-                }}
-              >
-                <Text style={{ color: '#333', fontWeight: 'bold', textAlign: 'center' }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
-                onPress={handleSaveEditExercise}
-              >
-                <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>Save</Text>
-              </TouchableOpacity>
-            </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
