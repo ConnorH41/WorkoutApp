@@ -1,6 +1,6 @@
 
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert, Keyboard } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert, Keyboard, Modal } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
 
@@ -114,7 +114,11 @@ export default function DaysTab() {
   };
 
   const handleAddDay = async () => {
-    if (!newDayName.trim() || !profile || !profile.id) return;
+    if (!newDayName.trim()) {
+      Alert.alert('Validation', 'Day name is required');
+      return false;
+    }
+    if (!profile || !profile.id) return false;
     setAdding(true);
     const { error } = await supabase.from('days').insert({
       user_id: profile.id,
@@ -123,9 +127,11 @@ export default function DaysTab() {
     setAdding(false);
     if (error) {
       Alert.alert('Error', error.message);
+      return false;
     } else {
       setNewDayName('');
       fetchDays();
+      return true;
     }
   };
 
@@ -150,6 +156,18 @@ export default function DaysTab() {
     setEditingDayName(name);
   };
 
+  const newDayInputRef = useRef<any>(null);
+
+  const focusNewDayInput = () => {
+    try {
+      newDayInputRef.current?.focus();
+    } catch (e) {}
+  };
+
+  const [showAddDayModal, setShowAddDayModal] = useState(false);
+  const openAddDayModal = () => setShowAddDayModal(true);
+  const closeAddDayModal = () => setShowAddDayModal(false);
+
   const handleSaveEditDay = async () => {
     if (!editingDayId || !editingDayName.trim()) return;
     const { error } = await supabase.from('days').update({ name: editingDayName.trim() }).eq('id', editingDayId);
@@ -164,18 +182,53 @@ export default function DaysTab() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Days</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Days</Text>
+        <TouchableOpacity style={styles.addButton} onPress={openAddDayModal}>
+          <Text style={styles.addButtonText}>Add Day</Text>
+        </TouchableOpacity>
+      </View>
       <View style={styles.row}>
         <TextInput
           style={styles.input}
           placeholder="Add new day (e.g. Upper A)"
           value={newDayName}
           onChangeText={setNewDayName}
+          ref={newDayInputRef}
           returnKeyType="done"
           onSubmitEditing={() => Keyboard.dismiss()}
         />
         <Button title={adding ? 'Adding...' : 'Add'} onPress={handleAddDay} disabled={adding} />
       </View>
+
+      <Modal visible={showAddDayModal} animationType="slide" transparent={true} onRequestClose={closeAddDayModal}>
+        <View style={modalStyles.backdrop}>
+          <View style={modalStyles.modalCard}>
+            <Text style={modalStyles.modalTitle}>Day Name:</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <TextInput
+                style={{ width: '100%', marginBottom: 8, height: 35, fontSize: 16, textAlignVertical: 'top', padding: 8, borderWidth: 1, borderColor: '#ccc', borderRadius: 4 }}
+                placeholder="e.g. Upper A"
+                value={newDayName}
+                onChangeText={setNewDayName}
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
+                multiline
+                numberOfLines={2}
+                autoFocus
+              />
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
+              <TouchableOpacity style={[styles.modalButton, { marginRight: 8 }]} onPress={() => { setNewDayName(''); closeAddDayModal(); }}>
+                <Text>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalButton, styles.primaryBtn]} onPress={async () => { const ok = await handleAddDay(); if (ok) { closeAddDayModal(); } }}>
+                <Text style={styles.primaryBtnText}>{adding ? 'Adding...' : 'Add Day'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       {loading ? (
         <Text>Loading...</Text>
       ) : (
@@ -338,6 +391,22 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 16,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  addButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -402,5 +471,41 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#555',
     marginBottom: 4,
+  },
+  modalButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: '#eee',
+  },
+  primaryBtn: {
+    backgroundColor: '#007AFF',
+  },
+  primaryBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+});
+
+const modalStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 18,
+    elevation: 6,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 12,
   },
 });
