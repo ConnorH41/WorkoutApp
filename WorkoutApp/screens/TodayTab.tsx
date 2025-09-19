@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Button, FlatList, ActivityIndicator, Alert, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Button, FlatList, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity } from 'react-native';
+import ModalButtons from '../components/ModalButtons';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
 
@@ -9,6 +10,8 @@ export default function TodayTab() {
   const [bodyweight, setBodyweight] = useState('');
   const [loading, setLoading] = useState(false);
   const [entries, setEntries] = useState<any[]>([]);
+  const [showWeightModal, setShowWeightModal] = useState(false);
+  const [isKg, setIsKg] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [workoutLoading, setWorkoutLoading] = useState(false);
   const [todayWorkout, setTodayWorkout] = useState<any>(null);
@@ -74,16 +77,24 @@ export default function TodayTab() {
 
   const handleLogBodyweight = async () => {
     if (!bodyweight || !profile || !profile.id) return;
+    const parsed = parseFloat(bodyweight);
+    if (Number.isNaN(parsed) || parsed <= 0) {
+      Alert.alert('Invalid weight', 'Please enter a valid weight greater than 0.');
+      return;
+    }
+    // Convert to kg when saving if user entered lbs
+    const weightKg = isKg ? parsed : parsed * 0.45359237;
     setSubmitting(true);
     const { error } = await supabase.from('bodyweight').insert({
       user_id: profile.id,
-      weight: parseFloat(bodyweight),
+      weight: weightKg,
     });
     setSubmitting(false);
     if (error) {
       Alert.alert('Error', error.message);
     } else {
       setBodyweight('');
+      setShowWeightModal(false);
       fetchBodyweightEntries();
     }
   };
@@ -164,31 +175,78 @@ export default function TodayTab() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Today</Text>
-      <Text style={styles.sectionTitle}>Log Bodyweight</Text>
-      <View style={styles.row}>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter weight (kg)"
-          value={bodyweight}
-          onChangeText={setBodyweight}
-          keyboardType="numeric"
-          returnKeyType="done"
-          onSubmitEditing={() => Keyboard.dismiss()}
-        />
-        <Button title={submitting ? 'Logging...' : 'Log'} onPress={handleLogBodyweight} disabled={submitting} />
+      <Text style={styles.sectionTitle}>Bodyweight</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+        <TouchableOpacity style={styles.addButton} onPress={() => setShowWeightModal(true)} activeOpacity={0.9}>
+          <Text style={styles.addButtonText}>Enter Bodyweight</Text>
+        </TouchableOpacity>
       </View>
       <Text style={styles.sectionTitle}>Recent Entries</Text>
       {loading ? (
         <ActivityIndicator />
       ) : (
         <FlatList
-          data={entries}
+          data={entries.slice(0, 5)}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <Text>{item.logged_at}: {item.weight} kg</Text>
+            <View style={styles.entryRow}>
+              <Text style={styles.entryDate}>{new Date(item.logged_at).toLocaleDateString()}</Text>
+              <Text style={styles.entryWeight}>{item.weight} kg</Text>
+            </View>
           )}
+          ListEmptyComponent={() => <Text>No recent weight entries.</Text>}
         />
       )}
+
+      {/* Modal for entering bodyweight */}
+      <Modal visible={showWeightModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>Enter Today's Bodyweight</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <TextInput
+                  style={[styles.input, styles.textInput, { marginBottom: 0 }]}
+                  placeholder={isKg ? 'Weight (kg)' : 'Weight (lbs)'}
+                  value={bodyweight}
+                  onChangeText={setBodyweight}
+                  keyboardType="numeric"
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
+              <View style={styles.unitSwitchContainer}>
+                <TouchableOpacity
+                  style={[styles.unitToggleBtn, isKg ? styles.unitToggleBtnActive : null]}
+                  onPress={() => setIsKg(true)}
+                  activeOpacity={0.9}
+                >
+                  <Text style={[styles.unitToggleText, isKg ? styles.unitToggleTextActive : null]}>kg</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.unitToggleBtn, !isKg ? styles.unitToggleBtnActive : null]}
+                  onPress={() => setIsKg(false)}
+                  activeOpacity={0.9}
+                >
+                  <Text style={[styles.unitToggleText, !isKg ? styles.unitToggleTextActive : null]}>lbs</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            <View>
+              {/* Modal action buttons (shared component) */}
+              <ModalButtons
+                leftLabel="Cancel"
+                rightLabel={submitting ? 'Logging...' : 'Save'}
+                onLeftPress={() => setShowWeightModal(false)}
+                onRightPress={handleLogBodyweight}
+                leftColor="#e0e0e0"
+                rightColor="#007AFF"
+                leftTextColor="#000"
+                rightTextColor="#fff"
+                rightDisabled={submitting}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Text style={styles.sectionTitle}>Today's Workout</Text>
       {workoutLoading ? (
@@ -202,7 +260,7 @@ export default function TodayTab() {
               <Text style={styles.exerciseTitle}>{item.name}</Text>
               <Text>Goal: {item.sets} x {item.reps}</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, styles.textInput]}
                 placeholder="Sets"
                 value={logs[item.id]?.sets || ''}
                 onChangeText={(v) => handleLogChange(item.id, 'sets', v)}
@@ -211,7 +269,7 @@ export default function TodayTab() {
                 onSubmitEditing={() => Keyboard.dismiss()}
               />
               <TextInput
-                style={styles.input}
+                style={[styles.input, styles.textInput]}
                 placeholder="Reps"
                 value={logs[item.id]?.reps || ''}
                 onChangeText={(v) => handleLogChange(item.id, 'reps', v)}
@@ -220,7 +278,7 @@ export default function TodayTab() {
                 onSubmitEditing={() => Keyboard.dismiss()}
               />
               <TextInput
-                style={styles.input}
+                style={[styles.input, styles.textInput]}
                 placeholder="Weight (kg)"
                 value={logs[item.id]?.weight || ''}
                 onChangeText={(v) => handleLogChange(item.id, 'weight', v)}
@@ -229,12 +287,14 @@ export default function TodayTab() {
                 onSubmitEditing={() => Keyboard.dismiss()}
               />
               <TextInput
-                style={styles.input}
+                style={[styles.input, styles.textInputMultiline]}
                 placeholder="Notes (optional)"
                 value={logs[item.id]?.notes || ''}
                 onChangeText={(v) => handleLogChange(item.id, 'notes', v)}
                 returnKeyType="done"
                 onSubmitEditing={() => Keyboard.dismiss()}
+                multiline
+                numberOfLines={3}
               />
               <Button
                 title={savingLog ? 'Saving...' : 'Save Log'}
@@ -312,5 +372,102 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 4,
+  },
+  entryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  entryDate: {
+    color: '#666',
+  },
+  entryWeight: {
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  modalButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginLeft: 8,
+    backgroundColor: '#eee',
+  },
+  modalButtonText: {
+    color: '#333',
+    fontWeight: '600',
+  },
+  addButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  textInput: {
+    height: 40,
+    fontSize: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    textAlignVertical: 'center',
+  },
+  textInputMultiline: {
+    minHeight: 60,
+    fontSize: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    textAlignVertical: 'top',
+  },
+  unitSwitchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+    minWidth: 96,
+    height: 40,
+  },
+  unitLabel: {
+    fontSize: 12,
+    color: '#333',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  unitToggleBtn: {
+    height: 40,
+    paddingHorizontal: 12,
+    borderRadius: 4,
+    backgroundColor: '#f0f0f0',
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 48,
+  },
+  unitToggleBtnActive: {
+    backgroundColor: '#007AFF',
+  },
+  unitToggleText: {
+    color: '#333',
+    fontWeight: '600',
+  },
+  unitToggleTextActive: {
+    color: '#fff',
   },
 });

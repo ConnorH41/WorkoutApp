@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, 
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
+import ModalButtons from '../components/ModalButtons';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -1009,13 +1010,18 @@ export default function SplitsTab() {
               />
 
               {/* removed display of number of rotations here — it's calculated when scheduling and saved to the DB */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Button title="Cancel" onPress={() => setShowSetModal(false)} />
-                </View>
-                <View style={{ flex: 1, marginLeft: 8 }}>
-                  <Button title="Schedule" onPress={handleConfirmSetCurrentSplit} disabled={pendingSplit?.mode === 'week' && endBeforeStart} />
-                </View>
+              <View style={{ marginTop: 8 }}>
+                <ModalButtons
+                  leftLabel="Cancel"
+                  rightLabel="Schedule"
+                  onLeftPress={() => setShowSetModal(false)}
+                  onRightPress={handleConfirmSetCurrentSplit}
+                  leftColor="#e0e0e0"
+                  rightColor="#007AFF"
+                  leftTextColor="#333"
+                  rightTextColor="#fff"
+                  rightDisabled={pendingSplit?.mode === 'week' && endBeforeStart}
+                />
               </View>
             </ScrollView>
           </View>
@@ -1260,44 +1266,30 @@ export default function SplitsTab() {
             )}
 
             {/* Navigation Buttons - fixed three slots to keep buttons consistent size */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#e0e0e0', flex: 1, marginRight: 8 }]}
-                onPress={() => setShowAddModal(false)}
-              >
-                <Text style={{ color: '#333', fontWeight: 'bold', textAlign: 'center' }}>Cancel</Text>
-              </TouchableOpacity>
-
-              {/* Middle slot: Previous or placeholder */}
-              {newSplitTab > 0 ? (
-                <TouchableOpacity
-                  style={[styles.modalButton, { backgroundColor: '#666', flex: 1, marginRight: 8 }]}
-                  onPress={() => setNewSplitTab(newSplitTab - 1)}
-                >
-                  <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>Previous</Text>
-                </TouchableOpacity>
+            <View style={{ marginTop: 20 }}>
+              {newSplitTab < 2 ? (
+                <ModalButtons
+                  leftLabel="Cancel"
+                  rightLabel="Next"
+                  onLeftPress={() => setShowAddModal(false)}
+                  onRightPress={() => setNewSplitTab(newSplitTab + 1)}
+                  leftColor="#e0e0e0"
+                  rightColor="#007AFF"
+                  leftTextColor="#333"
+                  rightTextColor="#fff"
+                />
               ) : (
-                <View style={[styles.modalButton, { backgroundColor: 'transparent', flex: 1, marginRight: 8 }]} />
-              )}
-
-              {/* Right slot: Next/Create */}
-                {newSplitTab < 2 ? (
-                <TouchableOpacity
-                  style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
-                  onPress={() => setNewSplitTab(newSplitTab + 1)}
-                >
-                  <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>Next</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
-                  onPress={handleAddSplit}
-                  disabled={adding}
-                >
-                  <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>
-                    {adding ? 'Creating...' : 'Create'}
-                  </Text>
-                </TouchableOpacity>
+                <ModalButtons
+                  leftLabel="Cancel"
+                  rightLabel={adding ? 'Creating...' : 'Create'}
+                  onLeftPress={() => setShowAddModal(false)}
+                  onRightPress={handleAddSplit}
+                  leftColor="#e0e0e0"
+                  rightColor="#007AFF"
+                  leftTextColor="#333"
+                  rightTextColor="#fff"
+                  rightDisabled={adding}
+                />
               )}
             </View>
             </ScrollView>
@@ -1478,44 +1470,30 @@ export default function SplitsTab() {
             {/* Schedule removed from Edit modal; scheduling is handled via the Schedule button on the split card */}
 
             {/* Navigation Buttons - fixed three slots to keep buttons consistent size */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#e0e0e0', flex: 1, marginRight: 8 }]}
-                onPress={() => setShowEditModal(false)}
-              >
-                <Text style={{ color: '#333', fontWeight: 'bold', textAlign: 'center' }}>Cancel</Text>
-              </TouchableOpacity>
-
-              {/* Middle slot: Previous or placeholder */}
-              {editSplitTab > 0 ? (
-                <TouchableOpacity
-                  style={[styles.modalButton, { backgroundColor: '#666', flex: 1, marginRight: 8 }]}
-                  onPress={() => setEditSplitTab(editSplitTab - 1)}
-                >
-                  <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>Previous</Text>
-                </TouchableOpacity>
-              ) : (
-                <View style={[styles.modalButton, { backgroundColor: 'transparent', flex: 1, marginRight: 8 }]} />
-              )}
-
-              {/* Right slot: Next/Save */}
+            <View style={{ marginTop: 20 }}>
               {editSplitTab === 0 ? (
-                <TouchableOpacity
-                  style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
-                  onPress={() => setEditSplitTab(1)}
-                >
-                  <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>Next</Text>
-                </TouchableOpacity>
+                <ModalButtons
+                  leftLabel="Cancel"
+                  rightLabel="Next"
+                  onLeftPress={() => setShowEditModal(false)}
+                  onRightPress={() => setEditSplitTab(1)}
+                  leftColor="#e0e0e0"
+                  rightColor="#007AFF"
+                  leftTextColor="#333"
+                  rightTextColor="#fff"
+                />
               ) : (
-                <TouchableOpacity
-                  style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
-                  onPress={handleSaveEditSplit}
-                  disabled={adding}
-                >
-                  <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>
-                    {adding ? 'Saving...' : 'Save Split'}
-                  </Text>
-                </TouchableOpacity>
+                <ModalButtons
+                  leftLabel="Cancel"
+                  rightLabel={adding ? 'Saving...' : 'Save Split'}
+                  onLeftPress={() => setShowEditModal(false)}
+                  onRightPress={handleSaveEditSplit}
+                  leftColor="#e0e0e0"
+                  rightColor="#007AFF"
+                  leftTextColor="#333"
+                  rightTextColor="#fff"
+                  rightDisabled={adding}
+                />
               )}
             </View>
             </ScrollView>
@@ -1704,18 +1682,29 @@ export default function SplitsTab() {
             >
               <Text>Set to Rest</Text>
             </TouchableOpacity>
-            <Button title="Cancel" onPress={() => {
-              setShowWeekdayModal(false);
-              if (weekdayModalFromAdd) {
-                setShowAddModal(true);
-                setWeekdayModalFromAdd(false);
-              }
-              if (weekdayModalFromEdit) {
-                setShowEditModal(true);
-                setWeekdayModalFromEdit(false);
-              }
-              setPendingDayId(null);
-            }} />
+            <View style={{ marginTop: 8 }}>
+              <ModalButtons
+                leftLabel="Cancel"
+                rightLabel="Set"
+                onLeftPress={() => {
+                  setShowWeekdayModal(false);
+                  if (weekdayModalFromAdd) {
+                    setShowAddModal(true);
+                    setWeekdayModalFromAdd(false);
+                  }
+                  if (weekdayModalFromEdit) {
+                    setShowEditModal(true);
+                    setWeekdayModalFromEdit(false);
+                  }
+                  setPendingDayId(null);
+                }}
+                onRightPress={() => { /* no-op default - selection handlers already close modal */ }}
+                leftColor="#e0e0e0"
+                rightColor="#007AFF"
+                leftTextColor="#333"
+                rightTextColor="#fff"
+              />
+            </View>
             </ScrollView>
           </View>
         </View>
@@ -1733,17 +1722,17 @@ export default function SplitsTab() {
             <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
               <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Delete Split?</Text>
               <Text style={{ marginBottom: 16 }}>Are you sure you want to permanently delete this split? This action cannot be undone.</Text>
-              <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#e0e0e0', marginRight: 8 }]} onPress={() => { setShowDeleteConfirm(false); setDeleteTargetId(null); }}>
-                  <Text style={{ textAlign: 'center', fontWeight: '700' }}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#ff3b30' }]} onPress={async () => {
-                  if (deleteTargetId) await handleDeleteSplit(deleteTargetId);
-                  setShowDeleteConfirm(false);
-                  setDeleteTargetId(null);
-                }}>
-                  <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>Delete</Text>
-                </TouchableOpacity>
+              <View style={{ marginTop: 8 }}>
+                <ModalButtons
+                  leftLabel="Cancel"
+                  rightLabel="Delete"
+                  onLeftPress={() => { setShowDeleteConfirm(false); setDeleteTargetId(null); }}
+                  onRightPress={async () => { if (deleteTargetId) await handleDeleteSplit(deleteTargetId); setShowDeleteConfirm(false); setDeleteTargetId(null); }}
+                  leftColor="#e0e0e0"
+                  rightColor="#ff3b30"
+                  leftTextColor="#333"
+                  rightTextColor="#fff"
+                />
               </View>
             </ScrollView>
           </View>
