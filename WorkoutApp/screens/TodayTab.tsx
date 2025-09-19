@@ -344,13 +344,13 @@ export default function TodayTab() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
-      <Text style={styles.title}>Today</Text>
-      <Text style={styles.sectionTitle}>Bodyweight</Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-        <TouchableOpacity style={styles.addButton} onPress={() => setShowWeightModal(true)} activeOpacity={0.9}>
-          <Text style={styles.addButtonText}>Enter Bodyweight</Text>
+        <Text style={styles.title}>Today</Text>
+        <TouchableOpacity onPress={() => setShowWeightModal(true)} style={styles.bodyweightBtn} activeOpacity={0.9}>
+          <Text style={styles.bodyweightIcon}>🏋️‍♂️</Text>
         </TouchableOpacity>
       </View>
+      <Text style={styles.sectionTitle}>Bodyweight</Text>
       {/* Recent entries temporarily removed */}
 
       {/* Modal for entering bodyweight */}
@@ -627,5 +627,18 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
     fontSize: 12,
+  },
+  bodyweightBtn: {
+    marginLeft: 'auto',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bodyweightIcon: {
+    fontSize: 20,
+    color: '#fff',
   },
 });
