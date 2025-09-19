@@ -343,47 +343,48 @@ export default function DaysTab() {
         onRequestClose={() => setShowAddDayModal(false)}
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: 320, maxWidth: '90%' }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Add New Day</Text>
-            
-            <Text style={{ marginBottom: 4, fontWeight: '500' }}>Day Name:</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-              <TextInput
-                style={[styles.input, styles.textInput]}
-                placeholder="e.g. Upper A, Push Day"
-                value={newDayName}
-                onChangeText={setNewDayName}
-                returnKeyType="done"
-                onSubmitEditing={() => Keyboard.dismiss()}
-                autoFocus
-              />
-            </View>
+          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Add New Day</Text>
 
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#e0e0e0', flex: 1, marginRight: 8 }]}
-                onPress={() => {
-                  setNewDayName('');
-                  setShowAddDayModal(false);
-                }}
-              >
-                <Text style={{ color: '#333', fontWeight: 'bold', textAlign: 'center' }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
-                onPress={async () => {
-                  const ok = await handleAddDay();
-                  if (ok) {
+              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Day Name:</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <TextInput
+                  style={[styles.input, styles.textInput]}
+                  placeholder="e.g. Upper A, Push Day"
+                  value={newDayName}
+                  onChangeText={setNewDayName}
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
+              </View>
+
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: '#e0e0e0', flex: 1, marginRight: 8 }]}
+                  onPress={() => {
+                    setNewDayName('');
                     setShowAddDayModal(false);
-                  }
-                }}
-                disabled={adding}
-              >
-                <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>
-                  {adding ? 'Adding...' : 'Add Day'}
-                </Text>
-              </TouchableOpacity>
-            </View>
+                  }}
+                >
+                  <Text style={{ color: '#333', fontWeight: 'bold', textAlign: 'center' }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
+                  onPress={async () => {
+                    const ok = await handleAddDay();
+                    if (ok) {
+                      setShowAddDayModal(false);
+                    }
+                  }}
+                  disabled={adding}
+                >
+                  <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>
+                    {adding ? 'Adding...' : 'Add Day'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -396,39 +397,41 @@ export default function DaysTab() {
         onRequestClose={() => setShowEditDayModal(false)}
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: 320, maxWidth: '90%' }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Edit Day</Text>
-            
-            <Text style={{ marginBottom: 4, fontWeight: '500' }}>Day Name:</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-              <TextInput
-                style={[styles.input, styles.textInput]}
-                placeholder="e.g. Upper A, Push Day"
-                value={editingDayName}
-                onChangeText={setEditingDayName}
-                returnKeyType="done"
-                onSubmitEditing={() => Keyboard.dismiss()}
-              />
-            </View>
+          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Edit Day</Text>
 
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#e0e0e0', flex: 1, marginRight: 8 }]}
-                onPress={() => {
-                  setEditingDayId(null);
-                  setEditingDayName('');
-                  setShowEditDayModal(false);
-                }}
-              >
-                <Text style={{ color: '#333', fontWeight: 'bold', textAlign: 'center' }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
-                onPress={handleSaveEditDay}
-              >
-                <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>Save</Text>
-              </TouchableOpacity>
-            </View>
+              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Day Name:</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <TextInput
+                  style={[styles.input, styles.textInput]}
+                  placeholder="e.g. Upper A, Push Day"
+                  value={editingDayName}
+                  onChangeText={setEditingDayName}
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
+              </View>
+
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: '#e0e0e0', flex: 1, marginRight: 8 }]}
+                  onPress={() => {
+                    setEditingDayId(null);
+                    setEditingDayName('');
+                    setShowEditDayModal(false);
+                  }}
+                >
+                  <Text style={{ color: '#333', fontWeight: 'bold', textAlign: 'center' }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
+                  onPress={handleSaveEditDay}
+                >
+                  <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -623,31 +626,33 @@ export default function DaysTab() {
         onRequestClose={() => setShowDeleteConfirm(false)}
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: 320 }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>
-              Delete {deleteTargetType === 'day' ? 'Day' : 'Exercise'}?
-            </Text>
-            <Text style={{ marginBottom: 16 }}>
-              Are you sure you want to permanently delete this {deleteTargetType}? This action cannot be undone.
-            </Text>
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-              <TouchableOpacity 
-                style={[styles.modalButton, { backgroundColor: '#e0e0e0', marginRight: 8 }]} 
-                onPress={() => { 
-                  setShowDeleteConfirm(false); 
-                  setDeleteTargetId(null); 
-                  setDeleteTargetType(null);
-                }}
-              >
-                <Text style={{ textAlign: 'center', fontWeight: '700' }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalButton, { backgroundColor: '#ff3b30' }]} 
-                onPress={confirmDelete}
-              >
-                <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>Delete</Text>
-              </TouchableOpacity>
-            </View>
+          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420 }}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>
+                Delete {deleteTargetType === 'day' ? 'Day' : 'Exercise'}?
+              </Text>
+              <Text style={{ marginBottom: 16 }}>
+                Are you sure you want to permanently delete this {deleteTargetType}? This action cannot be undone.
+              </Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                <TouchableOpacity 
+                  style={[styles.modalButton, { backgroundColor: '#e0e0e0', marginRight: 8 }]} 
+                  onPress={() => { 
+                    setShowDeleteConfirm(false); 
+                    setDeleteTargetId(null); 
+                    setDeleteTargetType(null);
+                  }}
+                >
+                  <Text style={{ textAlign: 'center', fontWeight: '700' }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.modalButton, { backgroundColor: '#ff3b30' }]} 
+                  onPress={confirmDelete}
+                >
+                  <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>

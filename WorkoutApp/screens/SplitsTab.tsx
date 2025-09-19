@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert, Modal, Platform, Keyboard, ToastAndroid } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert, Modal, Platform, Keyboard, ToastAndroid, ScrollView } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
@@ -989,33 +989,35 @@ export default function SplitsTab() {
         onRequestClose={() => setShowSetModal(false)}
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: 320, maxWidth: '90%' }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Schedule Split</Text>
-            
-            <ScheduleEditor
-              mode={pendingSplit?.mode}
-              startDate={calendarDate}
-              setStartDate={setCalendarDate}
-              endDate={endDate}
-              setEndDate={setEndDate}
-              showStartPicker={showStartPicker}
-              setShowStartPicker={setShowStartPicker}
-              showEndPicker={showEndPicker}
-              setShowEndPicker={setShowEndPicker}
-              durationWeeks={durationWeeks}
-              setDurationWeeks={setDurationWeeks}
-              rotationLength={pendingRotationLength}
-            />
+          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Schedule Split</Text>
 
-            {/* removed display of number of rotations here — it's calculated when scheduling and saved to the DB */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <Button title="Cancel" onPress={() => setShowSetModal(false)} />
+              <ScheduleEditor
+                mode={pendingSplit?.mode}
+                startDate={calendarDate}
+                setStartDate={setCalendarDate}
+                endDate={endDate}
+                setEndDate={setEndDate}
+                showStartPicker={showStartPicker}
+                setShowStartPicker={setShowStartPicker}
+                showEndPicker={showEndPicker}
+                setShowEndPicker={setShowEndPicker}
+                durationWeeks={durationWeeks}
+                setDurationWeeks={setDurationWeeks}
+                rotationLength={pendingRotationLength}
+              />
+
+              {/* removed display of number of rotations here — it's calculated when scheduling and saved to the DB */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Button title="Cancel" onPress={() => setShowSetModal(false)} />
+                </View>
+                <View style={{ flex: 1, marginLeft: 8 }}>
+                  <Button title="Schedule" onPress={handleConfirmSetCurrentSplit} disabled={pendingSplit?.mode === 'week' && endBeforeStart} />
+                </View>
               </View>
-              <View style={{ flex: 1, marginLeft: 8 }}>
-                <Button title="Schedule" onPress={handleConfirmSetCurrentSplit} disabled={pendingSplit?.mode === 'week' && endBeforeStart} />
-              </View>
-            </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1076,11 +1078,12 @@ export default function SplitsTab() {
         onRequestClose={() => setShowAddModal(false)}
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: 380, maxWidth: '95%', maxHeight: '90%' }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 16, textAlign: 'center' }}>Add New Split</Text>
-            
-            {/* Tab Navigation */}
-            <View style={{ flexDirection: 'row', marginBottom: 20, backgroundColor: '#f0f0f0', borderRadius: 8, padding: 4 }}>
+          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 16 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 16, textAlign: 'center' }}>Add New Split</Text>
+
+              {/* Tab Navigation */}
+              <View style={{ flexDirection: 'row', marginBottom: 20, backgroundColor: '#f0f0f0', borderRadius: 8, padding: 4 }}>
               <TouchableOpacity
                 style={[styles.tabButton, { backgroundColor: newSplitTab === 0 ? '#007AFF' : 'transparent' }]}
                 onPress={() => setNewSplitTab(0)}
@@ -1297,6 +1300,7 @@ export default function SplitsTab() {
                 </TouchableOpacity>
               )}
             </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1309,11 +1313,12 @@ export default function SplitsTab() {
         onRequestClose={() => setShowEditModal(false)}
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: 380, maxWidth: '95%', maxHeight: '90%' }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 16, textAlign: 'center' }}>Edit Split</Text>
-            
-            {/* Tab Navigation */}
-            <View style={{ flexDirection: 'row', marginBottom: 20, backgroundColor: '#f0f0f0', borderRadius: 8, padding: 4 }}>
+          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 16 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 16, textAlign: 'center' }}>Edit Split</Text>
+
+              {/* Tab Navigation */}
+              <View style={{ flexDirection: 'row', marginBottom: 20, backgroundColor: '#f0f0f0', borderRadius: 8, padding: 4 }}>
               <TouchableOpacity
                 style={[styles.tabButton, { backgroundColor: editSplitTab === 0 ? '#007AFF' : 'transparent' }]}
                 onPress={() => setEditSplitTab(0)}
@@ -1513,6 +1518,7 @@ export default function SplitsTab() {
                 </TouchableOpacity>
               )}
             </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1536,8 +1542,9 @@ export default function SplitsTab() {
         }}
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 24, borderRadius: 12, width: 300 }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>
+          <View style={{ backgroundColor: '#fff', padding: 24, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>
               {pendingDayId !== null
                 ? `Assign Day to ${WEEKDAYS[parseInt(pendingDayId)]}`
                 : pendingRotationIndex !== null
@@ -1709,6 +1716,7 @@ export default function SplitsTab() {
               }
               setPendingDayId(null);
             }} />
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1721,21 +1729,23 @@ export default function SplitsTab() {
         onRequestClose={() => setShowDeleteConfirm(false)}
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: 320 }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Delete Split?</Text>
-            <Text style={{ marginBottom: 16 }}>Are you sure you want to permanently delete this split? This action cannot be undone.</Text>
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-              <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#e0e0e0', marginRight: 8 }]} onPress={() => { setShowDeleteConfirm(false); setDeleteTargetId(null); }}>
-                <Text style={{ textAlign: 'center', fontWeight: '700' }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#ff3b30' }]} onPress={async () => {
-                if (deleteTargetId) await handleDeleteSplit(deleteTargetId);
-                setShowDeleteConfirm(false);
-                setDeleteTargetId(null);
-              }}>
-                <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>Delete</Text>
-              </TouchableOpacity>
-            </View>
+          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Delete Split?</Text>
+              <Text style={{ marginBottom: 16 }}>Are you sure you want to permanently delete this split? This action cannot be undone.</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#e0e0e0', marginRight: 8 }]} onPress={() => { setShowDeleteConfirm(false); setDeleteTargetId(null); }}>
+                  <Text style={{ textAlign: 'center', fontWeight: '700' }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#ff3b30' }]} onPress={async () => {
+                  if (deleteTargetId) await handleDeleteSplit(deleteTargetId);
+                  setShowDeleteConfirm(false);
+                  setDeleteTargetId(null);
+                }}>
+                  <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
