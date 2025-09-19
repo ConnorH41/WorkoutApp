@@ -397,9 +397,9 @@ export default function TodayTab() {
               <Text>Goal: {item.sets} x {item.reps}</Text>
               {(logs[item.id] || [{ setNumber: 1, reps: '', weight: '' }]).map((s, idx) => (
                 <View key={`${item.id}-set-${idx}`} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                  <Text style={{ width: 28 }}>{s.setNumber}.</Text>
-                  <TextInput style={[styles.input, { width: 80 }]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => handleSetChange(item.id, idx, 'reps', v)} />
-                  <TextInput style={[styles.input, { width: 100, marginLeft: 8 }]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => handleSetChange(item.id, idx, 'weight', v)} />
+                  <Text style={{ width: 56, fontWeight: '600' }}>{`Set ${s.setNumber}`}</Text>
+                  <TextInput style={[styles.input, { width: 100 }]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => handleSetChange(item.id, idx, 'weight', v)} />
+                  <TextInput style={[styles.input, { width: 80, marginLeft: 8 }]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => handleSetChange(item.id, idx, 'reps', v)} />
                   <TouchableOpacity onPress={() => removeSetRow(item.id, idx)} style={{ marginLeft: 8 }}>
                     <Text style={{ color: '#ff3b30' }}>Remove</Text>
                   </TouchableOpacity>
@@ -428,9 +428,9 @@ export default function TodayTab() {
               {/* Per-set rows */}
               {(logs[item.id] || [{ setNumber: 1, reps: '', weight: '' }]).map((s, idx) => (
                 <View key={`${item.id}-set-${idx}`} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                  <Text style={{ width: 28 }}>{s.setNumber}.</Text>
-                  <TextInput style={[styles.input, { width: 80 }]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => handleSetChange(item.id, idx, 'reps', v)} />
-                  <TextInput style={[styles.input, { width: 100, marginLeft: 8 }]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => handleSetChange(item.id, idx, 'weight', v)} />
+                  <Text style={{ width: 56, fontWeight: '600' }}>{`Set ${s.setNumber}`}</Text>
+                  <TextInput style={[styles.input, { width: 100 }]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => handleSetChange(item.id, idx, 'weight', v)} />
+                  <TextInput style={[styles.input, { width: 80, marginLeft: 8 }]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => handleSetChange(item.id, idx, 'reps', v)} />
                   <TouchableOpacity onPress={() => removeSetRow(item.id, idx)} style={{ marginLeft: 8 }}>
                     <Text style={{ color: '#ff3b30' }}>Remove</Text>
                   </TouchableOpacity>
