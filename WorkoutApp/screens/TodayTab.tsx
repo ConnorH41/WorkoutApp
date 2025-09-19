@@ -20,6 +20,7 @@ export default function TodayTab() {
   const [splitTemplate, setSplitTemplate] = useState<any | null>(null);
   const [splitDayExercises, setSplitDayExercises] = useState<any[]>([]);
   const [splitDayName, setSplitDayName] = useState<string | null>(null);
+  const [dayNameFromWorkout, setDayNameFromWorkout] = useState<string | null>(null);
   const [logs, setLogs] = useState<{ [exerciseId: string]: Array<{ setNumber: number; reps: string; weight: string }> }>({});
   const [notesByExercise, setNotesByExercise] = useState<{ [exerciseId: string]: string }>({});
   const [nameByExercise, setNameByExercise] = useState<{ [exerciseId: string]: string }>({});
@@ -147,6 +148,14 @@ export default function TodayTab() {
       .single();
     if (workout && !workoutError) {
       setTodayWorkout(workout);
+      // try to infer day name from the workout's day_id
+      if (workout.day_id) {
+        const { data: dayData } = await supabase.from('days').select('*').eq('id', workout.day_id).limit(1);
+        if (dayData && dayData.length > 0) setDayNameFromWorkout(dayData[0].name);
+        else setDayNameFromWorkout(null);
+      } else {
+        setDayNameFromWorkout(null);
+      }
       // Fetch exercises for this workout's day_id
       if (workout.day_id) {
         const { data: exercisesData, error: exercisesError } = await supabase
@@ -161,6 +170,7 @@ export default function TodayTab() {
     } else {
       setTodayWorkout(null);
       setExercises([]);
+      setDayNameFromWorkout(null);
     }
     setWorkoutLoading(false);
   };
@@ -412,7 +422,14 @@ export default function TodayTab() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-        <Text style={styles.title}>Today</Text>
+        {/* Compute weekday abbreviation + day name (prefer splitDayName, then workout day name) */}
+        {(() => {
+          const wdNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          const today = new Date();
+          const abbrev = wdNames[today.getDay()];
+          const dayLabel = splitDayName || dayNameFromWorkout || 'Today';
+          return <Text style={[styles.title, { marginBottom: 0 }]}>{`${abbrev} - ${dayLabel}`}</Text>;
+        })()}
         <TouchableOpacity onPress={() => setShowWeightModal(true)} style={styles.bodyweightBtn} activeOpacity={0.9}>
           <Feather name="user" size={18} color="#fff" />
         </TouchableOpacity>
@@ -468,7 +485,6 @@ export default function TodayTab() {
         </View>
       </Modal>
 
-      <Text style={styles.sectionTitle}>Today's Workout</Text>
       {workoutLoading ? (
         <ActivityIndicator />
       ) : todayWorkout && exercises.length > 0 ? (
