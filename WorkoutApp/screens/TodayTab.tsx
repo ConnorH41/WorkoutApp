@@ -8,8 +8,7 @@ import { useProfileStore } from '../lib/profileStore';
 export default function TodayTab() {
   const profile = useProfileStore((state) => state.profile);
   const [bodyweight, setBodyweight] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [entries, setEntries] = useState<any[]>([]);
+  
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [isKg, setIsKg] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -21,24 +20,11 @@ export default function TodayTab() {
 
   useEffect(() => {
     if (profile && profile.id) {
-      fetchBodyweightEntries();
       fetchTodayWorkout();
     }
   }, [profile?.id]);
 
-  const fetchBodyweightEntries = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('bodyweight')
-      .select('*')
-      .eq('user_id', profile!.id)
-      .order('logged_at', { ascending: false })
-      .limit(7);
-    if (!error && data) {
-      setEntries(data);
-    }
-    setLoading(false);
-  };
+  
 
   // Fetch today's workout and exercises
   const fetchTodayWorkout = async () => {
@@ -93,9 +79,8 @@ export default function TodayTab() {
     if (error) {
       Alert.alert('Error', error.message);
     } else {
-      setBodyweight('');
-      setShowWeightModal(false);
-      fetchBodyweightEntries();
+  setBodyweight('');
+  setShowWeightModal(false);
     }
   };
 
@@ -181,22 +166,7 @@ export default function TodayTab() {
           <Text style={styles.addButtonText}>Enter Bodyweight</Text>
         </TouchableOpacity>
       </View>
-      <Text style={styles.sectionTitle}>Recent Entries</Text>
-      {loading ? (
-        <ActivityIndicator />
-      ) : (
-        <FlatList
-          data={entries.slice(0, 5)}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View style={styles.entryRow}>
-              <Text style={styles.entryDate}>{new Date(item.logged_at).toLocaleDateString()}</Text>
-              <Text style={styles.entryWeight}>{item.weight} kg</Text>
-            </View>
-          )}
-          ListEmptyComponent={() => <Text>No recent weight entries.</Text>}
-        />
-      )}
+      {/* Recent entries temporarily removed */}
 
       {/* Modal for entering bodyweight */}
       <Modal visible={showWeightModal} animationType="slide" transparent>
@@ -372,19 +342,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 4,
-  },
-  entryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  entryDate: {
-    color: '#666',
-  },
-  entryWeight: {
-    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
