@@ -414,7 +414,7 @@ export default function TodayTab() {
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
         <Text style={styles.title}>Today</Text>
         <TouchableOpacity onPress={() => setShowWeightModal(true)} style={styles.bodyweightBtn} activeOpacity={0.9}>
-          <Text style={styles.bodyweightIcon}>🏋️‍♂️</Text>
+          <Feather name="user" size={18} color="#fff" />
         </TouchableOpacity>
       </View>
 
