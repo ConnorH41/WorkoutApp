@@ -347,15 +347,17 @@ export default function DaysTab() {
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Add New Day</Text>
             
             <Text style={{ marginBottom: 4, fontWeight: '500' }}>Day Name:</Text>
-            <TextInput
-              style={[styles.input, { marginBottom: 16, height: 40, fontSize: 16 }]}
-              placeholder="e.g. Upper A, Push Day"
-              value={newDayName}
-              onChangeText={setNewDayName}
-              returnKeyType="done"
-              onSubmitEditing={() => Keyboard.dismiss()}
-              autoFocus
-            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <TextInput
+                style={[styles.input, styles.textInput]}
+                placeholder="e.g. Upper A, Push Day"
+                value={newDayName}
+                onChangeText={setNewDayName}
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
+                autoFocus
+              />
+            </View>
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <TouchableOpacity
@@ -398,15 +400,17 @@ export default function DaysTab() {
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Edit Day</Text>
             
             <Text style={{ marginBottom: 4, fontWeight: '500' }}>Day Name:</Text>
-            <TextInput
-              style={[styles.input, { marginBottom: 16, height: 40, fontSize: 16 }]}
-              placeholder="e.g. Upper A, Push Day"
-              value={editingDayName}
-              onChangeText={setEditingDayName}
-              returnKeyType="done"
-              onSubmitEditing={() => Keyboard.dismiss()}
-              autoFocus
-            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <TextInput
+                style={[styles.input, styles.textInput]}
+                placeholder="e.g. Upper A, Push Day"
+                value={editingDayName}
+                onChangeText={setEditingDayName}
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
+                autoFocus
+              />
+            </View>
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <TouchableOpacity
@@ -442,45 +446,51 @@ export default function DaysTab() {
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Add Exercise</Text>
             
             <Text style={{ marginBottom: 4, fontWeight: '500' }}>Exercise Name:</Text>
-            <TextInput
-              style={[styles.input, { marginBottom: 12, height: 40, fontSize: 16 }]}
-              placeholder="e.g. Bench Press"
-              value={newExercise.name}
-              onChangeText={v => setNewExercise(e => ({ ...e, name: v }))}
-              returnKeyType="done"
-              onSubmitEditing={() => Keyboard.dismiss()}
-            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <TextInput
+                style={[styles.input, styles.textInput]}
+                placeholder="e.g. Bench Press"
+                value={newExercise.name}
+                onChangeText={v => setNewExercise(e => ({ ...e, name: v }))}
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
+              />
+            </View>
 
             <View style={{ flexDirection: 'row', marginBottom: 12 }}>
               <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={{ marginBottom: 4, fontWeight: '500' }}>Sets:</Text>
-                <TextInput
-                  style={[styles.input, { height: 40, fontSize: 16 }]}
-                  placeholder="3"
-                  value={newExercise.sets}
-                  onChangeText={v => setNewExercise(e => ({ ...e, sets: v }))}
-                  keyboardType="numeric"
-                  returnKeyType="done"
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                />
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
+                  <TextInput
+                    style={[styles.input, styles.textInput]}
+                    placeholder="3"
+                    value={newExercise.sets}
+                    onChangeText={v => setNewExercise(e => ({ ...e, sets: v }))}
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                  />
+                </View>
               </View>
               <View style={{ flex: 1, marginLeft: 8 }}>
                 <Text style={{ marginBottom: 4, fontWeight: '500' }}>Reps:</Text>
-                <TextInput
-                  style={[styles.input, { height: 40, fontSize: 16 }]}
-                  placeholder="8-12"
-                  value={newExercise.reps}
-                  onChangeText={v => setNewExercise(e => ({ ...e, reps: v }))}
-                  keyboardType="numeric"
-                  returnKeyType="done"
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                />
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
+                  <TextInput
+                    style={[styles.input, styles.textInput]}
+                    placeholder="8-12"
+                    value={newExercise.reps}
+                    onChangeText={v => setNewExercise(e => ({ ...e, reps: v }))}
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                  />
+                </View>
               </View>
             </View>
 
             <Text style={{ marginBottom: 4, fontWeight: '500' }}>Notes (optional):</Text>
             <TextInput
-              style={[styles.input, { marginBottom: 16, height: 60, fontSize: 16, textAlignVertical: 'top' }]}
+              style={[styles.input, styles.textInputMultiline, { marginBottom: 16 }]}
               placeholder="e.g. Focus on form, increase weight next week"
               value={newExercise.notes}
               onChangeText={v => setNewExercise(e => ({ ...e, notes: v }))}
@@ -526,45 +536,51 @@ export default function DaysTab() {
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Edit Exercise</Text>
             
             <Text style={{ marginBottom: 4, fontWeight: '500' }}>Exercise Name:</Text>
-            <TextInput
-              style={[styles.input, { marginBottom: 12, height: 40, fontSize: 16 }]}
-              placeholder="e.g. Bench Press"
-              value={editingEx.name}
-              onChangeText={v => setEditingEx(e => ({ ...e, name: v }))}
-              returnKeyType="done"
-              onSubmitEditing={() => Keyboard.dismiss()}
-            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <TextInput
+                style={[styles.input, styles.textInput]}
+                placeholder="e.g. Bench Press"
+                value={editingEx.name}
+                onChangeText={v => setEditingEx(e => ({ ...e, name: v }))}
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
+              />
+            </View>
 
             <View style={{ flexDirection: 'row', marginBottom: 12 }}>
               <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={{ marginBottom: 4, fontWeight: '500' }}>Sets:</Text>
-                <TextInput
-                  style={[styles.input, { height: 40, fontSize: 16 }]}
-                  placeholder="3"
-                  value={editingEx.sets}
-                  onChangeText={v => setEditingEx(e => ({ ...e, sets: v }))}
-                  keyboardType="numeric"
-                  returnKeyType="done"
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                />
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
+                  <TextInput
+                    style={[styles.input, styles.textInput]}
+                    placeholder="3"
+                    value={editingEx.sets}
+                    onChangeText={v => setEditingEx(e => ({ ...e, sets: v }))}
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                  />
+                </View>
               </View>
               <View style={{ flex: 1, marginLeft: 8 }}>
                 <Text style={{ marginBottom: 4, fontWeight: '500' }}>Reps:</Text>
-                <TextInput
-                  style={[styles.input, { height: 40, fontSize: 16 }]}
-                  placeholder="8-12"
-                  value={editingEx.reps}
-                  onChangeText={v => setEditingEx(e => ({ ...e, reps: v }))}
-                  keyboardType="numeric"
-                  returnKeyType="done"
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                />
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
+                  <TextInput
+                    style={[styles.input, styles.textInput]}
+                    placeholder="8-12"
+                    value={editingEx.reps}
+                    onChangeText={v => setEditingEx(e => ({ ...e, reps: v }))}
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                  />
+                </View>
               </View>
             </View>
 
             <Text style={{ marginBottom: 4, fontWeight: '500' }}>Notes (optional):</Text>
             <TextInput
-              style={[styles.input, { marginBottom: 16, height: 60, fontSize: 16, textAlignVertical: 'top' }]}
+              style={[styles.input, styles.textInputMultiline, { marginBottom: 16 }]}
               placeholder="e.g. Focus on form, increase weight next week"
               value={editingEx.notes}
               onChangeText={v => setEditingEx(e => ({ ...e, notes: v }))}
@@ -776,6 +792,20 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
+  },
+  textInput: {
+    height: 40,
+    fontSize: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    textAlignVertical: 'center',
+  },
+  textInputMultiline: {
+    minHeight: 60,
+    fontSize: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    textAlignVertical: 'top',
   },
 });
 
