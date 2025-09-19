@@ -408,7 +408,6 @@ export default function DaysTab() {
                 onChangeText={setEditingDayName}
                 returnKeyType="done"
                 onSubmitEditing={() => Keyboard.dismiss()}
-                autoFocus
               />
             </View>
 
