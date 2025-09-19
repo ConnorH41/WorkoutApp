@@ -502,7 +502,7 @@ export default function SplitsTab() {
           />
         )}
 
-        <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Duration (weeks):</Text>
+        <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Duration (Weeks or Rotations):</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
           <TextInput
             placeholder="e.g. 4 or 4.5 (leave blank to auto-calc)"
@@ -542,28 +542,7 @@ export default function SplitsTab() {
         </View>
         {endBeforeStart && <Text style={{ color: 'red', marginBottom: 8 }}>End date must be the same or after start date.</Text>}
 
-        {mode === 'rotation' && (
-          <>
-            <Text style={{ marginBottom: 4, fontWeight: '500' }}>Number of Rotations (auto-calculated):</Text>
-            <TextInput
-              style={[styles.input, { marginBottom: 8 }]}
-              value={(() => {
-                if (!startDate || !endDate) return '';
-                const msPerDay = 24 * 60 * 60 * 1000;
-                const s = new Date(startDate);
-                s.setHours(0, 0, 0, 0);
-                const e = new Date(endDate);
-                e.setHours(0, 0, 0, 0);
-                const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
-                if (diffDays <= 0) return '';
-                const rotLen = rotationLength || 3;
-                const rotations = Math.floor(diffDays / rotLen) || 0;
-                return String(rotations || 0);
-              })()}
-              editable={false}
-            />
-          </>
-        )}
+        {/* rotation-mode shows no explicit rotations input here; rotations are derived from start/end and rotation length when scheduling */}
       </View>
     );
   };
@@ -686,14 +665,25 @@ export default function SplitsTab() {
             active: true,
           });
         } else {
+          // For rotation-mode, compute number of rotations if an end date was provided
+          let computedRotations = 1;
+          if (newSplitStartDate && newSplitEndDate && newSplitRotationLength && newSplitRotationLength > 0) {
+            const msPerDay = 24 * 60 * 60 * 1000;
+            const s = new Date(newSplitStartDate);
+            s.setHours(0, 0, 0, 0);
+            const e = new Date(newSplitEndDate);
+            e.setHours(0, 0, 0, 0);
+            const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
+            computedRotations = Math.max(0, Math.floor(diffDays / newSplitRotationLength));
+          }
           await supabase.from('split_runs').update({ active: false }).eq('user_id', profile.id).eq('active', true);
           await supabase.from('split_runs').insert({
             split_id: newSplitId,
             user_id: profile.id,
             start_date: toDateOnly(newSplitStartDate),
-            end_date: null,
+            end_date: newSplitEndDate ? toDateOnly(newSplitEndDate) : null,
             num_weeks: null,
-            num_rotations: 1,
+            num_rotations: computedRotations || 1,
             active: true,
           });
         }
@@ -811,14 +801,25 @@ export default function SplitsTab() {
             active: true,
           });
         } else {
+          // For rotation-mode when editing an active split, compute rotations if end date provided
+          let computedRotations = 1;
+          if (editSplitStartDate && editSplitEndDate && editSplitRotationLength && editSplitRotationLength > 0) {
+            const msPerDay = 24 * 60 * 60 * 1000;
+            const s = new Date(editSplitStartDate);
+            s.setHours(0, 0, 0, 0);
+            const e = new Date(editSplitEndDate);
+            e.setHours(0, 0, 0, 0);
+            const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
+            computedRotations = Math.max(0, Math.floor(diffDays / editSplitRotationLength));
+          }
           await supabase.from('split_runs').update({ active: false }).eq('user_id', profile.id).eq('active', true);
           await supabase.from('split_runs').insert({
             split_id: editingSplit.id,
             user_id: profile.id,
             start_date: toDateOnly(editSplitStartDate),
-            end_date: null,
+            end_date: editSplitEndDate ? toDateOnly(editSplitEndDate) : null,
             num_weeks: null,
-            num_rotations: 1,
+            num_rotations: computedRotations || 1,
             active: true,
           });
         }
@@ -1006,29 +1007,7 @@ export default function SplitsTab() {
               rotationLength={pendingRotationLength}
             />
 
-            {pendingSplit?.mode === 'rotation' && (
-              <View style={{ marginTop: 8 }}>
-                <Text style={{ marginBottom: 4 }}>Number of Rotations (auto-calculated):</Text>
-                <TextInput
-                  style={[styles.input, { marginBottom: 12 }]}
-                  value={(() => {
-                    // If no endDate but durationWeeks === -1 (forever), show empty
-                    if (!calendarDate || !endDate) return '';
-                    const msPerDay = 24 * 60 * 60 * 1000;
-                    const s = new Date(calendarDate);
-                    s.setHours(0, 0, 0, 0);
-                    const e = new Date(endDate);
-                    e.setHours(0, 0, 0, 0);
-                    const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
-                    if (diffDays <= 0) return '';
-                    const rotationLen = pendingRotationLength || 3;
-                    const rotations = Math.floor(diffDays / rotationLen) || 0;
-                    return String(rotations || 0);
-                  })()}
-                  editable={false}
-                />
-              </View>
-            )}
+            {/* removed display of number of rotations here — it's calculated when scheduling and saved to the DB */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
               <View style={{ flex: 1, marginRight: 8 }}>
                 <Button title="Cancel" onPress={() => setShowSetModal(false)} />
