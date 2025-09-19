@@ -834,7 +834,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   addExerciseBtn: {
-    marginTop: 8,
+    marginTop: 0,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 6,
