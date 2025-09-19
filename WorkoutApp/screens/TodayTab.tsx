@@ -410,8 +410,10 @@ export default function TodayTab() {
         <View>
           {exercises.map((item) => (
             <View key={item.id} style={styles.exerciseBox}>
+              <View style={styles.goalBadge}>
+                <Text style={styles.goalBadgeText}>{`${item.sets}×${item.reps}`}</Text>
+              </View>
               <Text style={styles.exerciseTitle}>{item.name}</Text>
-              <Text>Goal: {item.sets} x {item.reps}</Text>
               {(logs[item.id] || [{ setNumber: 1, reps: '', weight: '' }]).map((s, idx) => (
                 <View key={`${item.id}-set-${idx}`} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                   <Text style={{ width: 56, fontWeight: '600' }}>{`Set ${s.setNumber}`}</Text>
@@ -440,8 +442,10 @@ export default function TodayTab() {
           <Button title={todayWorkout ? 'Edit Workout' : creatingWorkout ? 'Creating...' : 'Create Today\'s Workout'} onPress={createWorkoutFromScheduledDay} disabled={creatingWorkout || !!todayWorkout} />
           {splitDayExercises.map((item) => (
             <View key={item.id} style={styles.exerciseBox}>
+              <View style={styles.goalBadge}>
+                <Text style={styles.goalBadgeText}>{`${item.sets}×${item.reps}`}</Text>
+              </View>
               <Text style={styles.exerciseTitle}>{item.name}</Text>
-              <Text>Goal: {item.sets} x {item.reps}</Text>
               {/* Per-set rows */}
               {(logs[item.id] || [{ setNumber: 1, reps: '', weight: '' }]).map((s, idx) => (
                 <View key={`${item.id}-set-${idx}`} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
@@ -609,5 +613,19 @@ const styles = StyleSheet.create({
   },
   unitToggleTextActive: {
     color: '#fff',
+  },
+  goalBadge: {
+    position: 'absolute',
+    right: 10,
+    top: 8,
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  goalBadgeText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 12,
   },
 });
