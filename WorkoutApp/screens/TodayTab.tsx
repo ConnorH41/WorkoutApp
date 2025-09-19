@@ -2,7 +2,15 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Button, ScrollView, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity } from 'react-native';
 import ModalButtons from '../components/ModalButtons';
-import { Feather } from '@expo/vector-icons';
+// Import icons at runtime to avoid type errors when package isn't installed in the environment
+let IconFeather: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { Feather: _Feather } = require('@expo/vector-icons');
+  IconFeather = _Feather;
+} catch (e) {
+  IconFeather = null;
+}
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
 
@@ -67,7 +75,6 @@ export default function TodayTab() {
       }
       const run = data[0];
   setActiveSplitRun(run);
-  console.debug('Active split_run loaded:', run);
 
       // load split template to know mode
       const { data: splitData } = await supabase.from('splits').select('*').eq('id', run.split_id).limit(1);
@@ -81,7 +88,7 @@ export default function TodayTab() {
         .eq('split_id', run.split_id)
         .order('order_index', { ascending: true });
   const splitDays = sdData || [];
-  console.debug('Loaded split_days for split:', run.split_id, splitDays);
+  
 
       // Determine today's mapped day_id (week-mode only for now)
       // We require an exact weekday match against `split_days.weekday` (0=Sunday..6=Saturday).
@@ -91,32 +98,32 @@ export default function TodayTab() {
       let mappedDayId: string | null = null;
       if (split && typeof split.mode === 'string' && split.mode.toLowerCase().includes('week')) {
         const wd = today.getDay();
-        console.debug('Today weekday index (0=Sun..6=Sat):', wd);
+        
         // Require exact match only (no fallback)
         const match = splitDays.find((sd: any) => sd.weekday != null && Number(sd.weekday) === wd);
-        console.debug('Matched split_day for weekday lookup:', match);
+        
         if (match) {
           mappedDayId = match.day_id;
         } else {
-          console.debug(`No exact split_days.weekday match for today (weekday=${wd}).`);
+          
           mappedDayId = null;
         }
       }
 
       if (mappedDayId) {
-        console.debug('Mapped day id for today:', mappedDayId);
+        
         // fetch day template and exercises
         const { data: dayData } = await supabase.from('days').select('*').eq('id', mappedDayId).limit(1);
         const day = dayData && dayData.length > 0 ? dayData[0] : null;
   setSplitDayName(day ? day.name : null);
-  console.debug('Resolved split day:', day);
+  
 
   const { data: exData } = await supabase.from('exercises').select('*').eq('day_id', mappedDayId).order('created_at', { ascending: true });
-  console.debug('Fetched exercises for day_id', mappedDayId, exData);
+  
   setSplitDayExercises(exData || []);
   (exData || []).forEach((ex: any) => ensureSetsForExercise(ex));
       } else {
-        console.debug('No mapped day found for this split run. splitDays:', splitDays);
+        
         setSplitDayExercises([]);
         setSplitDayName(null);
       }
@@ -308,6 +315,69 @@ export default function TodayTab() {
     setNotesByExercise(prev => ({ ...prev, [exerciseId]: value }));
   };
 
+  // Remove exercise locally (from either exercises or splitDayExercises) and clean related local state
+  const removeExerciseLocal = (exerciseId: string) => {
+    setExercises(prev => prev.filter(e => e.id !== exerciseId));
+    setSplitDayExercises(prev => prev.filter(e => e.id !== exerciseId));
+    setLogs(prev => {
+      const copy: any = { ...prev };
+      delete copy[exerciseId];
+      return copy;
+    });
+    setNameByExercise(prev => {
+      const copy: any = { ...prev };
+      delete copy[exerciseId];
+      return copy;
+    });
+    setEditingByExercise(prev => {
+      const copy: any = { ...prev };
+      delete copy[exerciseId];
+      return copy;
+    });
+    setNotesByExercise(prev => {
+      const copy: any = { ...prev };
+      delete copy[exerciseId];
+      return copy;
+    });
+  };
+
+  const deleteExercisePermanent = async (exerciseId: string) => {
+    if (!profile || !profile.id) return;
+    try {
+      const { error } = await supabase.from('exercises').delete().eq('id', exerciseId);
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else {
+        removeExerciseLocal(exerciseId);
+        Alert.alert('Deleted', 'Exercise deleted permanently');
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message || String(e));
+    }
+  };
+
+  const confirmRemoveExercise = (item: any) => {
+    if (!item || !item.id) return;
+    if (String(item.id).startsWith('tmp')) {
+      // simple confirm for temporary items
+      Alert.alert('Remove Exercise', 'Remove this temporary exercise?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: () => removeExerciseLocal(item.id) },
+      ]);
+      return;
+    }
+    // For persisted items give option to remove locally or delete permanently
+    Alert.alert(
+      'Remove Exercise',
+      'Remove this exercise from the list or delete it permanently from your exercises?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove Locally', onPress: () => removeExerciseLocal(item.id) },
+        { text: 'Delete Permanently', style: 'destructive', onPress: () => deleteExercisePermanent(item.id) },
+      ],
+    );
+  };
+
   // Ensure `logs` has the configured number of empty set rows for an exercise
   const ensureSetsForExercise = (exercise: any) => {
     const target = Number(exercise?.sets) || 1;
@@ -456,7 +526,7 @@ export default function TodayTab() {
           return <Text style={[styles.title, { marginBottom: 0 }]}>{`${abbrev} - ${dayLabel}`}</Text>;
         })()}
         <TouchableOpacity onPress={() => setShowWeightModal(true)} style={styles.bodyweightBtn} activeOpacity={0.9}>
-          <Feather name="user" size={18} color="#fff" />
+          {IconFeather ? <IconFeather name="user" size={18} color="#fff" /> : <Text style={styles.bodyweightIcon}>🏋️‍♂️</Text>}
         </TouchableOpacity>
       </View>
 
@@ -526,7 +596,7 @@ export default function TodayTab() {
                   <>
                     <Text style={styles.exerciseTitle}>{nameByExercise[item.id] || item.name}</Text>
                     <TouchableOpacity style={styles.editPencil} onPress={() => setEditingByExercise(prev => ({ ...prev, [item.id]: true }))}>
-                      <Feather name="edit-2" size={14} color="#666" />
+                      {IconFeather ? <IconFeather name="edit-2" size={14} color="#666" /> : <Text style={styles.editPencilText}>✎</Text>}
                     </TouchableOpacity>
                   </>
                 ) : (
@@ -550,6 +620,9 @@ export default function TodayTab() {
               <View style={styles.saveButtonWrap}>
                 <Button title={savingLog ? 'Saving...' : 'Save Sets'} onPress={() => saveSetsForExercise(item.id)} disabled={savingLog} />
               </View>
+              <TouchableOpacity style={styles.removeExerciseAbsolute} onPress={() => confirmRemoveExercise(item)}>
+                <Text style={styles.removeExerciseText}>Remove</Text>
+              </TouchableOpacity>
             </View>
           ))}
           <TouchableOpacity style={styles.addExerciseBtn} onPress={addBlankExerciseToWorkout}>
@@ -576,7 +649,7 @@ export default function TodayTab() {
                   <>
                     <Text style={styles.exerciseTitle}>{nameByExercise[item.id] || item.name}</Text>
                     <TouchableOpacity style={styles.editPencil} onPress={() => setEditingByExercise(prev => ({ ...prev, [item.id]: true }))}>
-                      <Feather name="edit-2" size={14} color="#666" />
+                      {IconFeather ? <IconFeather name="edit-2" size={14} color="#666" /> : <Text style={styles.editPencilText}>✎</Text>}
                     </TouchableOpacity>
                   </>
                 ) : (
@@ -876,5 +949,28 @@ const styles = StyleSheet.create({
   },
   editPencilText: {
     fontSize: 14,
+  },
+  removeExerciseBtn: {
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeExerciseText: {
+    color: '#ff3b30',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  removeExerciseAbsolute: {
+    position: 'absolute',
+    right: 10,
+    bottom: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: 'transparent',
   },
 });
