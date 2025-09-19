@@ -736,6 +736,12 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     paddingHorizontal: 4,
     paddingVertical: 0,
+    // align vertically to center of inputs
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -8,
   },
   removeBtnText: {
     color: '#ff3b30',
@@ -746,19 +752,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
+    minHeight: 44,
   },
   setLabel: {
     width: 64,
     fontWeight: '600',
     marginRight: 8,
+    height: 40,
+    lineHeight: 40,
   },
   inputWeight: {
     width: 100,
     marginRight: 8,
+    height: 40,
+    paddingVertical: 6,
+    textAlignVertical: 'center',
   },
   inputReps: {
     width: 80,
     marginRight: 8,
+    height: 40,
+    paddingVertical: 6,
+    textAlignVertical: 'center',
   },
   addSetLink: {
     marginBottom: 8,
