@@ -98,6 +98,7 @@ export default function TodayTab() {
   const { data: exData } = await supabase.from('exercises').select('*').eq('day_id', mappedDayId).order('created_at', { ascending: true });
   console.debug('Fetched exercises for day_id', mappedDayId, exData);
   setSplitDayExercises(exData || []);
+  (exData || []).forEach((ex: any) => ensureSetsForExercise(ex));
       } else {
         console.debug('No mapped day found for this split run. splitDays:', splitDays);
         setSplitDayExercises([]);
@@ -139,6 +140,7 @@ export default function TodayTab() {
           .eq('day_id', workout.day_id);
         if (exercisesData && !exercisesError) {
           setExercises(exercisesData);
+          exercisesData.forEach((ex: any) => ensureSetsForExercise(ex));
         }
       }
     } else {
@@ -198,6 +200,7 @@ export default function TodayTab() {
         if (w.day_id) {
           const { data: exData } = await supabase.from('exercises').select('*').eq('day_id', w.day_id);
           setExercises(exData || []);
+          (exData || []).forEach((ex: any) => ensureSetsForExercise(ex));
         }
         return w;
       }
@@ -236,6 +239,20 @@ export default function TodayTab() {
 
   const handleNotesChange = (exerciseId: string, value: string) => {
     setNotesByExercise(prev => ({ ...prev, [exerciseId]: value }));
+  };
+
+  // Ensure `logs` has the configured number of empty set rows for an exercise
+  const ensureSetsForExercise = (exercise: any) => {
+    const target = Number(exercise?.sets) || 1;
+    setLogs(prev => {
+      const existing = prev[exercise.id] || [];
+      if (existing.length >= target) return prev;
+      const arr = [...existing];
+      for (let i = existing.length; i < target; i++) {
+        arr.push({ setNumber: i + 1, reps: '', weight: '' });
+      }
+      return { ...prev, [exercise.id]: arr };
+    });
   };
 
   // Save sets for an exercise; create workout first if missing
