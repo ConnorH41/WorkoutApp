@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert, Keyboard, Modal } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, Alert, Keyboard, Modal, Platform, ToastAndroid } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
 
@@ -20,6 +20,22 @@ export default function DaysTab() {
   const [addingEx, setAddingEx] = useState(false);
   const [editingExId, setEditingExId] = useState<string | null>(null);
   const [editingEx, setEditingEx] = useState({ name: '', sets: '', reps: '', notes: '' });
+  // Modal states
+  const [showAddDayModal, setShowAddDayModal] = useState(false);
+  const [showEditDayModal, setShowEditDayModal] = useState(false);
+  const [showAddExerciseModal, setShowAddExerciseModal] = useState(false);
+  const [showEditExerciseModal, setShowEditExerciseModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleteTargetType, setDeleteTargetType] = useState<'day' | 'exercise' | null>(null);
+
+  const showValidationToast = (msg: string) => {
+    if (Platform.OS === 'android' && ToastAndroid && ToastAndroid.show) {
+      ToastAndroid.show(msg, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Validation', msg);
+    }
+  };
   // Fetch exercises for a day
   const fetchExercises = async (dayId: string) => {
     setExLoading(true);
@@ -36,61 +52,67 @@ export default function DaysTab() {
 
   // Add exercise
   const handleAddExercise = async () => {
-    if (!selectedDayId || !newExercise.name.trim() || !newExercise.sets || !newExercise.reps) return;
+    if (!selectedDayId || !newExercise.name.trim() || !newExercise.sets || !newExercise.reps) {
+      showValidationToast('Exercise name, sets, and reps are required');
+      return;
+    }
     setAddingEx(true);
-    const { error } = await supabase.from('exercises').insert({
-      day_id: selectedDayId,
-      name: newExercise.name.trim(),
-      sets: parseInt(newExercise.sets),
-      reps: parseInt(newExercise.reps),
-      notes: newExercise.notes,
-    });
-    setAddingEx(false);
-    if (error) {
-      Alert.alert('Error', error.message);
-    } else {
-      setNewExercise({ name: '', sets: '', reps: '', notes: '' });
-      fetchExercises(selectedDayId);
+    try {
+      const { error } = await supabase.from('exercises').insert({
+        day_id: selectedDayId,
+        name: newExercise.name.trim(),
+        sets: parseInt(newExercise.sets),
+        reps: parseInt(newExercise.reps),
+        notes: newExercise.notes,
+      });
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else {
+        setNewExercise({ name: '', sets: '', reps: '', notes: '' });
+        setShowAddExerciseModal(false);
+        fetchExercises(selectedDayId);
+      }
+    } finally {
+      setAddingEx(false);
     }
   };
 
   // Delete exercise
   const handleDeleteExercise = async (id: string) => {
-    Alert.alert('Delete Exercise', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive', onPress: async () => {
-          const { error } = await supabase.from('exercises').delete().eq('id', id);
-          if (error) {
-            Alert.alert('Error', error.message);
-          } else if (selectedDayId) {
-            fetchExercises(selectedDayId);
-          }
-        }
-      }
-    ]);
+    setDeleteTargetId(id);
+    setDeleteTargetType('exercise');
+    setShowDeleteConfirm(true);
   };
 
   // Edit exercise
   const handleEditExercise = (ex: any) => {
     setEditingExId(ex.id);
     setEditingEx({ name: ex.name, sets: String(ex.sets), reps: String(ex.reps), notes: ex.notes || '' });
+    setShowEditExerciseModal(true);
   };
 
   const handleSaveEditExercise = async () => {
-    if (!editingExId || !editingEx.name.trim() || !editingEx.sets || !editingEx.reps) return;
-    const { error } = await supabase.from('exercises').update({
-      name: editingEx.name.trim(),
-      sets: parseInt(editingEx.sets),
-      reps: parseInt(editingEx.reps),
-      notes: editingEx.notes,
-    }).eq('id', editingExId);
-    if (error) {
-      Alert.alert('Error', error.message);
-    } else if (selectedDayId) {
-      setEditingExId(null);
-      setEditingEx({ name: '', sets: '', reps: '', notes: '' });
-      fetchExercises(selectedDayId);
+    if (!editingExId || !editingEx.name.trim() || !editingEx.sets || !editingEx.reps) {
+      showValidationToast('Exercise name, sets, and reps are required');
+      return;
+    }
+    try {
+      const { error } = await supabase.from('exercises').update({
+        name: editingEx.name.trim(),
+        sets: parseInt(editingEx.sets),
+        reps: parseInt(editingEx.reps),
+        notes: editingEx.notes,
+      }).eq('id', editingExId);
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else if (selectedDayId) {
+        setEditingExId(null);
+        setEditingEx({ name: '', sets: '', reps: '', notes: '' });
+        setShowEditExerciseModal(false);
+        fetchExercises(selectedDayId);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update exercise');
     }
   };
 
@@ -115,45 +137,68 @@ export default function DaysTab() {
 
   const handleAddDay = async () => {
     if (!newDayName.trim()) {
-      Alert.alert('Validation', 'Day name is required');
+      showValidationToast('Day name is required');
       return false;
     }
-    if (!profile || !profile.id) return false;
-    setAdding(true);
-    const { error } = await supabase.from('days').insert({
-      user_id: profile.id,
-      name: newDayName.trim(),
-    });
-    setAdding(false);
-    if (error) {
-      Alert.alert('Error', error.message);
+    if (!profile || !profile.id) {
+      Alert.alert('Error', 'You must be signed in to create a day');
       return false;
-    } else {
-      setNewDayName('');
-      fetchDays();
-      return true;
+    }
+    setAdding(true);
+    try {
+      const { error } = await supabase.from('days').insert({
+        user_id: profile.id,
+        name: newDayName.trim(),
+      });
+      if (error) {
+        Alert.alert('Error', error.message);
+        return false;
+      } else {
+        setNewDayName('');
+        fetchDays();
+        return true;
+      }
+    } finally {
+      setAdding(false);
     }
   };
 
   const handleDeleteDay = async (id: string) => {
-    Alert.alert('Delete Day', 'Are you sure you want to delete this day?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive', onPress: async () => {
-          const { error } = await supabase.from('days').delete().eq('id', id);
-          if (error) {
-            Alert.alert('Error', error.message);
-          } else {
-            fetchDays();
-          }
+    setDeleteTargetId(id);
+    setDeleteTargetType('day');
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTargetId || !deleteTargetType) return;
+    
+    try {
+      if (deleteTargetType === 'day') {
+        const { error } = await supabase.from('days').delete().eq('id', deleteTargetId);
+        if (error) {
+          Alert.alert('Error', error.message);
+        } else {
+          fetchDays();
+        }
+      } else if (deleteTargetType === 'exercise') {
+        const { error } = await supabase.from('exercises').delete().eq('id', deleteTargetId);
+        if (error) {
+          Alert.alert('Error', error.message);
+        } else if (selectedDayId) {
+          fetchExercises(selectedDayId);
         }
       }
-    ]);
+    } finally {
+      setShowDeleteConfirm(false);
+      setDeleteTargetId(null);
+      setDeleteTargetType(null);
+    }
   };
 
   const handleEditDay = (id: string, name: string) => {
     setEditingDayId(id);
     setEditingDayName(name);
+    setShowEditDayModal(true);
   };
 
   const newDayInputRef = useRef<any>(null);
@@ -164,19 +209,23 @@ export default function DaysTab() {
     } catch (e) {}
   };
 
-  const [showAddDayModal, setShowAddDayModal] = useState(false);
-  const openAddDayModal = () => setShowAddDayModal(true);
-  const closeAddDayModal = () => setShowAddDayModal(false);
-
   const handleSaveEditDay = async () => {
-    if (!editingDayId || !editingDayName.trim()) return;
-    const { error } = await supabase.from('days').update({ name: editingDayName.trim() }).eq('id', editingDayId);
-    if (error) {
-      Alert.alert('Error', error.message);
-    } else {
-      setEditingDayId(null);
-      setEditingDayName('');
-      fetchDays();
+    if (!editingDayId || !editingDayName.trim()) {
+      showValidationToast('Day name is required');
+      return;
+    }
+    try {
+      const { error } = await supabase.from('days').update({ name: editingDayName.trim() }).eq('id', editingDayId);
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else {
+        setEditingDayId(null);
+        setEditingDayName('');
+        setShowEditDayModal(false);
+        fetchDays();
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update day');
     }
   };
 
@@ -184,51 +233,14 @@ export default function DaysTab() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Days</Text>
-        <TouchableOpacity style={styles.addButton} onPress={openAddDayModal}>
-          <Text style={styles.addButtonText}>Add Day</Text>
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={() => setShowAddDayModal(true)}
+        >
+          <Text style={styles.addButtonText}>Add New Day</Text>
         </TouchableOpacity>
       </View>
-      <View style={styles.row}>
-        <TextInput
-          style={styles.input}
-          placeholder="Add new day (e.g. Upper A)"
-          value={newDayName}
-          onChangeText={setNewDayName}
-          ref={newDayInputRef}
-          returnKeyType="done"
-          onSubmitEditing={() => Keyboard.dismiss()}
-        />
-        <Button title={adding ? 'Adding...' : 'Add'} onPress={handleAddDay} disabled={adding} />
-      </View>
 
-      <Modal visible={showAddDayModal} animationType="slide" transparent={true} onRequestClose={closeAddDayModal}>
-        <View style={modalStyles.backdrop}>
-          <View style={modalStyles.modalCard}>
-            <Text style={modalStyles.modalTitle}>Day Name:</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-              <TextInput
-                style={{ width: '100%', marginBottom: 8, height: 35, fontSize: 16, textAlignVertical: 'top', padding: 8, borderWidth: 1, borderColor: '#ccc', borderRadius: 4 }}
-                placeholder="e.g. Upper A"
-                value={newDayName}
-                onChangeText={setNewDayName}
-                returnKeyType="done"
-                onSubmitEditing={() => Keyboard.dismiss()}
-                multiline
-                numberOfLines={2}
-                autoFocus
-              />
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
-              <TouchableOpacity style={[styles.modalButton, { marginRight: 8 }]} onPress={() => { setNewDayName(''); closeAddDayModal(); }}>
-                <Text>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.primaryBtn]} onPress={async () => { const ok = await handleAddDay(); if (ok) { closeAddDayModal(); } }}>
-                <Text style={styles.primaryBtnText}>{adding ? 'Adding...' : 'Add Day'}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
       {loading ? (
         <Text>Loading...</Text>
       ) : (
@@ -236,146 +248,390 @@ export default function DaysTab() {
           data={days}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <View style={styles.dayBox}>
-              {editingDayId === item.id ? (
-                <>
-                  <TextInput
-                    style={styles.input}
-                    value={editingDayName}
-                    onChangeText={setEditingDayName}
-                    returnKeyType="done"
-                    onSubmitEditing={() => Keyboard.dismiss()}
-                  />
-                  <Button title="Save" onPress={handleSaveEditDay} />
-                  <Button title="Cancel" onPress={() => setEditingDayId(null)} />
-                </>
-              ) : (
-                <>
-                  <TouchableOpacity onPress={() => {
-                    if (selectedDayId === item.id) {
-                      setSelectedDayId(null);
-                    } else {
-                      setSelectedDayId(item.id);
-                      fetchExercises(item.id);
-                    }
-                  }}>
-                    <Text style={styles.dayName}>{item.name}</Text>
-                  </TouchableOpacity>
-                  <View style={styles.dayActions}>
-                    <TouchableOpacity onPress={() => handleEditDay(item.id, item.name)}>
-                      <Text style={styles.editBtn}>Edit</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleDeleteDay(item.id)}>
-                      <Text style={styles.deleteBtn}>Delete</Text>
-                    </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => {
+                if (selectedDayId === item.id) {
+                  setSelectedDayId(null);
+                } else {
+                  setSelectedDayId(item.id);
+                  fetchExercises(item.id);
+                }
+              }}
+              style={styles.dayBox}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={styles.dayName}>{item.name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={styles.exerciseCountBadge}>
+                    <Text style={styles.badgeText}>
+                      {exercises.length} {exercises.length === 1 ? 'Exercise' : 'Exercises'}
+                    </Text>
                   </View>
-                  {selectedDayId === item.id && (
-                    <View style={styles.exerciseSection}>
-                      <Text style={styles.exerciseTitle}>Exercises</Text>
-                      <View style={styles.row}>
-                        <TextInput
-                          style={styles.input}
-                          placeholder="Exercise name"
-                          value={newExercise.name}
-                          onChangeText={v => setNewExercise(e => ({ ...e, name: v }))}
-                          returnKeyType="done"
-                          onSubmitEditing={() => Keyboard.dismiss()}
-                        />
-                        <TextInput
-                          style={styles.input}
-                          placeholder="Sets"
-                          value={newExercise.sets}
-                          onChangeText={v => setNewExercise(e => ({ ...e, sets: v }))}
-                          keyboardType="numeric"
-                          returnKeyType="done"
-                          onSubmitEditing={() => Keyboard.dismiss()}
-                        />
-                        <TextInput
-                          style={styles.input}
-                          placeholder="Reps"
-                          value={newExercise.reps}
-                          onChangeText={v => setNewExercise(e => ({ ...e, reps: v }))}
-                          keyboardType="numeric"
-                          returnKeyType="done"
-                          onSubmitEditing={() => Keyboard.dismiss()}
-                        />
-                      </View>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Notes (optional)"
-                        value={newExercise.notes}
-                        onChangeText={v => setNewExercise(e => ({ ...e, notes: v }))}
-                        returnKeyType="done"
-                        onSubmitEditing={() => Keyboard.dismiss()}
-                      />
-                      <Button title={addingEx ? 'Adding...' : 'Add Exercise'} onPress={handleAddExercise} disabled={addingEx} />
-                      {exLoading ? <Text>Loading...</Text> : (
-                        <FlatList
-                          data={exercises}
-                          keyExtractor={ex => ex.id}
-                          renderItem={({ item: ex }) => (
-                            <View style={styles.exerciseBox}>
-                              {editingExId === ex.id ? (
-                                <>
-                                  <TextInput
-                                    style={styles.input}
-                                    value={editingEx.name}
-                                    onChangeText={v => setEditingEx(e => ({ ...e, name: v }))}
-                                    returnKeyType="done"
-                                    onSubmitEditing={() => Keyboard.dismiss()}
-                                  />
-                                  <TextInput
-                                    style={styles.input}
-                                    value={editingEx.sets}
-                                    onChangeText={v => setEditingEx(e => ({ ...e, sets: v }))}
-                                    keyboardType="numeric"
-                                    returnKeyType="done"
-                                    onSubmitEditing={() => Keyboard.dismiss()}
-                                  />
-                                  <TextInput
-                                    style={styles.input}
-                                    value={editingEx.reps}
-                                    onChangeText={v => setEditingEx(e => ({ ...e, reps: v }))}
-                                    keyboardType="numeric"
-                                    returnKeyType="done"
-                                    onSubmitEditing={() => Keyboard.dismiss()}
-                                  />
-                                  <TextInput
-                                    style={styles.input}
-                                    value={editingEx.notes}
-                                    onChangeText={v => setEditingEx(e => ({ ...e, notes: v }))}
-                                    returnKeyType="done"
-                                    onSubmitEditing={() => Keyboard.dismiss()}
-                                  />
-                                  <Button title="Save" onPress={handleSaveEditExercise} />
-                                  <Button title="Cancel" onPress={() => setEditingExId(null)} />
-                                </>
-                              ) : (
-                                <>
-                                  <Text style={styles.exerciseName}>{ex.name} ({ex.sets} x {ex.reps})</Text>
-                                  {ex.notes ? <Text style={styles.exerciseNotes}>{ex.notes}</Text> : null}
-                                  <View style={styles.dayActions}>
-                                    <TouchableOpacity onPress={() => handleEditExercise(ex)}>
-                                      <Text style={styles.editBtn}>Edit</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity onPress={() => handleDeleteExercise(ex.id)}>
-                                      <Text style={styles.deleteBtn}>Delete</Text>
-                                    </TouchableOpacity>
-                                  </View>
-                                </>
-                              )}
+                </View>
+              </View>
+              <View style={styles.dayActions}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.dangerBtn]}
+                  onPress={() => handleDeleteDay(item.id)}
+                >
+                  <Text style={[styles.actionBtnText, styles.dangerBtnText]}>Delete</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.primaryBtn]}
+                  onPress={() => handleEditDay(item.id, item.name)}
+                >
+                  <Text style={[styles.actionBtnText, styles.primaryBtnText]}>Edit</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: '#4CAF50' }]}
+                  onPress={() => {
+                    setSelectedDayId(item.id);
+                    fetchExercises(item.id);
+                    setShowAddExerciseModal(true);
+                  }}
+                >
+                  <Text style={[styles.actionBtnText, { color: '#fff', fontWeight: '700' }]}>Add Exercise</Text>
+                </TouchableOpacity>
+              </View>
+              {selectedDayId === item.id && (
+                <View style={styles.exerciseSection}>
+                  <Text style={styles.exerciseTitle}>Exercises</Text>
+                  {exLoading ? <Text>Loading...</Text> : (
+                    <FlatList
+                      data={exercises}
+                      keyExtractor={ex => ex.id}
+                      renderItem={({ item: ex }) => (
+                        <View style={styles.exerciseBox}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.exerciseName}>{ex.name}</Text>
+                              <Text style={styles.exerciseDetails}>{ex.sets} sets × {ex.reps} reps</Text>
+                              {ex.notes ? <Text style={styles.exerciseNotes}>{ex.notes}</Text> : null}
                             </View>
-                          )}
-                        />
+                            <View style={styles.exerciseActions}>
+                              <TouchableOpacity
+                                style={[styles.actionBtn, styles.dangerBtn]}
+                                onPress={() => handleDeleteExercise(ex.id)}
+                              >
+                                <Text style={[styles.actionBtnText, styles.dangerBtnText]}>Delete</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={[styles.actionBtn, styles.primaryBtn]}
+                                onPress={() => handleEditExercise(ex)}
+                              >
+                                <Text style={[styles.actionBtnText, styles.primaryBtnText]}>Edit</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        </View>
                       )}
-                    </View>
+                    />
                   )}
-                </>
+                </View>
               )}
-            </View>
+            </TouchableOpacity>
           )}
         />
       )}
+
+      {/* Add Day Modal */}
+      <Modal
+        visible={showAddDayModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAddDayModal(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: 320, maxWidth: '90%' }}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Add New Day</Text>
+            
+            <Text style={{ marginBottom: 4, fontWeight: '500' }}>Day Name:</Text>
+            <TextInput
+              style={[styles.input, { marginBottom: 16, height: 40, fontSize: 16 }]}
+              placeholder="e.g. Upper A, Push Day"
+              value={newDayName}
+              onChangeText={setNewDayName}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
+              autoFocus
+            />
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#e0e0e0', flex: 1, marginRight: 8 }]}
+                onPress={() => {
+                  setNewDayName('');
+                  setShowAddDayModal(false);
+                }}
+              >
+                <Text style={{ color: '#333', fontWeight: 'bold', textAlign: 'center' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
+                onPress={async () => {
+                  const ok = await handleAddDay();
+                  if (ok) {
+                    setShowAddDayModal(false);
+                  }
+                }}
+                disabled={adding}
+              >
+                <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>
+                  {adding ? 'Adding...' : 'Add Day'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Day Modal */}
+      <Modal
+        visible={showEditDayModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowEditDayModal(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: 320, maxWidth: '90%' }}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Edit Day</Text>
+            
+            <Text style={{ marginBottom: 4, fontWeight: '500' }}>Day Name:</Text>
+            <TextInput
+              style={[styles.input, { marginBottom: 16, height: 40, fontSize: 16 }]}
+              placeholder="e.g. Upper A, Push Day"
+              value={editingDayName}
+              onChangeText={setEditingDayName}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
+              autoFocus
+            />
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#e0e0e0', flex: 1, marginRight: 8 }]}
+                onPress={() => {
+                  setEditingDayId(null);
+                  setEditingDayName('');
+                  setShowEditDayModal(false);
+                }}
+              >
+                <Text style={{ color: '#333', fontWeight: 'bold', textAlign: 'center' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
+                onPress={handleSaveEditDay}
+              >
+                <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add Exercise Modal */}
+      <Modal
+        visible={showAddExerciseModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAddExerciseModal(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: 320, maxWidth: '90%' }}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Add Exercise</Text>
+            
+            <Text style={{ marginBottom: 4, fontWeight: '500' }}>Exercise Name:</Text>
+            <TextInput
+              style={[styles.input, { marginBottom: 12, height: 40, fontSize: 16 }]}
+              placeholder="e.g. Bench Press"
+              value={newExercise.name}
+              onChangeText={v => setNewExercise(e => ({ ...e, name: v }))}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
+            />
+
+            <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={{ marginBottom: 4, fontWeight: '500' }}>Sets:</Text>
+                <TextInput
+                  style={[styles.input, { height: 40, fontSize: 16 }]}
+                  placeholder="3"
+                  value={newExercise.sets}
+                  onChangeText={v => setNewExercise(e => ({ ...e, sets: v }))}
+                  keyboardType="numeric"
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
+              </View>
+              <View style={{ flex: 1, marginLeft: 8 }}>
+                <Text style={{ marginBottom: 4, fontWeight: '500' }}>Reps:</Text>
+                <TextInput
+                  style={[styles.input, { height: 40, fontSize: 16 }]}
+                  placeholder="8-12"
+                  value={newExercise.reps}
+                  onChangeText={v => setNewExercise(e => ({ ...e, reps: v }))}
+                  keyboardType="numeric"
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
+              </View>
+            </View>
+
+            <Text style={{ marginBottom: 4, fontWeight: '500' }}>Notes (optional):</Text>
+            <TextInput
+              style={[styles.input, { marginBottom: 16, height: 60, fontSize: 16, textAlignVertical: 'top' }]}
+              placeholder="e.g. Focus on form, increase weight next week"
+              value={newExercise.notes}
+              onChangeText={v => setNewExercise(e => ({ ...e, notes: v }))}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
+              multiline
+              numberOfLines={3}
+            />
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#e0e0e0', flex: 1, marginRight: 8 }]}
+                onPress={() => {
+                  setNewExercise({ name: '', sets: '', reps: '', notes: '' });
+                  setShowAddExerciseModal(false);
+                }}
+              >
+                <Text style={{ color: '#333', fontWeight: 'bold', textAlign: 'center' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
+                onPress={handleAddExercise}
+                disabled={addingEx}
+              >
+                <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>
+                  {addingEx ? 'Adding...' : 'Add Exercise'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Exercise Modal */}
+      <Modal
+        visible={showEditExerciseModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowEditExerciseModal(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: 320, maxWidth: '90%' }}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Edit Exercise</Text>
+            
+            <Text style={{ marginBottom: 4, fontWeight: '500' }}>Exercise Name:</Text>
+            <TextInput
+              style={[styles.input, { marginBottom: 12, height: 40, fontSize: 16 }]}
+              placeholder="e.g. Bench Press"
+              value={editingEx.name}
+              onChangeText={v => setEditingEx(e => ({ ...e, name: v }))}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
+            />
+
+            <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={{ marginBottom: 4, fontWeight: '500' }}>Sets:</Text>
+                <TextInput
+                  style={[styles.input, { height: 40, fontSize: 16 }]}
+                  placeholder="3"
+                  value={editingEx.sets}
+                  onChangeText={v => setEditingEx(e => ({ ...e, sets: v }))}
+                  keyboardType="numeric"
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
+              </View>
+              <View style={{ flex: 1, marginLeft: 8 }}>
+                <Text style={{ marginBottom: 4, fontWeight: '500' }}>Reps:</Text>
+                <TextInput
+                  style={[styles.input, { height: 40, fontSize: 16 }]}
+                  placeholder="8-12"
+                  value={editingEx.reps}
+                  onChangeText={v => setEditingEx(e => ({ ...e, reps: v }))}
+                  keyboardType="numeric"
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
+              </View>
+            </View>
+
+            <Text style={{ marginBottom: 4, fontWeight: '500' }}>Notes (optional):</Text>
+            <TextInput
+              style={[styles.input, { marginBottom: 16, height: 60, fontSize: 16, textAlignVertical: 'top' }]}
+              placeholder="e.g. Focus on form, increase weight next week"
+              value={editingEx.notes}
+              onChangeText={v => setEditingEx(e => ({ ...e, notes: v }))}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
+              multiline
+              numberOfLines={3}
+            />
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#e0e0e0', flex: 1, marginRight: 8 }]}
+                onPress={() => {
+                  setEditingExId(null);
+                  setEditingEx({ name: '', sets: '', reps: '', notes: '' });
+                  setShowEditExerciseModal(false);
+                }}
+              >
+                <Text style={{ color: '#333', fontWeight: 'bold', textAlign: 'center' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#007AFF', flex: 1 }]}
+                onPress={handleSaveEditExercise}
+              >
+                <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteConfirm(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: 320 }}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>
+              Delete {deleteTargetType === 'day' ? 'Day' : 'Exercise'}?
+            </Text>
+            <Text style={{ marginBottom: 16 }}>
+              Are you sure you want to permanently delete this {deleteTargetType}? This action cannot be undone.
+            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+              <TouchableOpacity 
+                style={[styles.modalButton, { backgroundColor: '#e0e0e0', marginRight: 8 }]} 
+                onPress={() => { 
+                  setShowDeleteConfirm(false); 
+                  setDeleteTargetId(null); 
+                  setDeleteTargetType(null);
+                }}
+              >
+                <Text style={{ textAlign: 'center', fontWeight: '700' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, { backgroundColor: '#ff3b30' }]} 
+                onPress={confirmDelete}
+              >
+                <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -386,26 +642,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 16,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
   addButton: {
     backgroundColor: '#007AFF',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
   addButtonText: {
     color: '#fff',
     fontWeight: 'bold',
+    fontSize: 16,
   },
   row: {
     flexDirection: 'row',
@@ -423,9 +679,9 @@ const styles = StyleSheet.create({
   dayBox: {
     borderWidth: 1,
     borderColor: '#eee',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 14,
     backgroundColor: '#fafafa',
   },
   dayName: {
@@ -433,16 +689,49 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 4,
   },
+  exerciseCountBadge: {
+    backgroundColor: '#e6f0ff',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
+  },
   dayActions: {
     flexDirection: 'row',
-    marginTop: 4,
+    marginTop: 8,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
-  editBtn: {
-    color: 'blue',
-    marginRight: 16,
+  actionBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginLeft: 10,
+    minWidth: 78,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  deleteBtn: {
-    color: 'red',
+  actionBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  primaryBtn: {
+    backgroundColor: '#007AFF',
+  },
+  primaryBtnText: {
+    color: '#fff',
+  },
+  dangerBtn: {
+    backgroundColor: '#ff3b30',
+    borderWidth: 0,
+  },
+  dangerBtnText: {
+    color: '#fff',
   },
   exerciseSection: {
     marginTop: 12,
@@ -459,53 +748,34 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
-    padding: 8,
+    padding: 12,
     marginBottom: 8,
     backgroundColor: '#f5f5f5',
   },
   exerciseName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  exerciseDetails: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
   },
   exerciseNotes: {
     fontSize: 13,
     color: '#555',
     marginBottom: 4,
+    fontStyle: 'italic',
+  },
+  exerciseActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   modalButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: '#eee',
-  },
-  primaryBtn: {
-    backgroundColor: '#007AFF',
-  },
-  primaryBtnText: {
-    color: '#fff',
-    fontWeight: '700',
   },
 });
 
-const modalStyles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 18,
-    elevation: 6,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-});
