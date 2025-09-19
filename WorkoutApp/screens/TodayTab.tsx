@@ -322,6 +322,31 @@ export default function TodayTab() {
     });
   };
 
+  // Add a blank temporary exercise to today's workout (local only until saved)
+  const addBlankExerciseToWorkout = () => {
+    if (!profile || !profile.id) return;
+    const id = `tmp-${Date.now()}`;
+    const newEx: any = { id, name: 'Exercise Name', user_id: profile.id, day_id: todayWorkout?.day_id || null, sets: 1, reps: '' };
+    setExercises(prev => [...prev, newEx]);
+    setNameByExercise(prev => ({ ...prev, [id]: 'Exercise Name' }));
+    // do not auto-enable editing to avoid opening the keyboard
+    setEditingByExercise(prev => ({ ...prev, [id]: false }));
+    ensureSetsForExercise(newEx);
+  };
+
+  // Add a blank temporary exercise to the scheduled split day list (local only until saved)
+  const addBlankExerciseToSplit = () => {
+    if (!profile || !profile.id) return;
+    const id = `tmp-s-${Date.now()}`;
+    const dayId = splitDayExercises && splitDayExercises.length > 0 ? splitDayExercises[0].day_id : null;
+    const newEx: any = { id, name: 'Exercise Name', user_id: profile.id, day_id: dayId, sets: 1, reps: '' };
+    setSplitDayExercises(prev => [...prev, newEx]);
+    setNameByExercise(prev => ({ ...prev, [id]: 'Exercise Name' }));
+    // do not auto-enable editing to avoid opening the keyboard
+    setEditingByExercise(prev => ({ ...prev, [id]: false }));
+    ensureSetsForExercise(newEx);
+  };
+
   // Save sets for an exercise; create workout first if missing
   const saveSetsForExercise = async (exerciseId: string) => {
     try {
@@ -491,9 +516,11 @@ export default function TodayTab() {
         <View>
           {exercises.map((item) => (
             <View key={item.id} style={styles.exerciseBox}>
-              <View style={styles.goalBadge}>
-                <Text style={styles.goalBadgeText}>{`${item.sets}×${item.reps}`}</Text>
-              </View>
+              {!(String(item.id).startsWith('tmp')) && (
+                <View style={styles.goalBadge}>
+                  <Text style={styles.goalBadgeText}>{`${item.sets}×${item.reps}`}</Text>
+                </View>
+              )}
               <View style={styles.titleRow}>
                 {!editingByExercise[item.id] ? (
                   <>
@@ -525,6 +552,9 @@ export default function TodayTab() {
               </View>
             </View>
           ))}
+          <TouchableOpacity style={styles.addExerciseBtn} onPress={addBlankExerciseToWorkout}>
+            <Text style={styles.addExerciseText}>+ Add Exercise</Text>
+          </TouchableOpacity>
         </View>
   ) : todayWorkout ? (
         <View style={{ marginVertical: 16 }}>
@@ -536,9 +566,11 @@ export default function TodayTab() {
           <Button title={todayWorkout ? 'Edit Workout' : creatingWorkout ? 'Creating...' : 'Create Today\'s Workout'} onPress={createWorkoutFromScheduledDay} disabled={creatingWorkout || !!todayWorkout} />
           {splitDayExercises.map((item) => (
             <View key={item.id} style={styles.exerciseBox}>
-              <View style={styles.goalBadge}>
-                <Text style={styles.goalBadgeText}>{`${item.sets}×${item.reps}`}</Text>
-              </View>
+              {!(String(item.id).startsWith('tmp')) && (
+                <View style={styles.goalBadge}>
+                  <Text style={styles.goalBadgeText}>{`${item.sets}×${item.reps}`}</Text>
+                </View>
+              )}
               <View style={styles.titleRow}>
                 {!editingByExercise[item.id] ? (
                   <>
@@ -571,6 +603,9 @@ export default function TodayTab() {
               </View>
             </View>
           ))}
+          <TouchableOpacity style={styles.addExerciseBtn} onPress={addBlankExerciseToSplit}>
+            <Text style={styles.addExerciseText}>+ Add Exercise</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <View style={{ marginVertical: 16 }}>
@@ -795,6 +830,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   addSetText: {
+    color: '#007AFF',
+    fontWeight: '700',
+  },
+  addExerciseBtn: {
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: 'transparent',
+  },
+  addExerciseText: {
     color: '#007AFF',
     fontWeight: '700',
   },
