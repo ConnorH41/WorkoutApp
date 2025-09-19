@@ -350,8 +350,6 @@ export default function TodayTab() {
           <Text style={styles.bodyweightIcon}>🏋️‍♂️</Text>
         </TouchableOpacity>
       </View>
-      <Text style={styles.sectionTitle}>Bodyweight</Text>
-      {/* Recent entries temporarily removed */}
 
       {/* Modal for entering bodyweight */}
       <Modal visible={showWeightModal} animationType="slide" transparent>
@@ -419,8 +417,8 @@ export default function TodayTab() {
                   <Text style={{ width: 56, fontWeight: '600' }}>{`Set ${s.setNumber}`}</Text>
                   <TextInput style={[styles.input, { width: 100 }]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => handleSetChange(item.id, idx, 'weight', v)} />
                   <TextInput style={[styles.input, { width: 80, marginLeft: 8 }]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => handleSetChange(item.id, idx, 'reps', v)} />
-                  <TouchableOpacity onPress={() => removeSetRow(item.id, idx)} style={{ marginLeft: 8 }}>
-                    <Text style={{ color: '#ff3b30' }}>Remove</Text>
+                  <TouchableOpacity onPress={() => removeSetRow(item.id, idx)} style={styles.removeBtn}>
+                    <Text style={styles.removeBtnText}>-</Text>
                   </TouchableOpacity>
                 </View>
               ))}
@@ -452,8 +450,8 @@ export default function TodayTab() {
                   <Text style={{ width: 56, fontWeight: '600' }}>{`Set ${s.setNumber}`}</Text>
                   <TextInput style={[styles.input, { width: 100 }]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => handleSetChange(item.id, idx, 'weight', v)} />
                   <TextInput style={[styles.input, { width: 80, marginLeft: 8 }]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => handleSetChange(item.id, idx, 'reps', v)} />
-                  <TouchableOpacity onPress={() => removeSetRow(item.id, idx)} style={{ marginLeft: 8 }}>
-                    <Text style={{ color: '#ff3b30' }}>Remove</Text>
+                  <TouchableOpacity onPress={() => removeSetRow(item.id, idx)} style={styles.removeBtn}>
+                    <Text style={styles.removeBtnText}>-</Text>
                   </TouchableOpacity>
                 </View>
               ))}
@@ -640,5 +638,19 @@ const styles = StyleSheet.create({
   bodyweightIcon: {
     fontSize: 20,
     color: '#fff',
+  },
+  removeBtn: {
+    marginLeft: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#ff3b30',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 18,
   },
 });
