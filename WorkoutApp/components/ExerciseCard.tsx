@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import EditPencil from './EditPencil';
+import RemoveButton from './RemoveButton';
 
 type SetRow = { setNumber: number; reps: string; weight: string; completed?: boolean; logId?: string | null };
 
@@ -61,9 +62,7 @@ export default function ExerciseCard(props: {
 
   <TextInput style={[styles.input, styles.notesInput, readonlyMode ? styles.inputDisabled : null]} placeholder="Notes (optional)" value={notes || ''} onChangeText={(v)=> { if (!readonlyMode) onChangeNotes(v); }} multiline numberOfLines={3} editable={!readonlyMode} />
 
-      <TouchableOpacity style={styles.removeExerciseAbsolute} onPress={() => { if (!readonlyMode) onRemoveExercise(); }}>
-        <Text style={styles.removeExerciseText}>Remove</Text>
-      </TouchableOpacity>
+      <RemoveButton onPress={() => { if (!readonlyMode) onRemoveExercise(); }} label="Remove" accessibilityLabel={`Remove ${name || item.name}`} style={{ position: 'absolute', right: 10, bottom: 10 }} />
     </View>
   );
 }

@@ -966,7 +966,7 @@ export default function SplitsTab() {
                   style={[styles.actionBtn, styles.dangerBtn]}
                   onPress={() => { setDeleteTargetId(item.id); setShowDeleteConfirm(true); }}
                 >
-                  <Text style={[styles.actionBtnText, styles.dangerBtnText]}>Delete</Text>
+                  <Text style={[styles.actionBtnText, styles.dangerBtnText]}>Remove</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionBtn, styles.primaryBtn]}
@@ -1720,14 +1720,14 @@ export default function SplitsTab() {
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
           <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
             <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Delete Split?</Text>
-              <Text style={{ marginBottom: 16 }}>Are you sure you want to permanently delete this split? This action cannot be undone.</Text>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Remove Split?</Text>
+              <Text style={{ marginBottom: 16 }}>Are you sure you want to permanently remove this split? This action cannot be undone.</Text>
               <View style={{ marginTop: 8 }}>
                 <ModalButtons
                   leftLabel="Cancel"
-                  rightLabel="Delete"
-                  onLeftPress={() => { setShowDeleteConfirm(false); setDeleteTargetId(null); }}
-                  onRightPress={async () => { if (deleteTargetId) await handleDeleteSplit(deleteTargetId); setShowDeleteConfirm(false); setDeleteTargetId(null); }}
+                    rightLabel="Remove"
+                    onLeftPress={() => { setShowDeleteConfirm(false); setDeleteTargetId(null); }}
+                    onRightPress={async () => { if (deleteTargetId) await handleDeleteSplit(deleteTargetId); setShowDeleteConfirm(false); setDeleteTargetId(null); }}
                   leftColor="#e0e0e0"
                   rightColor="#ff3b30"
                   leftTextColor="#333"

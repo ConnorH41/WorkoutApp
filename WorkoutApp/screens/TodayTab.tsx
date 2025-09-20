@@ -433,7 +433,7 @@ export default function TodayTab() {
         Alert.alert('Error', error.message);
       } else {
         removeExerciseLocal(exerciseId);
-        Alert.alert('Deleted', 'Exercise deleted permanently');
+        Alert.alert('Removed', 'Exercise removed permanently');
       }
     } catch (e: any) {
       Alert.alert('Error', e.message || String(e));
@@ -450,14 +450,14 @@ export default function TodayTab() {
       ]);
       return;
     }
-    // For persisted items give option to remove locally or delete permanently
+    // For persisted items give option to remove locally or remove permanently
     Alert.alert(
       'Remove Exercise',
-      'Remove this exercise from the list or delete it permanently from your exercises?',
+      'Remove this exercise from the list or remove it permanently from your exercises?',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Remove Locally', onPress: () => removeExerciseLocal(item.id) },
-        { text: 'Delete Permanently', style: 'destructive', onPress: () => deleteExercisePermanent(item.id) },
+        { text: 'Remove Permanently', style: 'destructive', onPress: () => deleteExercisePermanent(item.id) },
       ],
     );
   };

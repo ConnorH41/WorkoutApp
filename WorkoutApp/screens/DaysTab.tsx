@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
 import ModalButtons from '../components/ModalButtons';
 import EditPencil from '../components/EditPencil';
+import RemoveButton from '../components/RemoveButton';
 
 export default function DaysTab() {
   const profile = useProfileStore((state) => state.profile);
@@ -276,9 +277,7 @@ export default function DaysTab() {
                 </View>
               </View>
               <View style={styles.dayActions}>
-                <TouchableOpacity onPress={() => handleDeleteDay(item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Text style={styles.deleteText}>Delete</Text>
-                </TouchableOpacity>
+                <RemoveButton onPress={() => handleDeleteDay(item.id)} label="Remove" accessibilityLabel={`Remove ${item.name}`} />
               </View>
               {selectedDayId === item.id && (
                 <View style={styles.exerciseSection}>
@@ -297,9 +296,7 @@ export default function DaysTab() {
                                 {ex.notes ? <Text style={styles.exerciseNotes}>{ex.notes}</Text> : null}
                               </View>
                               <View style={styles.exerciseActions}>
-                                <TouchableOpacity onPress={() => handleDeleteExercise(ex.id)}>
-                                  <Text style={styles.deleteTextSmall}>Delete</Text>
-                                </TouchableOpacity>
+                                <RemoveButton onPress={() => handleDeleteExercise(ex.id)} label="Remove" accessibilityLabel={`Remove ${ex.name}`} textStyle={styles.deleteTextSmall} />
                                 <EditPencil onPress={() => handleEditExercise(ex)} accessibilityLabel={`Edit ${ex.name}`} />
                               </View>
                             </View>
@@ -588,15 +585,15 @@ export default function DaysTab() {
           <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420 }}>
             <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
               <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>
-                Delete {deleteTargetType === 'day' ? 'Day' : 'Exercise'}?
+                Remove {deleteTargetType === 'day' ? 'Day' : 'Exercise'}?
               </Text>
               <Text style={{ marginBottom: 16 }}>
-                Are you sure you want to permanently delete this {deleteTargetType}? This action cannot be undone.
+                Are you sure you want to permanently remove this {deleteTargetType}? This action cannot be undone.
               </Text>
               <View>
                 <ModalButtons
                   leftLabel="Cancel"
-                  rightLabel="Delete"
+                    rightLabel="Remove"
                   onLeftPress={() => { setShowDeleteConfirm(false); setDeleteTargetId(null); setDeleteTargetType(null); }}
                   onRightPress={confirmDelete}
                   leftColor="#e0e0e0"
