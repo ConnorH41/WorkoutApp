@@ -969,18 +969,20 @@ export default function SplitsTab() {
 
               <View style={styles.splitFooter}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontStyle: 'italic', color: '#666' }}>
-                    {splitStartDate ? `Start: ${new Date(splitStartDate).toLocaleDateString()}` : 'Start: —'}
-                    {`  •  `}
-                    {splitEndDate ? `End: ${new Date(splitEndDate).toLocaleDateString()}` : 'End: Forever'}
-                  </Text>
+                  {currentSplitId === item.id && splitStartDate ? (
+                    <Text style={{ fontStyle: 'italic', color: '#666' }}>
+                      {`Start: ${new Date(splitStartDate).toLocaleDateString()}`}
+                      {splitEndDate ? `  •  End: ${new Date(splitEndDate).toLocaleDateString()}` : '  •  End: Forever'}
+                    </Text>
+                  ) : null}
                   <TouchableOpacity onPress={() => handleSetCurrentSplit(item)}>
                     <Text style={styles.linkText}>{isSplitCurrentlyActive(item.id) ? 'Change Timeframe' : 'Schedule'}</Text>
                   </TouchableOpacity>
                 </View>
 
-                <RemoveButton onPress={() => { setDeleteTargetId(item.id); setShowDeleteConfirm(true); }} label="Remove" accessibilityLabel={`Remove ${item.name}`} textStyle={styles.removeTextStyle} />
-
+                <View style={styles.removeWrapper}>
+                  <RemoveButton onPress={() => { setDeleteTargetId(item.id); setShowDeleteConfirm(true); }} label="Remove" accessibilityLabel={`Remove ${item.name}`} textStyle={styles.removeTextStyle} />
+                </View>
                 {/* Modal for setting current split with calendar and weeks/rotations */}
                 <Modal
                   visible={showSetModal}
@@ -1027,15 +1029,7 @@ export default function SplitsTab() {
                   </View>
                 </Modal>
               </View>
-              {currentSplitId === item.id && (
-                <View style={{ marginTop: 8 }}>
-                  <Text style={{ fontStyle: 'italic', color: '#666' }}>
-                    {splitStartDate ? `Start: ${new Date(splitStartDate).toLocaleDateString()}` : 'Start: —'}
-                    {`  •  `}
-                    {splitEndDate ? `End: ${new Date(splitEndDate).toLocaleDateString()}` : 'End: Forever'}
-                  </Text>
-                </View>
-              )}
+              {/* timeframe is shown in the footer when scheduled; no duplicate block here */}
               {selectedSplitId === item.id && (
                 <View style={styles.splitDaysSection}>
                   {item.mode === 'week' ? (
@@ -1927,6 +1921,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
+  },
+  removeWrapper: {
+    alignItems: 'flex-end',
+    justifyContent: 'flex-start',
   },
   linkText: {
     color: '#007AFF',
