@@ -9,6 +9,7 @@ export default function ExerciseCard(props: {
   name: string;
   editing: boolean;
   notes: string;
+  readonlyMode?: boolean;
   onToggleEdit: () => void;
   onChangeName: (v: string) => void;
   onChangeSet: (index: number, field: 'reps' | 'weight', value: string) => void;
@@ -19,7 +20,7 @@ export default function ExerciseCard(props: {
   onRemoveExercise: () => void;
   IconFeather?: any;
 }) {
-  const { item, sets, name, editing, notes, onToggleEdit, onChangeName, onChangeSet, onToggleCompleted, onAddSet, onRemoveSet, onChangeNotes, onRemoveExercise, IconFeather } = props;
+  const { item, sets, name, editing, notes, readonlyMode, onToggleEdit, onChangeName, onChangeSet, onToggleCompleted, onAddSet, onRemoveSet, onChangeNotes, onRemoveExercise, IconFeather } = props;
 
   return (
     <View style={styles.exerciseBox}>
@@ -43,25 +44,25 @@ export default function ExerciseCard(props: {
 
       {sets.map((s, idx) => (
         <View key={`${item.id}-set-${idx}`} style={styles.setRow}>
-          <TouchableOpacity style={[styles.checkbox, s.completed ? styles.checkboxChecked : null]} onPress={() => onToggleCompleted(idx)}>
+          <TouchableOpacity style={[styles.checkbox, s.completed ? styles.checkboxChecked : null, readonlyMode ? styles.checkboxDisabled : null]} onPress={() => { if (!readonlyMode) onToggleCompleted(idx); }}>
             <Text style={styles.checkboxText}>{s.completed ? '✓' : ''}</Text>
           </TouchableOpacity>
           <Text style={styles.setLabel}>{`Set ${s.setNumber}`}</Text>
-          <TextInput editable={!s.completed} style={[styles.input, styles.inputWeight, s.completed ? styles.inputDisabled : null]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => onChangeSet(idx, 'weight', v)} />
-          <TextInput editable={!s.completed} style={[styles.input, styles.inputReps, s.completed ? styles.inputDisabled : null]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => onChangeSet(idx, 'reps', v)} />
-          <TouchableOpacity onPress={() => onRemoveSet(idx)} style={styles.removeBtn}>
+          <TextInput editable={!s.completed && !readonlyMode} style={[styles.input, styles.inputWeight, (s.completed || readonlyMode) ? styles.inputDisabled : null]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => onChangeSet(idx, 'weight', v)} />
+          <TextInput editable={!s.completed && !readonlyMode} style={[styles.input, styles.inputReps, (s.completed || readonlyMode) ? styles.inputDisabled : null]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => onChangeSet(idx, 'reps', v)} />
+          <TouchableOpacity onPress={() => { if (!readonlyMode) onRemoveSet(idx); }} style={styles.removeBtn}>
             <Text style={styles.removeBtnText}>-</Text>
           </TouchableOpacity>
         </View>
       ))}
 
-      <TouchableOpacity onPress={onAddSet} style={styles.addSetLink}>
+      <TouchableOpacity onPress={() => { if (!readonlyMode) onAddSet(); }} style={styles.addSetLink}>
         <Text style={styles.addSetText}>+ Add Set</Text>
       </TouchableOpacity>
 
-  <TextInput style={[styles.input, styles.notesInput]} placeholder="Notes (optional)" value={notes || ''} onChangeText={onChangeNotes} multiline numberOfLines={3} />
+  <TextInput style={[styles.input, styles.notesInput, readonlyMode ? styles.inputDisabled : null]} placeholder="Notes (optional)" value={notes || ''} onChangeText={(v)=> { if (!readonlyMode) onChangeNotes(v); }} multiline numberOfLines={3} editable={!readonlyMode} />
 
-      <TouchableOpacity style={styles.removeExerciseAbsolute} onPress={onRemoveExercise}>
+      <TouchableOpacity style={styles.removeExerciseAbsolute} onPress={() => { if (!readonlyMode) onRemoveExercise(); }}>
         <Text style={styles.removeExerciseText}>Remove</Text>
       </TouchableOpacity>
     </View>
@@ -126,6 +127,7 @@ const styles = StyleSheet.create({
   goalBadgeText: { color: '#fff', fontWeight: '700', fontSize: 12 },
   checkbox: { width: 28, height: 28, borderRadius: 4, borderWidth: 1, borderColor: '#ccc', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
   checkboxChecked: { backgroundColor: '#007AFF', borderColor: '#007AFF' },
+  checkboxDisabled: { backgroundColor: '#f2f2f2', borderColor: '#ddd' },
   checkboxText: { color: '#fff', fontWeight: '700' },
   inputDisabled: { backgroundColor: '#f2f2f2', color: '#999' },
   removeExerciseAbsolute: { position: 'absolute', right: 10, bottom: 10, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 6, backgroundColor: 'transparent' },

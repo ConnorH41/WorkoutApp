@@ -36,6 +36,7 @@ export default function TodayTab() {
   const [editingByExercise, setEditingByExercise] = useState<{ [exerciseId: string]: boolean }>({});
   const [creatingWorkout, setCreatingWorkout] = useState(false);
   const [savingLog, setSavingLog] = useState(false);
+  const [isRestDay, setIsRestDay] = useState(false);
 
   useEffect(() => {
     if (profile && profile.id) {
@@ -43,6 +44,17 @@ export default function TodayTab() {
       fetchActiveSplitRun();
     }
   }, [profile?.id]);
+
+  // If there are scheduled split day exercises and no workout exists for today,
+  // create today's workout automatically (keeps exercises visible and workout present).
+  useEffect(() => {
+    if (!profile || !profile.id) return;
+    if (creatingWorkout) return;
+    if (!todayWorkout && splitDayExercises && splitDayExercises.length > 0) {
+      // createWorkoutFromScheduledDay will populate today's workout and exercises
+      createWorkoutFromScheduledDay().catch(() => {});
+    }
+  }, [splitDayExercises, todayWorkout, profile?.id, creatingWorkout]);
 
   // initialize nameByExercise from exercises when they change
   useEffect(() => {
@@ -109,6 +121,7 @@ export default function TodayTab() {
           
           mappedDayId = null;
         }
+
       }
 
       if (mappedDayId) {
@@ -132,7 +145,6 @@ export default function TodayTab() {
       setActiveSplitRun(null);
       setSplitTemplate(null);
       setSplitDayExercises([]);
-      setSplitDayName(null);
     }
   };
 
@@ -156,6 +168,8 @@ export default function TodayTab() {
       .single();
     if (workout && !workoutError) {
       setTodayWorkout(workout);
+      // If the fetched workout is completed, consider it a rest-day state for UI purposes
+      setIsRestDay(!!workout.completed);
       // try to infer day name from the workout's day_id
       if (workout.day_id) {
         const { data: dayData } = await supabase.from('days').select('*').eq('id', workout.day_id).limit(1);
@@ -179,6 +193,7 @@ export default function TodayTab() {
       setTodayWorkout(null);
       setExercises([]);
       setDayNameFromWorkout(null);
+      setIsRestDay(false);
     }
     setWorkoutLoading(false);
   };
@@ -568,17 +583,45 @@ export default function TodayTab() {
   const handleRestDay = async () => {
     if (!profile || !profile.id) return;
     setResting(true);
-    // Insert a rest workout for today if not already present
-    const today = new Date().toISOString().slice(0, 10);
-    const { error } = await supabase
-      .from('workouts')
-      .insert({ user_id: profile.id, date: today, completed: true });
-    setResting(false);
-    if (error) {
-      Alert.alert('Error', error.message);
-    } else {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      if (todayWorkout && todayWorkout.id) {
+        // update existing workout to completed=true
+        const { data, error } = await supabase.from('workouts').update({ completed: true }).eq('id', todayWorkout.id).select().limit(1);
+        setResting(false);
+        if (error) throw error;
+        if (data && data.length > 0) setTodayWorkout(data[0]);
+      } else {
+        // insert a new rest workout but don't refetch exercises — keep them visible
+        const { data, error } = await supabase.from('workouts').insert({ user_id: profile.id, date: today, completed: true }).select().limit(1);
+        setResting(false);
+        if (error) throw error;
+        if (data && data.length > 0) setTodayWorkout(data[0]);
+      }
+      setIsRestDay(true);
       Alert.alert('Rest Day', 'Rest day logged.');
-      fetchTodayWorkout();
+    } catch (e: any) {
+      setResting(false);
+      Alert.alert('Error', e.message || String(e));
+    }
+  };
+
+  const handleUnmarkRestDay = async () => {
+    if (!todayWorkout || !todayWorkout.id) {
+      setIsRestDay(false);
+      return;
+    }
+    setResting(true);
+    try {
+      const { data, error } = await supabase.from('workouts').update({ completed: false }).eq('id', todayWorkout.id).select().limit(1);
+      setResting(false);
+      if (error) throw error;
+      if (data && data.length > 0) setTodayWorkout(data[0]);
+      setIsRestDay(false);
+      Alert.alert('Rest Day', 'Rest day unmarked.');
+    } catch (e: any) {
+      setResting(false);
+      Alert.alert('Error', e.message || String(e));
     }
   };
 
@@ -650,15 +693,17 @@ export default function TodayTab() {
 
       {workoutLoading ? (
         <ActivityIndicator />
-      ) : todayWorkout && exercises.length > 0 ? (
+      ) : (
         <View>
-          {exercises.map((item) => (
+          <Text style={{ fontSize: 16, fontWeight: '700', marginBottom: 8 }}>{splitDayName ? `${splitDayName}` : (dayNameFromWorkout || 'Today')}</Text>
+          {( (exercises && exercises.length > 0) ? exercises : splitDayExercises ).map((item) => (
             <ExerciseCard
               key={item.id}
               item={item}
               sets={logs[item.id] || [{ setNumber: 1, reps: '', weight: '', completed: false }]}
               name={nameByExercise[item.id]}
               editing={!!editingByExercise[item.id]}
+              readonlyMode={isRestDay}
               notes={notesByExercise[item.id]}
               onToggleEdit={() => setEditingByExercise(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
               onChangeName={(v) => setNameByExercise(prev => ({ ...prev, [item.id]: v }))}
@@ -671,66 +716,32 @@ export default function TodayTab() {
               IconFeather={IconFeather}
             />
           ))}
-          <TouchableOpacity style={styles.addExerciseBtn} onPress={addBlankExerciseToWorkout}>
+          <TouchableOpacity style={styles.addExerciseBtn} onPress={() => (exercises && exercises.length > 0) ? addBlankExerciseToWorkout() : addBlankExerciseToSplit()} disabled={isRestDay}>
             <Text style={styles.addExerciseText}>+ Add Exercise</Text>
           </TouchableOpacity>
         </View>
-  ) : todayWorkout ? (
-        <View style={{ marginVertical: 16 }}>
-          <Text>No exercises for today's workout.</Text>
-        </View>
-      ) : (splitDayExercises.length > 0 ? (
-        <View>
-          <Text style={{ fontSize: 16, fontWeight: '700', marginBottom: 8 }}>{splitDayName ? `Scheduled: ${splitDayName}` : 'Scheduled Day'}</Text>
-          <Button title={todayWorkout ? 'Edit Workout' : creatingWorkout ? 'Creating...' : 'Create Today\'s Workout'} onPress={createWorkoutFromScheduledDay} disabled={creatingWorkout || !!todayWorkout} />
-          {splitDayExercises.map((item) => (
-            <ExerciseCard
-              key={item.id}
-              item={item}
-              sets={logs[item.id] || [{ setNumber: 1, reps: '', weight: '' }]}
-              name={nameByExercise[item.id]}
-              editing={!!editingByExercise[item.id]}
-              notes={notesByExercise[item.id]}
-              onToggleEdit={() => setEditingByExercise(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
-              onChangeName={(v) => setNameByExercise(prev => ({ ...prev, [item.id]: v }))}
-              onChangeSet={(idx, field, v) => handleSetChange(item.id, idx, field as any, v)}
-              onToggleCompleted={(idx) => toggleSetCompleted(item.id, idx)}
-              onAddSet={() => addSetRow(item.id)}
-              onRemoveSet={(idx) => confirmRemoveSetRow(item.id, idx)}
-              onChangeNotes={(v) => handleNotesChange(item.id, v)}
-              onRemoveExercise={() => confirmRemoveExercise(item)}
-              IconFeather={IconFeather}
-            />
-          ))}
-          <TouchableOpacity style={styles.addExerciseBtn} onPress={addBlankExerciseToSplit}>
-            <Text style={styles.addExerciseText}>+ Add Exercise</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={{ marginVertical: 16 }}>
-          <Text>No workout scheduled for today.</Text>
-          <Button title={resting ? 'Logging...' : 'Log Rest Day'} onPress={handleRestDay} disabled={resting} />
-        </View>
-      ))}
+      )}
 
-      {todayWorkout && !todayWorkout.completed && (
+      {todayWorkout && (
         <>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={handleCompleteWorkout}
-            disabled={completing}
-            style={[styles.primaryButton, completing ? styles.primaryButtonDisabled : null]}
-          >
-            <Text style={[styles.primaryButtonText, completing ? styles.primaryButtonTextDisabled : null]}>{completing ? 'Completing...' : 'Mark Workout Complete'}</Text>
-          </TouchableOpacity>
+          {!isRestDay && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={handleCompleteWorkout}
+              disabled={completing}
+              style={[styles.primaryButton, completing ? styles.primaryButtonDisabled : null]}
+            >
+              <Text style={[styles.primaryButtonText, completing ? styles.primaryButtonTextDisabled : null]}>{completing ? 'Completing...' : 'Mark Workout Complete'}</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={handleRestDay}
+            onPress={isRestDay ? handleUnmarkRestDay : handleRestDay}
             disabled={resting}
-            style={[styles.secondaryButton, resting ? styles.secondaryButtonDisabled : null]}
+            style={[isRestDay ? styles.primaryButton : styles.secondaryButton, resting ? styles.secondaryButtonDisabled : null]}
           >
-            <Text style={[styles.secondaryButtonText, resting ? styles.secondaryButtonTextDisabled : null]}>{resting ? 'Logging...' : 'Mark as Rest Day'}</Text>
+            <Text style={[isRestDay ? styles.primaryButtonText : styles.secondaryButtonText, resting ? styles.secondaryButtonTextDisabled : null]}>{resting ? 'Logging...' : (isRestDay ? 'Unmark as Rest Day' : 'Mark as Rest Day')}</Text>
           </TouchableOpacity>
         </>
       )}
