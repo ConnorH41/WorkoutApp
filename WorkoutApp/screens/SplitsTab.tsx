@@ -74,6 +74,7 @@ export default function SplitsTab() {
   const [currentSplitId, setCurrentSplitId] = useState<string | null>(null);
   const [splitStartDate, setSplitStartDate] = useState<string | null>(null);
   const [splitEndDate, setSplitEndDate] = useState<string | null>(null);
+  const [activeRuns, setActiveRuns] = useState<any[]>([]);
   const [showSetModal, setShowSetModal] = useState(false);
   const [pendingSplit, setPendingSplit] = useState<any>(null);
   const [pendingRotationLength, setPendingRotationLength] = useState<number | null>(null);
@@ -111,26 +112,7 @@ export default function SplitsTab() {
   })();
 
   const endBeforeStart = !!endDate && new Date(endDate).setHours(0, 0, 0, 0) < new Date(calendarDate).setHours(0, 0, 0, 0);
-  // Load current split run from database
-  useEffect(() => {
-    const fetchFromDb = async () => {
-      if (!profile || !profile.id) return;
-      const { data } = await supabase
-        .from('split_runs')
-        .select('*')
-        .eq('user_id', profile.id)
-        .eq('active', true)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      if (data && data.length > 0) {
-        const run: any = data[0];
-        setCurrentSplitId(run.split_id || null);
-        setSplitStartDate(run.start_date ? new Date(run.start_date).toISOString() : null);
-        setSplitEndDate(run.end_date ? new Date(run.end_date).toISOString() : null);
-      }
-    };
-    fetchFromDb();
-  }, []);
+  // initial load of active runs handled by fetchActiveRun() in the profile effect below
 
 
   // Open modal to set current split
@@ -164,14 +146,14 @@ export default function SplitsTab() {
     } else {
       setPendingRotationLength(null);
     }
-    // If this split is currently active, prefill with the active run dates
-    if (isSplitCurrentlyActive(split.id) && splitStartDate) {
-      const s = new Date(splitStartDate);
+    // If there is an existing active run for this split, prefill with those dates
+    const run = activeRuns.find(r => r.split_id === split.id);
+    if (run && run.start_date) {
+      const s = new Date(run.start_date);
       setCalendarDate(s);
-      if (splitEndDate) {
-        const e = new Date(splitEndDate);
+      if (run.end_date) {
+        const e = new Date(run.end_date);
         setEndDate(e);
-        // compute weeks between
         const msPerDay = 24 * 60 * 60 * 1000;
         const s0 = new Date(s);
         s0.setHours(0, 0, 0, 0);
@@ -185,7 +167,6 @@ export default function SplitsTab() {
         setDurationWeeks(-1);
       }
       setEndManuallyEdited(false);
-  // reset rotations placeholder
       setShowSetModal(true);
       return;
     }
@@ -234,12 +215,11 @@ export default function SplitsTab() {
       setEditSplitRotationInput(String(length));
     }
     
-    // Load current schedule if it's the active split
-    if (currentSplitId === split.id && splitStartDate) {
-      setEditSplitStartDate(new Date(splitStartDate));
-      if (splitEndDate) {
-        setEditSplitEndDate(new Date(splitEndDate));
-      }
+    // Load current schedule if there is an active run for this split
+    const run = activeRuns.find((r: any) => r.split_id === split.id);
+    if (run && run.start_date) {
+      setEditSplitStartDate(new Date(run.start_date));
+      setEditSplitEndDate(run.end_date ? new Date(run.end_date) : null);
     } else {
       setEditSplitStartDate(getNextMonday(new Date()));
       setEditSplitEndDate(getEndDateForWeeks(getNextMonday(new Date()), 4));
@@ -252,6 +232,15 @@ export default function SplitsTab() {
   const handleConfirmSetCurrentSplit = async () => {
     if (!pendingSplit) return;
     try {
+      // Prevent overlaps: compute intended start/end (ISO dates) and ensure no active run overlaps
+      const intendedStart = calendarDate ? toDateOnly(calendarDate) : null;
+      const intendedEnd = endDate ? toDateOnly(endDate) : null;
+      // If any existing active run (for other splits) overlaps, block scheduling
+      const overlapping = activeRuns.some(r => r.split_id !== pendingSplit.id && rangesOverlap(r.start_date, r.end_date, intendedStart, intendedEnd));
+      if (overlapping) {
+        showValidationToast('Scheduling would overlap an existing split run. Pick different dates.');
+        return;
+      }
       setCurrentSplitId(pendingSplit.id);
       setSplitStartDate(calendarDate.toISOString());
       if (endDate) setSplitEndDate(endDate.toISOString());
@@ -277,8 +266,6 @@ export default function SplitsTab() {
         await safeStorage.removeItem('splitNumRotations');
         // Persist to split_runs
         if (profile?.id) {
-          // Deactivate any existing active run for this user
-          await supabase.from('split_runs').update({ active: false }).eq('user_id', profile.id).eq('active', true);
           await supabase.from('split_runs').insert({
             split_id: pendingSplit.id,
             user_id: profile.id,
@@ -288,6 +275,7 @@ export default function SplitsTab() {
             num_rotations: null,
             active: true,
           });
+          await fetchActiveRun();
           await fetchActiveRun();
         }
       } else {
@@ -306,7 +294,6 @@ export default function SplitsTab() {
         await safeStorage.removeItem('splitNumWeeks');
         // Persist to split_runs
         if (profile?.id) {
-          await supabase.from('split_runs').update({ active: false }).eq('user_id', profile.id).eq('active', true);
           await supabase.from('split_runs').insert({
             split_id: pendingSplit.id,
             user_id: profile.id,
@@ -316,6 +303,7 @@ export default function SplitsTab() {
             num_rotations: computedRotations || 1,
             active: true,
           });
+          await fetchActiveRun();
           await fetchActiveRun();
         }
       }
@@ -386,33 +374,49 @@ export default function SplitsTab() {
       .select('*')
       .eq('user_id', profile.id)
       .eq('active', true)
-      .order('created_at', { ascending: false })
-      .limit(1);
-    if (!error && data && data.length > 0) {
-      const run: any = data[0];
-      setCurrentSplitId(run.split_id || null);
-      setSplitStartDate(run.start_date ? new Date(run.start_date).toISOString() : null);
-      setSplitEndDate(run.end_date ? new Date(run.end_date).toISOString() : null);
-    } else if (!error) {
-      setCurrentSplitId(null);
-      setSplitStartDate(null);
-      setSplitEndDate(null);
+      .order('created_at', { ascending: false });
+    if (!error && data) {
+      setActiveRuns(data || []);
+      if (data.length > 0) {
+        const run: any = data[0];
+        setCurrentSplitId(run.split_id || null);
+        setSplitStartDate(run.start_date ? new Date(run.start_date).toISOString() : null);
+        setSplitEndDate(run.end_date ? new Date(run.end_date).toISOString() : null);
+      } else {
+        setCurrentSplitId(null);
+        setSplitStartDate(null);
+        setSplitEndDate(null);
+      }
     }
   };
 
   // Return true if the given split id is the current active run and today's date
   // falls within the run's start/end range. If end is null treat as ongoing.
+  const rangesOverlap = (s1: string | null, e1: string | null, s2: string | null, e2: string | null) => {
+    if (!s1 || !s2) return true; // conservative
+    const a1 = new Date(s1).setHours(0,0,0,0);
+    const b1 = e1 ? new Date(e1).setHours(0,0,0,0) : null;
+    const a2 = new Date(s2).setHours(0,0,0,0);
+    const b2 = e2 ? new Date(e2).setHours(0,0,0,0) : null;
+    if (b1 && b2) return !(b1 < a2 || b2 < a1);
+    if (!b1 && !b2) return true;
+    if (!b1 && b2) return !(b2 < a1);
+    if (b1 && !b2) return !(b1 < a2);
+    return true;
+  };
+
   const isSplitCurrentlyActive = (splitId: string) => {
-    if (currentSplitId !== splitId) return false;
+    const run = activeRuns.find(r => r.split_id === splitId);
+    if (!run) return false;
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (!splitStartDate) return true;
-    const s = new Date(splitStartDate);
-    s.setHours(0, 0, 0, 0);
+    today.setHours(0,0,0,0);
+    if (!run.start_date) return true;
+    const s = new Date(run.start_date);
+    s.setHours(0,0,0,0);
     if (today.getTime() < s.getTime()) return false;
-    if (!splitEndDate) return true;
-    const e = new Date(splitEndDate);
-    e.setHours(0, 0, 0, 0);
+    if (!run.end_date) return true;
+    const e = new Date(run.end_date);
+    e.setHours(0,0,0,0);
     if (today.getTime() > e.getTime()) return false;
     return true;
   };
@@ -642,7 +646,7 @@ export default function SplitsTab() {
       }
       
       // Schedule the split (create split_run) only if a start date was provided
-      if (newSplitStartDate) {
+  if (newSplitStartDate) {
         if (newSplit.mode === 'week') {
           const msPerDay = 24 * 60 * 60 * 1000;
           let weeks = '0';
@@ -657,8 +661,14 @@ export default function SplitsTab() {
             weeks = '999'; // Forever
           }
 
-          await supabase.from('split_runs').update({ active: false }).eq('user_id', profile.id).eq('active', true);
-          await supabase.from('split_runs').insert({
+          // Check overlap before inserting
+          const intendedStart = toDateOnly(newSplitStartDate);
+          const intendedEnd = newSplitEndDate ? toDateOnly(newSplitEndDate) : null;
+          const overlapping = activeRuns.some(r => rangesOverlap(r.start_date, r.end_date, intendedStart, intendedEnd));
+          if (overlapping) {
+            showValidationToast('Scheduling would overlap an existing split run. Pick different dates.');
+          } else {
+              await supabase.from('split_runs').insert({
             split_id: newSplitId,
             user_id: profile.id,
             start_date: toDateOnly(newSplitStartDate),
@@ -666,7 +676,9 @@ export default function SplitsTab() {
             num_weeks: newSplitEndDate ? parseInt(weeks, 10) || 1 : null,
             num_rotations: null,
             active: true,
-          });
+              });
+              await fetchActiveRun();
+          }
         } else {
           // For rotation-mode, compute number of rotations if an end date was provided
           let computedRotations = 1;
@@ -679,8 +691,14 @@ export default function SplitsTab() {
             const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
             computedRotations = Math.max(0, Math.floor(diffDays / newSplitRotationLength));
           }
-          await supabase.from('split_runs').update({ active: false }).eq('user_id', profile.id).eq('active', true);
-          await supabase.from('split_runs').insert({
+          // Check overlap before inserting rotation-mode run
+          const intendedStart = toDateOnly(newSplitStartDate);
+          const intendedEnd = newSplitEndDate ? toDateOnly(newSplitEndDate) : null;
+          const overlapping = activeRuns.some(r => rangesOverlap(r.start_date, r.end_date, intendedStart, intendedEnd));
+          if (overlapping) {
+            showValidationToast('Scheduling would overlap an existing split run. Pick different dates.');
+          } else {
+            await supabase.from('split_runs').insert({
             split_id: newSplitId,
             user_id: profile.id,
             start_date: toDateOnly(newSplitStartDate),
@@ -688,7 +706,9 @@ export default function SplitsTab() {
             num_weeks: null,
             num_rotations: computedRotations || 1,
             active: true,
-          });
+            });
+            await fetchActiveRun();
+          }
         }
       }
       
@@ -793,8 +813,14 @@ export default function SplitsTab() {
             weeks = '999'; // Forever
           }
           
-          await supabase.from('split_runs').update({ active: false }).eq('user_id', profile.id).eq('active', true);
-          await supabase.from('split_runs').insert({
+          // Check overlap before inserting updated run
+          const intendedStart = toDateOnly(editSplitStartDate);
+          const intendedEnd = editSplitEndDate ? toDateOnly(editSplitEndDate) : null;
+          const overlapping = activeRuns.some(r => r.split_id !== editingSplit.id && rangesOverlap(r.start_date, r.end_date, intendedStart, intendedEnd));
+          if (overlapping) {
+            showValidationToast('Scheduling would overlap an existing split run. Pick different dates.');
+          } else {
+            await supabase.from('split_runs').insert({
             split_id: editingSplit.id,
             user_id: profile.id,
             start_date: toDateOnly(editSplitStartDate),
@@ -802,7 +828,9 @@ export default function SplitsTab() {
             num_weeks: editSplitEndDate ? parseInt(weeks, 10) || 1 : null,
             num_rotations: null,
             active: true,
-          });
+            });
+            await fetchActiveRun();
+          }
         } else {
           // For rotation-mode when editing an active split, compute rotations if end date provided
           let computedRotations = 1;
@@ -815,8 +843,14 @@ export default function SplitsTab() {
             const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
             computedRotations = Math.max(0, Math.floor(diffDays / editSplitRotationLength));
           }
-          await supabase.from('split_runs').update({ active: false }).eq('user_id', profile.id).eq('active', true);
-          await supabase.from('split_runs').insert({
+          // Check overlap before inserting rotation-mode updated run
+          const intendedStart = toDateOnly(editSplitStartDate);
+          const intendedEnd = editSplitEndDate ? toDateOnly(editSplitEndDate) : null;
+          const overlapping = activeRuns.some(r => r.split_id !== editingSplit.id && rangesOverlap(r.start_date, r.end_date, intendedStart, intendedEnd));
+          if (overlapping) {
+            showValidationToast('Scheduling would overlap an existing split run. Pick different dates.');
+          } else {
+            await supabase.from('split_runs').insert({
             split_id: editingSplit.id,
             user_id: profile.id,
             start_date: toDateOnly(editSplitStartDate),
@@ -824,7 +858,9 @@ export default function SplitsTab() {
             num_weeks: null,
             num_rotations: computedRotations || 1,
             active: true,
-          });
+            });
+            await fetchActiveRun();
+          }
         }
       }
       
@@ -969,14 +1005,23 @@ export default function SplitsTab() {
 
               <View style={styles.splitFooter}>
                 <View style={{ flex: 1 }}>
-                  {currentSplitId === item.id && splitStartDate ? (
-                    <Text style={{ fontStyle: 'italic', color: '#666' }}>
-                      {`Start: ${new Date(splitStartDate).toLocaleDateString()}`}
-                      {splitEndDate ? `  •  End: ${new Date(splitEndDate).toLocaleDateString()}` : '  •  End: Forever'}
-                    </Text>
-                  ) : null}
+                  {(() => {
+                    const run = activeRuns.find(r => r.split_id === item.id);
+                    if (run && run.start_date) {
+                      return (
+                        <Text style={{ fontStyle: 'italic', color: '#666' }}>
+                          {`Start: ${new Date(run.start_date).toLocaleDateString()}`}
+                          {run.end_date ? `  •  End: ${new Date(run.end_date).toLocaleDateString()}` : '  •  End: Forever'}
+                        </Text>
+                      );
+                    }
+                    return null;
+                  })()}
                   <TouchableOpacity onPress={() => handleSetCurrentSplit(item)}>
-                    <Text style={styles.linkText}>{isSplitCurrentlyActive(item.id) ? 'Change Timeframe' : 'Schedule'}</Text>
+                    {(() => {
+                      const run = activeRuns.find(r => r.split_id === item.id);
+                      return <Text style={styles.linkText}>{run && run.start_date ? 'Change Timeframe' : 'Schedule'}</Text>;
+                    })()}
                   </TouchableOpacity>
                 </View>
 
