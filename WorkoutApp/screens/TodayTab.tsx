@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Button, ScrollView, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity } from 'react-native';
 import ModalButtons from '../components/ModalButtons';
+import ConfirmModal from '../components/ConfirmModal';
 import ExerciseCard from '../components/ExerciseCard';
 // Import icons at runtime to avoid type errors when package isn't installed in the environment
 let IconFeather: any = null;
@@ -563,6 +564,13 @@ export default function TodayTab() {
   // Complete/Rest button handlers
   const [completing, setCompleting] = useState(false);
   const [resting, setResting] = useState(false);
+  // Confirm modal state
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [confirmTitle, setConfirmTitle] = useState<string | undefined>(undefined);
+  const [confirmMessage, setConfirmMessage] = useState<string | undefined>(undefined);
+  const [confirmConfirmLabel, setConfirmConfirmLabel] = useState<string | undefined>(undefined);
+  const [confirmCancelLabel, setConfirmCancelLabel] = useState<string | undefined>(undefined);
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
 
   const handleCompleteWorkout = async () => {
     if (!todayWorkout) return;
@@ -622,6 +630,47 @@ export default function TodayTab() {
     } catch (e: any) {
       setResting(false);
       Alert.alert('Error', e.message || String(e));
+    }
+  };
+
+  // Confirmation modal helpers
+  const showConfirm = (opts: { title?: string; message?: string; confirmLabel?: string; cancelLabel?: string; action?: () => void }) => {
+    setConfirmTitle(opts.title);
+    setConfirmMessage(opts.message);
+    setConfirmConfirmLabel(opts.confirmLabel || 'Confirm');
+    setConfirmCancelLabel(opts.cancelLabel || 'Cancel');
+    setConfirmAction(() => opts.action || null);
+    setConfirmVisible(true);
+  };
+
+  const confirmCompleteWorkout = () => {
+    if (!todayWorkout) return;
+    showConfirm({
+      title: 'Complete Workout',
+      message: 'Are you sure you want to mark this workout as complete? This will mark it finished for today.',
+      confirmLabel: 'Complete',
+      cancelLabel: 'Cancel',
+      action: () => handleCompleteWorkout(),
+    });
+  };
+
+  const confirmRestToggle = () => {
+    if (isRestDay) {
+      showConfirm({
+        title: 'Unmark Rest Day',
+        message: 'Are you sure you want to unmark today as a rest day?',
+        confirmLabel: 'Unmark',
+        cancelLabel: 'Cancel',
+        action: () => handleUnmarkRestDay(),
+      });
+    } else {
+      showConfirm({
+        title: 'Mark Rest Day',
+        message: 'Are you sure you want to mark today as a rest day? You can unmark it later.',
+        confirmLabel: 'Mark Rest Day',
+        cancelLabel: 'Cancel',
+        action: () => handleRestDay(),
+      });
     }
   };
 
@@ -727,7 +776,7 @@ export default function TodayTab() {
           {!isRestDay && (
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={handleCompleteWorkout}
+              onPress={confirmCompleteWorkout}
               disabled={completing}
               style={[styles.primaryButton, completing ? styles.primaryButtonDisabled : null]}
             >
@@ -737,7 +786,7 @@ export default function TodayTab() {
 
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={isRestDay ? handleUnmarkRestDay : handleRestDay}
+            onPress={confirmRestToggle}
             disabled={resting}
             style={[isRestDay ? styles.primaryButton : styles.secondaryButton, resting ? styles.secondaryButtonDisabled : null]}
           >
@@ -748,6 +797,18 @@ export default function TodayTab() {
       {todayWorkout && todayWorkout.completed && (
         <Text style={{ color: 'green', marginTop: 12 }}>Workout marked as complete!</Text>
       )}
+      <ConfirmModal
+        visible={confirmVisible}
+        title={confirmTitle}
+        message={confirmMessage}
+        confirmLabel={confirmConfirmLabel}
+        cancelLabel={confirmCancelLabel}
+        onCancel={() => setConfirmVisible(false)}
+        onConfirm={() => {
+          setConfirmVisible(false);
+          try { if (confirmAction) confirmAction(); } catch (e) { /* ignore */ }
+        }}
+      />
     </ScrollView>
   );
 }
