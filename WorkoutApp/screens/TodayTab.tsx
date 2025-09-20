@@ -18,6 +18,7 @@ try {
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
 import { useTodayWorkout } from '../hooks/useTodayWorkout';
+import { useExerciseLogs } from '../hooks/useExerciseLogs';
 import ExerciseList from '../components/ExerciseList';
 
 export default function TodayTab() {
@@ -45,8 +46,7 @@ export default function TodayTab() {
     setSplitDayExercises,
   } = useTodayWorkout();
 
-  const [logs, setLogs] = useState<{ [exerciseId: string]: Array<{ setNumber: number; reps: string; weight: string; completed?: boolean; logId?: string | null }> }>({});
-  const [notesByExercise, setNotesByExercise] = useState<{ [exerciseId: string]: string }>({});
+  // useExerciseLogs will be initialized after helper functions are declared
   const [nameByExercise, setNameByExercise] = useState<{ [exerciseId: string]: string }>({});
   const [editingByExercise, setEditingByExercise] = useState<{ [exerciseId: string]: boolean }>({});
   const [creatingWorkout, setCreatingWorkout] = useState(false);
@@ -145,23 +145,17 @@ export default function TodayTab() {
     return null;
   };
 
-  // Manage per-exercise set rows
-  const addSetRow = (exerciseId: string) => {
-    setLogs(prev => {
-      const arr = prev[exerciseId] ? [...prev[exerciseId]] : [];
-      arr.push({ setNumber: arr.length + 1, reps: '', weight: '' });
-      return { ...prev, [exerciseId]: arr };
-    });
-  };
+  // Initialize exercise logs hook with callbacks that need local helpers
+  const { logs, notesByExercise, setLogs, setNotesByExercise, addSetRow, removeSetRow, handleSetChange, handleNotesChange, ensureSetsForExercise, toggleSetCompleted, saveSetsForExercise } = useExerciseLogs({
+    createWorkoutFromScheduledDay,
+    createExercise,
+    getTodayWorkout: () => todayWorkout,
+    getExercises: () => exercises,
+    getSplitDayExercises: () => splitDayExercises,
+    getNameByExercise: (id: string) => nameByExercise[id],
+  });
 
-  const removeSetRow = (exerciseId: string, index: number) => {
-    setLogs(prev => {
-      const arr = prev[exerciseId] ? [...prev[exerciseId]] : [];
-      arr.splice(index, 1);
-      arr.forEach((r, i) => (r.setNumber = i + 1));
-      return { ...prev, [exerciseId]: arr };
-    });
-  };
+  // Manage per-exercise set rows
 
   const confirmRemoveSetRow = (exerciseId: string, index: number) => {
     Alert.alert(
@@ -174,84 +168,9 @@ export default function TodayTab() {
     );
   };
 
-  const handleSetChange = (exerciseId: string, index: number, field: 'reps' | 'weight', value: string) => {
-    setLogs(prev => {
-      const arr = prev[exerciseId] ? [...prev[exerciseId]] : [];
-      arr[index] = { ...(arr[index] || { setNumber: index + 1, reps: '', weight: '' }), [field]: value } as any;
-      return { ...prev, [exerciseId]: arr };
-    });
-  };
+  // Toggle a single set as completed/uncompleted — handled by hook
 
-  // Toggle a single set as completed/uncompleted — writes/updates a single log row in the DB
-  const toggleSetCompleted = async (exerciseId: string, index: number) => {
-    const setRow = (logs[exerciseId] || [])[index];
-    if (!setRow) return;
-    // validate numeric fields before marking complete
-    if (!setRow.reps || !setRow.weight || isNaN(Number(setRow.reps)) || isNaN(Number(setRow.weight))) {
-      Alert.alert('Invalid fields', 'Please enter numeric reps and weight for this set before marking it complete.');
-      return;
-    }
-    const willComplete = !setRow.completed;
-    try {
-      // ensure workout exists
-      let workout = todayWorkout;
-      if (!workout) {
-        workout = await createWorkoutFromScheduledDay();
-        if (!workout) {
-          Alert.alert('Error', 'Could not create workout for today');
-          return;
-        }
-      }
-      // determine exercise id (handle renamed -> new exercise)
-      let targetExerciseId = exerciseId;
-      const displayedName = nameByExercise[exerciseId];
-      const originalExercise = exercises.find(e => e.id === exerciseId) || splitDayExercises.find(e => e.id === exerciseId);
-      if (displayedName && originalExercise && displayedName.trim() !== originalExercise.name) {
-        const created = await createExercise(originalExercise, displayedName.trim());
-        if (created && created.id) targetExerciseId = created.id;
-      }
-
-      // if there's an existing log id, update; else insert
-      if (setRow.logId) {
-        const { error } = await supabase.from('logs').update({ completed: willComplete }).eq('id', setRow.logId);
-        if (error) throw error;
-      } else if (willComplete) {
-        const payload: any = {
-          workout_id: workout.id,
-          exercise_id: targetExerciseId,
-          set_number: setRow.setNumber,
-          reps: parseInt(setRow.reps, 10),
-          weight: parseFloat(setRow.weight),
-          notes: notesByExercise[exerciseId] || '',
-          completed: true,
-        };
-        const { data, error } = await supabase.from('logs').insert([payload]).select().limit(1);
-        if (error) throw error;
-        if (data && data.length > 0) {
-          // store returned log id
-          setLogs(prev => {
-            const arr = prev[exerciseId] ? [...prev[exerciseId]] : [];
-            arr[index] = { ...(arr[index] || {}), completed: true, logId: data[0].id } as any;
-            return { ...prev, [exerciseId]: arr };
-          });
-        }
-      } else {
-        // unchecking without logId — nothing to do
-        // If unchecking an existing saved log (should have logId), it was handled above
-        setLogs(prev => {
-          const arr = prev[exerciseId] ? [...prev[exerciseId]] : [];
-          arr[index] = { ...(arr[index] || {}), completed: false } as any;
-          return { ...prev, [exerciseId]: arr };
-        });
-      }
-    } catch (e: any) {
-      Alert.alert('Error', e.message || String(e));
-    }
-  };
-
-  const handleNotesChange = (exerciseId: string, value: string) => {
-    setNotesByExercise(prev => ({ ...prev, [exerciseId]: value }));
-  };
+  // notes handled by useExerciseLogs
 
   // Remove exercise locally (from either exercises or splitDayExercises) and clean related local state
   const removeExerciseLocal = (exerciseId: string) => {
@@ -317,18 +236,7 @@ export default function TodayTab() {
   };
 
   // Ensure `logs` has the configured number of empty set rows for an exercise
-  const ensureSetsForExercise = (exercise: any) => {
-    const target = Number(exercise?.sets) || 1;
-    setLogs(prev => {
-      const existing = prev[exercise.id] || [];
-      if (existing.length >= target) return prev;
-      const arr = [...existing];
-      for (let i = existing.length; i < target; i++) {
-        arr.push({ setNumber: i + 1, reps: '', weight: '', completed: false, logId: null });
-      }
-      return { ...prev, [exercise.id]: arr };
-    });
-  };
+  // ensureSetsForExercise moved to useExerciseLogs
 
   // Add a blank temporary exercise to today's workout (local only until saved)
   const addBlankExerciseToWorkout = () => {
@@ -355,62 +263,7 @@ export default function TodayTab() {
     ensureSetsForExercise(newEx);
   };
 
-  // Save sets for an exercise; create workout first if missing
-  const saveSetsForExercise = async (exerciseId: string) => {
-    try {
-      let workout = todayWorkout;
-      if (!workout) {
-        workout = await createWorkoutFromScheduledDay();
-        if (!workout) {
-          Alert.alert('Error', 'Could not create workout for today');
-          return;
-        }
-      }
-      // If the displayed name has been changed, create a new exercise and use its id
-      const displayedName = nameByExercise[exerciseId];
-      const originalExercise = exercises.find(e => e.id === exerciseId) || splitDayExercises.find(e => e.id === exerciseId);
-      let targetExerciseId = exerciseId;
-      if (displayedName && originalExercise && displayedName.trim() !== originalExercise.name) {
-        const created = await createExercise(originalExercise, displayedName.trim());
-        if (created && created.id) {
-          targetExerciseId = created.id;
-        }
-      }
-      const setRows = logs[exerciseId] || [];
-      if (setRows.length === 0) {
-        Alert.alert('No sets', 'Please add at least one set to save.');
-        return;
-      }
-      // validate
-      for (const r of setRows) {
-        if (r.reps === '' || r.weight === '' || isNaN(Number(r.reps)) || isNaN(Number(r.weight))) {
-          Alert.alert('Invalid fields', 'Please enter numeric reps and weight for all sets.');
-          return;
-        }
-      }
-      setSavingLog(true);
-      const payload = setRows.map(r => ({
-        workout_id: workout.id,
-        exercise_id: targetExerciseId,
-        set_number: r.setNumber,
-        reps: parseInt(r.reps, 10),
-        weight: parseFloat(r.weight),
-        notes: notesByExercise[exerciseId] || '',
-      }));
-      const { error } = await supabase.from('logs').insert(payload);
-      setSavingLog(false);
-      if (error) {
-        Alert.alert('Error', error.message);
-      } else {
-        Alert.alert('Saved', 'Sets saved successfully');
-        setLogs(prev => ({ ...prev, [exerciseId]: [] }));
-        setNotesByExercise(prev => ({ ...prev, [exerciseId]: '' }));
-      }
-    } catch (e: any) {
-      setSavingLog(false);
-      Alert.alert('Error', e.message || String(e));
-    }
-  };
+  // Save sets for an exercise handled by hook's `saveSetsForExercise` (available from hook instance)
 
 
   
