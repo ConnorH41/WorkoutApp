@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Alert } from 'react-native';
-import { supabase } from '../lib/supabase';
+import * as api from '../lib/api';
 
 type UseExerciseLogsOpts = {
   createWorkoutFromScheduledDay?: () => Promise<any | null>;
@@ -84,7 +84,7 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
       }
 
       if (setRow.logId) {
-        const { error } = await supabase.from('logs').update({ completed: willComplete }).eq('id', setRow.logId);
+        const { error } = await api.updateLog(setRow.logId, { completed: willComplete });
         if (error) throw error;
       } else if (willComplete) {
         const payload: any = {
@@ -96,7 +96,7 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
           notes: notesByExercise[exerciseId] || '',
           completed: true,
         };
-        const { data, error } = await supabase.from('logs').insert([payload]).select().limit(1);
+        const { data, error } = await api.insertSingleLog(payload);
         if (error) throw error;
         if (data && data.length > 0) {
           setLogs(prev => {
@@ -156,7 +156,7 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
         weight: parseFloat(r.weight),
         notes: notesByExercise[exerciseId] || '',
       }));
-      const { error } = await supabase.from('logs').insert(payload);
+      const { error } = await api.insertLogs(payload);
       if (error) {
         Alert.alert('Error', error.message);
       } else {

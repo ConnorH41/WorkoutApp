@@ -15,7 +15,7 @@ try {
 } catch (e) {
   IconFeather = null;
 }
-import { supabase } from '../lib/supabase';
+import * as api from '../lib/api';
 import { useProfileStore } from '../lib/profileStore';
 import { useTodayWorkout } from '../hooks/useTodayWorkout';
 import { useExerciseLogs } from '../hooks/useExerciseLogs';
@@ -46,14 +46,22 @@ export default function TodayTab() {
     setSplitDayExercises,
     createWorkoutFromScheduledDay,
     createExercise,
+    addBlankExerciseToWorkout,
+    addBlankExerciseToSplit,
+    deleteExercise,
+    markComplete,
+    markRestDay,
+    unmarkRestDay,
+    creatingWorkout,
+    completing,
+    resting,
+    isRestDay,
   } = useTodayWorkout();
 
   // useExerciseLogs will be initialized after helper functions are declared
   const [nameByExercise, setNameByExercise] = useState<{ [exerciseId: string]: string }>({});
   const [editingByExercise, setEditingByExercise] = useState<{ [exerciseId: string]: boolean }>({});
-  const [creatingWorkout, setCreatingWorkout] = useState(false);
   const [savingLog, setSavingLog] = useState(false);
-  const [isRestDay, setIsRestDay] = useState(false);
 
   const handleLogBodyweight = async () => {
     if (!bodyweight || !profile || !profile.id) return;
@@ -65,10 +73,7 @@ export default function TodayTab() {
     // Convert to kg when saving if user entered lbs
     const weightKg = isKg ? parsed : parsed * 0.45359237;
     setSubmitting(true);
-    const { error } = await supabase.from('bodyweight').insert({
-      user_id: profile.id,
-      weight: weightKg,
-    });
+    const { error } = await api.insertBodyweight({ user_id: profile.id, weight: weightKg });
     setSubmitting(false);
     if (error) {
       Alert.alert('Error', error.message);
@@ -136,9 +141,9 @@ export default function TodayTab() {
   const deleteExercisePermanent = async (exerciseId: string) => {
     if (!profile || !profile.id) return;
     try {
-      const { error } = await supabase.from('exercises').delete().eq('id', exerciseId);
-      if (error) {
-        Alert.alert('Error', error.message);
+      const ok = await deleteExercise(exerciseId);
+      if (!ok) {
+        Alert.alert('Error', 'Could not remove exercise');
       } else {
         removeExerciseLocal(exerciseId);
         Alert.alert('Removed', 'Exercise removed permanently');
@@ -174,29 +179,10 @@ export default function TodayTab() {
   // ensureSetsForExercise moved to useExerciseLogs
 
   // Add a blank temporary exercise to today's workout (local only until saved)
-  const addBlankExerciseToWorkout = () => {
-    if (!profile || !profile.id) return;
-    const id = `tmp-${Date.now()}`;
-    const newEx: any = { id, name: 'Exercise Name', user_id: profile.id, day_id: todayWorkout?.day_id || null, sets: 1, reps: '' };
-    setExercises(prev => [...prev, newEx]);
-    setNameByExercise(prev => ({ ...prev, [id]: 'Exercise Name' }));
-    // do not auto-enable editing to avoid opening the keyboard
-    setEditingByExercise(prev => ({ ...prev, [id]: false }));
-    ensureSetsForExercise(newEx);
-  };
+  // `addBlankExerciseToWorkout` handled by hook `addBlankExerciseToWorkout`
 
   // Add a blank temporary exercise to the scheduled split day list (local only until saved)
-  const addBlankExerciseToSplit = () => {
-    if (!profile || !profile.id) return;
-    const id = `tmp-s-${Date.now()}`;
-    const dayId = splitDayExercises && splitDayExercises.length > 0 ? splitDayExercises[0].day_id : null;
-    const newEx: any = { id, name: 'Exercise Name', user_id: profile.id, day_id: dayId, sets: 1, reps: '' };
-    setSplitDayExercises(prev => [...prev, newEx]);
-    setNameByExercise(prev => ({ ...prev, [id]: 'Exercise Name' }));
-    // do not auto-enable editing to avoid opening the keyboard
-    setEditingByExercise(prev => ({ ...prev, [id]: false }));
-    ensureSetsForExercise(newEx);
-  };
+  // `addBlankExerciseToSplit` handled by hook `addBlankExerciseToSplit`
 
   // Save sets for an exercise handled by hook's `saveSetsForExercise` (available from hook instance)
 
@@ -204,8 +190,7 @@ export default function TodayTab() {
   
 
   // Complete/Rest button handlers
-  const [completing, setCompleting] = useState(false);
-  const [resting, setResting] = useState(false);
+  // completion/resting flags are managed by the hook
   // Confirm modal state
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState<string | undefined>(undefined);
@@ -216,62 +201,30 @@ export default function TodayTab() {
 
   const handleCompleteWorkout = async () => {
     if (!todayWorkout) return;
-    setCompleting(true);
-    const { error } = await supabase
-      .from('workouts')
-      .update({ completed: true })
-      .eq('id', todayWorkout.id);
-    setCompleting(false);
-    if (error) {
-      Alert.alert('Error', error.message);
-    } else {
+    const ok = await markComplete();
+    if (ok) {
       Alert.alert('Workout Complete', 'Great job!');
       fetchTodayWorkout();
+    } else {
+      Alert.alert('Error', 'Could not mark workout complete');
     }
   };
 
   const handleRestDay = async () => {
-    if (!profile || !profile.id) return;
-    setResting(true);
-    try {
-      const today = new Date().toISOString().slice(0, 10);
-      if (todayWorkout && todayWorkout.id) {
-        // update existing workout to completed=true
-        const { data, error } = await supabase.from('workouts').update({ completed: true }).eq('id', todayWorkout.id).select().limit(1);
-        setResting(false);
-        if (error) throw error;
-        if (data && data.length > 0) setTodayWorkout(data[0]);
-      } else {
-        // insert a new rest workout but don't refetch exercises — keep them visible
-        const { data, error } = await supabase.from('workouts').insert({ user_id: profile.id, date: today, completed: true }).select().limit(1);
-        setResting(false);
-        if (error) throw error;
-        if (data && data.length > 0) setTodayWorkout(data[0]);
-      }
-      setIsRestDay(true);
+    const ok = await markRestDay();
+    if (ok) {
       Alert.alert('Rest Day', 'Rest day logged.');
-    } catch (e: any) {
-      setResting(false);
-      Alert.alert('Error', e.message || String(e));
+    } else {
+      Alert.alert('Error', 'Could not mark rest day');
     }
   };
 
   const handleUnmarkRestDay = async () => {
-    if (!todayWorkout || !todayWorkout.id) {
-      setIsRestDay(false);
-      return;
-    }
-    setResting(true);
-    try {
-      const { data, error } = await supabase.from('workouts').update({ completed: false }).eq('id', todayWorkout.id).select().limit(1);
-      setResting(false);
-      if (error) throw error;
-      if (data && data.length > 0) setTodayWorkout(data[0]);
-      setIsRestDay(false);
+    const ok = await unmarkRestDay();
+    if (ok) {
       Alert.alert('Rest Day', 'Rest day unmarked.');
-    } catch (e: any) {
-      setResting(false);
-      Alert.alert('Error', e.message || String(e));
+    } else {
+      Alert.alert('Error', 'Could not unmark rest day');
     }
   };
 
