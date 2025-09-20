@@ -4,6 +4,8 @@ import { View, Text, StyleSheet, TextInput, Button, ScrollView, ActivityIndicato
 import ModalButtons from '../components/ModalButtons';
 import ConfirmModal from '../components/ConfirmModal';
 import ExerciseCard from '../components/ExerciseCard';
+import BodyweightModal from '../components/BodyweightModal';
+import WorkoutControls from '../components/WorkoutControls';
 // Import icons at runtime to avoid type errors when package isn't installed in the environment
 let IconFeather: any = null;
 try {
@@ -15,22 +17,33 @@ try {
 }
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
+import { useTodayWorkout } from '../hooks/useTodayWorkout';
 
 export default function TodayTab() {
   const profile = useProfileStore((state) => state.profile);
   const [bodyweight, setBodyweight] = useState('');
-  
+
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [isKg, setIsKg] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [workoutLoading, setWorkoutLoading] = useState(false);
-  const [todayWorkout, setTodayWorkout] = useState<any>(null);
-  const [exercises, setExercises] = useState<any[]>([]);
-  const [activeSplitRun, setActiveSplitRun] = useState<any | null>(null);
-  const [splitTemplate, setSplitTemplate] = useState<any | null>(null);
-  const [splitDayExercises, setSplitDayExercises] = useState<any[]>([]);
-  const [splitDayName, setSplitDayName] = useState<string | null>(null);
-  const [dayNameFromWorkout, setDayNameFromWorkout] = useState<string | null>(null);
+
+  const {
+    profile: hookProfile,
+    workoutLoading,
+    todayWorkout,
+    exercises,
+    activeSplitRun,
+    splitTemplate,
+    splitDayExercises,
+    splitDayName,
+    dayNameFromWorkout,
+    fetchTodayWorkout,
+    fetchActiveSplitRun,
+    setTodayWorkout,
+    setExercises,
+    setSplitDayExercises,
+  } = useTodayWorkout();
+
   const [logs, setLogs] = useState<{ [exerciseId: string]: Array<{ setNumber: number; reps: string; weight: string; completed?: boolean; logId?: string | null }> }>({});
   const [notesByExercise, setNotesByExercise] = useState<{ [exerciseId: string]: string }>({});
   const [nameByExercise, setNameByExercise] = useState<{ [exerciseId: string]: string }>({});
@@ -38,166 +51,6 @@ export default function TodayTab() {
   const [creatingWorkout, setCreatingWorkout] = useState(false);
   const [savingLog, setSavingLog] = useState(false);
   const [isRestDay, setIsRestDay] = useState(false);
-
-  useEffect(() => {
-    if (profile && profile.id) {
-      fetchTodayWorkout();
-      fetchActiveSplitRun();
-    }
-  }, [profile?.id]);
-
-  // If there are scheduled split day exercises and no workout exists for today,
-  // create today's workout automatically (keeps exercises visible and workout present).
-  useEffect(() => {
-    if (!profile || !profile.id) return;
-    if (creatingWorkout) return;
-    if (!todayWorkout && splitDayExercises && splitDayExercises.length > 0) {
-      // createWorkoutFromScheduledDay will populate today's workout and exercises
-      createWorkoutFromScheduledDay().catch(() => {});
-    }
-  }, [splitDayExercises, todayWorkout, profile?.id, creatingWorkout]);
-
-  // initialize nameByExercise from exercises when they change
-  useEffect(() => {
-    const map: { [k: string]: string } = {};
-    exercises.forEach(ex => { if (ex && ex.id) map[ex.id] = ex.name; });
-    splitDayExercises.forEach(ex => { if (ex && ex.id) map[ex.id] = ex.name; });
-    setNameByExercise(prev => ({ ...map, ...prev }));
-    // ensure editing flags exist (default false)
-    const editMap: { [k: string]: boolean } = {};
-    Object.keys(map).forEach(k => { editMap[k] = false; });
-    setEditingByExercise(prev => ({ ...editMap, ...prev }));
-  }, [exercises, splitDayExercises]);
-
-  // Fetch currently active split_run for the user and load the day template/exercises
-  const fetchActiveSplitRun = async () => {
-    if (!profile || !profile.id) return;
-    try {
-      const { data } = await supabase
-        .from('split_runs')
-        .select('*')
-        .eq('user_id', profile.id)
-        .eq('active', true)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      if (!data || data.length === 0) {
-        setActiveSplitRun(null);
-        setSplitTemplate(null);
-        setSplitDayExercises([]);
-        setSplitDayName(null);
-        return;
-      }
-      const run = data[0];
-  setActiveSplitRun(run);
-
-      // load split template to know mode
-      const { data: splitData } = await supabase.from('splits').select('*').eq('id', run.split_id).limit(1);
-      const split = splitData && splitData.length > 0 ? splitData[0] : null;
-      setSplitTemplate(split);
-
-      // load split_days mapping for this split
-      const { data: sdData } = await supabase
-        .from('split_days')
-        .select('*')
-        .eq('split_id', run.split_id)
-        .order('order_index', { ascending: true });
-  const splitDays = sdData || [];
-  
-
-      // Determine today's mapped day_id (week-mode only for now)
-      // We require an exact weekday match against `split_days.weekday` (0=Sunday..6=Saturday).
-      // Note: this uses the device local timezone via `getDay()`; adjust if you need server TZ.
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      let mappedDayId: string | null = null;
-      if (split && typeof split.mode === 'string' && split.mode.toLowerCase().includes('week')) {
-        const wd = today.getDay();
-        
-        // Require exact match only (no fallback)
-        const match = splitDays.find((sd: any) => sd.weekday != null && Number(sd.weekday) === wd);
-        
-        if (match) {
-          mappedDayId = match.day_id;
-        } else {
-          
-          mappedDayId = null;
-        }
-
-      }
-
-      if (mappedDayId) {
-        
-        // fetch day template and exercises
-        const { data: dayData } = await supabase.from('days').select('*').eq('id', mappedDayId).limit(1);
-        const day = dayData && dayData.length > 0 ? dayData[0] : null;
-  setSplitDayName(day ? day.name : null);
-  
-
-  const { data: exData } = await supabase.from('exercises').select('*').eq('day_id', mappedDayId).order('created_at', { ascending: true });
-  
-  setSplitDayExercises(exData || []);
-  (exData || []).forEach((ex: any) => ensureSetsForExercise(ex));
-      } else {
-        
-        setSplitDayExercises([]);
-        setSplitDayName(null);
-      }
-    } catch (e) {
-      setActiveSplitRun(null);
-      setSplitTemplate(null);
-      setSplitDayExercises([]);
-    }
-  };
-
-  
-
-  // Fetch today's workout and exercises
-  const fetchTodayWorkout = async () => {
-    setWorkoutLoading(true);
-    // Get today's date in YYYY-MM-DD
-    const today = new Date().toISOString().slice(0, 10);
-    // Find today's workout for the user
-    if (!profile || !profile.id) {
-      setWorkoutLoading(false);
-      return;
-    }
-    const { data: workout, error: workoutError } = await supabase
-      .from('workouts')
-      .select('*')
-      .eq('user_id', profile.id)
-      .eq('date', today)
-      .single();
-    if (workout && !workoutError) {
-      setTodayWorkout(workout);
-      // If the fetched workout is completed, consider it a rest-day state for UI purposes
-      setIsRestDay(!!workout.completed);
-      // try to infer day name from the workout's day_id
-      if (workout.day_id) {
-        const { data: dayData } = await supabase.from('days').select('*').eq('id', workout.day_id).limit(1);
-        if (dayData && dayData.length > 0) setDayNameFromWorkout(dayData[0].name);
-        else setDayNameFromWorkout(null);
-      } else {
-        setDayNameFromWorkout(null);
-      }
-      // Fetch exercises for this workout's day_id
-      if (workout.day_id) {
-        const { data: exercisesData, error: exercisesError } = await supabase
-          .from('exercises')
-          .select('*')
-          .eq('day_id', workout.day_id);
-        if (exercisesData && !exercisesError) {
-          setExercises(exercisesData);
-          exercisesData.forEach((ex: any) => ensureSetsForExercise(ex));
-        }
-      }
-    } else {
-      setTodayWorkout(null);
-      setExercises([]);
-      setDayNameFromWorkout(null);
-      setIsRestDay(false);
-    }
-    setWorkoutLoading(false);
-  };
 
   const handleLogBodyweight = async () => {
     if (!bodyweight || !profile || !profile.id) return;
@@ -690,55 +543,16 @@ export default function TodayTab() {
         </TouchableOpacity>
       </View>
 
-      {/* Modal for entering bodyweight */}
-      <Modal visible={showWeightModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>Enter Today's Bodyweight</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <TextInput
-                  style={[styles.input, styles.textInput, { marginBottom: 0 }]}
-                  placeholder={isKg ? 'Weight (kg)' : 'Weight (lbs)'}
-                  value={bodyweight}
-                  onChangeText={setBodyweight}
-                  keyboardType="numeric"
-                  returnKeyType="done"
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                />
-              <View style={styles.unitSwitchContainer}>
-                <TouchableOpacity
-                  style={[styles.unitToggleBtn, isKg ? styles.unitToggleBtnActive : null]}
-                  onPress={() => setIsKg(true)}
-                  activeOpacity={0.9}
-                >
-                  <Text style={[styles.unitToggleText, isKg ? styles.unitToggleTextActive : null]}>kg</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.unitToggleBtn, !isKg ? styles.unitToggleBtnActive : null]}
-                  onPress={() => setIsKg(false)}
-                  activeOpacity={0.9}
-                >
-                  <Text style={[styles.unitToggleText, !isKg ? styles.unitToggleTextActive : null]}>lbs</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            <View>
-              {/* Modal action buttons (shared component) */}
-              <ModalButtons
-                leftLabel="Cancel"
-                rightLabel={submitting ? 'Logging...' : 'Save'}
-                onLeftPress={() => setShowWeightModal(false)}
-                onRightPress={handleLogBodyweight}
-                leftColor="#e0e0e0"
-                rightColor="#007AFF"
-                leftTextColor="#000"
-                rightTextColor="#fff"
-                rightDisabled={submitting}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <BodyweightModal
+        visible={showWeightModal}
+        bodyweight={bodyweight}
+        isKg={isKg}
+        submitting={submitting}
+        onClose={() => setShowWeightModal(false)}
+        onChangeWeight={setBodyweight}
+        onToggleKg={(v) => setIsKg(v)}
+        onSave={handleLogBodyweight}
+      />
 
       {workoutLoading ? (
         <ActivityIndicator />
@@ -771,29 +585,14 @@ export default function TodayTab() {
         </View>
       )}
 
-      {todayWorkout && (
-        <>
-          {!isRestDay && (
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={confirmCompleteWorkout}
-              disabled={completing}
-              style={[styles.primaryButton, completing ? styles.primaryButtonDisabled : null]}
-            >
-              <Text style={[styles.primaryButtonText, completing ? styles.primaryButtonTextDisabled : null]}>{completing ? 'Completing...' : 'Mark Workout Complete'}</Text>
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={confirmRestToggle}
-            disabled={resting}
-            style={[isRestDay ? styles.primaryButton : styles.secondaryButton, resting ? styles.secondaryButtonDisabled : null]}
-          >
-            <Text style={[isRestDay ? styles.primaryButtonText : styles.secondaryButtonText, resting ? styles.secondaryButtonTextDisabled : null]}>{resting ? 'Logging...' : (isRestDay ? 'Unmark as Rest Day' : 'Mark as Rest Day')}</Text>
-          </TouchableOpacity>
-        </>
-      )}
+      <WorkoutControls
+        todayWorkout={todayWorkout}
+        isRestDay={isRestDay}
+        completing={completing}
+        resting={resting}
+        onConfirmComplete={confirmCompleteWorkout}
+        onConfirmRestToggle={confirmRestToggle}
+      />
       {todayWorkout && todayWorkout.completed && (
         <Text style={{ color: 'green', marginTop: 12 }}>Workout marked as complete!</Text>
       )}
