@@ -1016,7 +1016,7 @@ export default function SplitsTab() {
                               style={styles.assignBtn}
                               onPress={() => {
                                 setPendingDayId(`${idx}`);
-                                setWeekdayModalFromEdit(true);
+                                setWeekdayModalFromEdit(false);
                                 setSelectedSplitId(item.id);
                                 setShowWeekdayModal(true);
                               }}
@@ -1039,7 +1039,7 @@ export default function SplitsTab() {
                               style={styles.assignBtn}
                               onPress={() => {
                                 setPendingRotationIndex(sd.order_index ?? index);
-                                setWeekdayModalFromEdit(true);
+                                setWeekdayModalFromEdit(false);
                                 setSelectedSplitId(item.id);
                                 setShowWeekdayModal(true);
                               }}
