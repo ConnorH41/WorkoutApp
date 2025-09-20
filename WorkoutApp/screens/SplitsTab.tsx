@@ -185,7 +185,6 @@ export default function SplitsTab() {
   // Open edit split modal
   const handleEditSplit = async (split: any) => {
     setEditingSplit(split);
-    setEditSplitTab(0);
     
     // Load current split days
     const { data: splitDaysData } = await supabase
@@ -215,14 +214,25 @@ export default function SplitsTab() {
       setEditSplitRotationInput(String(length));
     }
     
-    // Load current schedule if there is an active run for this split
-    const run = activeRuns.find((r: any) => r.split_id === split.id);
-    if (run && run.start_date) {
-      setEditSplitStartDate(new Date(run.start_date));
-      setEditSplitEndDate(run.end_date ? new Date(run.end_date) : null);
+    // Populate rotation-length and selected days snapshot for the edit flow
+    if (split.mode === 'rotation') {
+      try {
+        const { data: sdData } = await supabase
+          .from('split_days')
+          .select('*')
+          .eq('split_id', split.id)
+          .order('order_index', { ascending: true });
+        const maxIndex = sdData && sdData.length > 0 ? Math.max(...sdData.map((sd: any) => sd.order_index ?? 0)) : -1;
+        const length = maxIndex >= 0 ? maxIndex + 1 : (sdData ? sdData.length : 3);
+        setEditSplitRotationLength(length);
+        setSelectedDaysForNewSplit((sdData || []).map((sd: any) => sd.day_id ?? null));
+      } catch (e) {
+        setEditSplitRotationLength(3);
+        setSelectedDaysForNewSplit([]);
+      }
     } else {
-      setEditSplitStartDate(getNextMonday(new Date()));
-      setEditSplitEndDate(getEndDateForWeeks(getNextMonday(new Date()), 4));
+      setEditSplitRotationLength(3);
+      setSelectedDaysForNewSplit([]);
     }
     
     setShowEditModal(true);
@@ -341,7 +351,7 @@ export default function SplitsTab() {
   const [newSplitTab, setNewSplitTab] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingSplit, setEditingSplit] = useState<any>(null);
-  const [editSplitTab, setEditSplitTab] = useState(0);
+  // editSplitTab removed — edit modal simplified
   const [editSplitWeekdays, setEditSplitWeekdays] = useState<(string | null)[]>(new Array(7).fill(null));
   const [editSplitStartDate, setEditSplitStartDate] = useState<Date>(new Date());
   const [editSplitEndDate, setEditSplitEndDate] = useState<Date | null>(null);
@@ -755,118 +765,57 @@ export default function SplitsTab() {
         return;
       }
       
-      // Clear existing split days
-      await supabase
-        .from('split_days')
-        .delete()
-        .eq('split_id', editingSplit.id);
-      
-      // Add new split days
-      if (editingSplit.mode === 'week') {
-        const splitDayInserts = editSplitWeekdays
-          .map((dayId, weekday) => dayId ? { split_id: editingSplit.id, day_id: dayId, weekday, order_index: null } : null)
-          .filter(Boolean);
-        
-        if (splitDayInserts.length > 0) {
-          const { error: daysError } = await supabase
-            .from('split_days')
-            .insert(splitDayInserts);
-          
-          if (daysError) {
-            Alert.alert('Error', daysError.message);
-            return;
-          }
-        }
-      } else {
-        const splitDayInserts = selectedDaysForNewSplit.map((dayId, index) => ({
-          split_id: editingSplit.id,
-          day_id: dayId,
-          weekday: null,
-          order_index: index,
-        }));
-        
-        if (splitDayInserts.length > 0) {
-          const { error: daysError } = await supabase
-            .from('split_days')
-            .insert(splitDayInserts);
-          
-          if (daysError) {
-            Alert.alert('Error', daysError.message);
-            return;
-          }
-        }
-      }
-      
-      // Update schedule if this is the active split
-      if (currentSplitId === editingSplit.id) {
+      // Update split_days only as needed instead of deleting everything
+        // If switching to weekly mode, keep existing week assignments where possible.
         if (editingSplit.mode === 'week') {
-          const msPerDay = 24 * 60 * 60 * 1000;
-          let weeks = '0';
-          if (editSplitEndDate) {
-            const s = new Date(editSplitStartDate);
-            s.setHours(0, 0, 0, 0);
-            const e = new Date(editSplitEndDate);
-            e.setHours(0, 0, 0, 0);
-            const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
-            weeks = String(Math.max(1, Math.ceil(diffDays / 7)));
+          // Build up inserts/updates for weekdays from editSplitWeekdays
+          const splitDayInserts = editSplitWeekdays
+            .map((dayId, weekday) => dayId ? { split_id: editingSplit.id, day_id: dayId, weekday, order_index: null } : null)
+            .filter(Boolean);
+          if (splitDayInserts.length > 0) {
+            // Remove existing weekday entries for this split, then insert the new ones
+            await supabase.from('split_days').delete().eq('split_id', editingSplit.id).not('weekday', 'is', null);
+            const { error: daysError } = await supabase.from('split_days').insert(splitDayInserts);
+            if (daysError) {
+              Alert.alert('Error', daysError.message);
+              return;
+            }
           } else {
-            weeks = '999'; // Forever
-          }
-          
-          // Check overlap before inserting updated run
-          const intendedStart = toDateOnly(editSplitStartDate);
-          const intendedEnd = editSplitEndDate ? toDateOnly(editSplitEndDate) : null;
-          const overlapping = activeRuns.some(r => r.split_id !== editingSplit.id && rangesOverlap(r.start_date, r.end_date, intendedStart, intendedEnd));
-          if (overlapping) {
-            showValidationToast('Scheduling would overlap an existing split run. Pick different dates.');
-          } else {
-            await supabase.from('split_runs').insert({
-            split_id: editingSplit.id,
-            user_id: profile.id,
-            start_date: toDateOnly(editSplitStartDate),
-            end_date: editSplitEndDate ? toDateOnly(editSplitEndDate) : null,
-            num_weeks: editSplitEndDate ? parseInt(weeks, 10) || 1 : null,
-            num_rotations: null,
-            active: true,
-            });
-            await fetchActiveRun();
+            // If user cleared all weekdays, remove existing weekly entries
+            await supabase.from('split_days').delete().eq('split_id', editingSplit.id).not('weekday', 'is', null);
           }
         } else {
-          // For rotation-mode when editing an active split, compute rotations if end date provided
-          let computedRotations = 1;
-          if (editSplitStartDate && editSplitEndDate && editSplitRotationLength && editSplitRotationLength > 0) {
-            const msPerDay = 24 * 60 * 60 * 1000;
-            const s = new Date(editSplitStartDate);
-            s.setHours(0, 0, 0, 0);
-            const e = new Date(editSplitEndDate);
-            e.setHours(0, 0, 0, 0);
-            const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
-            computedRotations = Math.max(0, Math.floor(diffDays / editSplitRotationLength));
+          // rotation mode: ensure number of rotation slots matches editSplitRotationLength
+          const { data: existingDays } = await supabase.from('split_days').select('*').eq('split_id', editingSplit.id).order('order_index', { ascending: true });
+          const existing = existingDays || [];
+          const targetLen = editSplitRotationLength || 3;
+          // Truncate extra slots
+          if (existing.length > targetLen) {
+            const toDelete = existing.slice(targetLen).map((d: any) => d.id);
+            if (toDelete.length > 0) await supabase.from('split_days').delete().in('id', toDelete);
           }
-          // Check overlap before inserting rotation-mode updated run
-          const intendedStart = toDateOnly(editSplitStartDate);
-          const intendedEnd = editSplitEndDate ? toDateOnly(editSplitEndDate) : null;
-          const overlapping = activeRuns.some(r => r.split_id !== editingSplit.id && rangesOverlap(r.start_date, r.end_date, intendedStart, intendedEnd));
-          if (overlapping) {
-            showValidationToast('Scheduling would overlap an existing split run. Pick different dates.');
-          } else {
-            await supabase.from('split_runs').insert({
-            split_id: editingSplit.id,
-            user_id: profile.id,
-            start_date: toDateOnly(editSplitStartDate),
-            end_date: editSplitEndDate ? toDateOnly(editSplitEndDate) : null,
-            num_weeks: null,
-            num_rotations: computedRotations || 1,
-            active: true,
-            });
-            await fetchActiveRun();
+          // Extend with null slots if shorter
+          if (existing.length < targetLen) {
+            const inserts = Array.from({ length: targetLen - existing.length }).map((_, idx) => ({ split_id: editingSplit.id, day_id: null, weekday: null, order_index: existing.length + idx }));
+            if (inserts.length > 0) await supabase.from('split_days').insert(inserts);
+          }
+          // Update any provided selectedDaysForNewSplit into their slots
+          if (selectedDaysForNewSplit && selectedDaysForNewSplit.length > 0) {
+            const updates = selectedDaysForNewSplit.map((dayId, idx) => ({ id: existing[idx]?.id, day_id: dayId, order_index: idx }));
+            for (const up of updates) {
+              if (up.id) {
+                await supabase.from('split_days').update({ day_id: up.day_id, order_index: up.order_index }).eq('id', up.id);
+              } else if (up.day_id) {
+                await supabase.from('split_days').insert({ split_id: editingSplit.id, day_id: up.day_id, weekday: null, order_index: up.order_index });
+              }
+            }
           }
         }
-      }
-      
+
+        
       // Reset and close
       setEditingSplit(null);
-      setEditSplitTab(0);
+  // reset UI state
       setEditSplitWeekdays(new Array(7).fill(null));
   setSelectedDaysForNewSplit([]);
       setShowEditModal(false);
@@ -1086,9 +1035,17 @@ export default function SplitsTab() {
                         return (
                           <View key={wd} style={styles.splitDayBox}>
                             <Text style={{ width: 60 }}>{wd}:</Text>
-                            <View style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6 }}>
-                              <Text style={{ color: '#333' }}>{assignedDay ? assignedDay.name : 'Rest'}</Text>
-                            </View>
+                            <TouchableOpacity
+                              style={styles.assignBtn}
+                              onPress={() => {
+                                setPendingDayId(`${idx}`);
+                                setWeekdayModalFromEdit(true);
+                                setSelectedSplitId(item.id);
+                                setShowWeekdayModal(true);
+                              }}
+                            >
+                              <Text style={styles.assignBtnText}>{assignedDay ? assignedDay.name : 'Rest'}</Text>
+                            </TouchableOpacity>
                           </View>
                         );
                       })}
@@ -1100,7 +1057,18 @@ export default function SplitsTab() {
                         const day = days.find(d => d.id === sd.day_id);
                         return (
                           <View key={sd.id} style={styles.splitDayBox}>
-                            <Text>{`Day ${(sd.order_index ?? index) + 1}:`} {day?.name || '—'}</Text>
+                            <Text style={{ width: 80 }}>{`Day ${(sd.order_index ?? index) + 1}:`}</Text>
+                            <TouchableOpacity
+                              style={styles.assignBtn}
+                              onPress={() => {
+                                setPendingRotationIndex(sd.order_index ?? index);
+                                setWeekdayModalFromEdit(true);
+                                setSelectedSplitId(item.id);
+                                setShowWeekdayModal(true);
+                              }}
+                            >
+                              <Text style={styles.assignBtnText}>{day?.name || 'Rest'}</Text>
+                            </TouchableOpacity>
                           </View>
                         );
                       })}
@@ -1347,192 +1315,84 @@ export default function SplitsTab() {
             <ScrollView contentContainerStyle={{ paddingBottom: 16 }}>
               <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 16, textAlign: 'center' }}>Edit Split</Text>
 
-              {/* Tab Navigation */}
-              <View style={{ flexDirection: 'row', marginBottom: 20, backgroundColor: '#f0f0f0', borderRadius: 8, padding: 4 }}>
-              <TouchableOpacity
-                style={[styles.tabButton, { backgroundColor: editSplitTab === 0 ? '#007AFF' : 'transparent' }]}
-                onPress={() => setEditSplitTab(0)}
-              >
-                <Text style={{ color: editSplitTab === 0 ? '#fff' : '#333', fontWeight: 'bold', fontSize: 12 }}>1. Basic</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.tabButton, { backgroundColor: editSplitTab === 1 ? '#007AFF' : 'transparent' }]}
-                onPress={() => setEditSplitTab(1)}
-              >
-                <Text style={{ color: editSplitTab === 1 ? '#fff' : '#333', fontWeight: 'bold', fontSize: 12 }}>2. Days</Text>
-              </TouchableOpacity>
-              {/* Edit modal only has Basic and Days tabs now; Schedule is separate */}
-            </View>
+            {/* Simplified Edit Modal: only basic info. Rotation splits show a rotation-length input. */}
+            <View>
+              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Split Name:</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                <TextInput
+                  style={{ width: '100%', marginBottom: 8, height: 35, fontSize: 16, textAlignVertical: 'top', padding: 8, borderWidth: 1, borderColor: '#ccc', borderRadius: 4 }}
+                  placeholder="e.g. PPL, Upper/Lower"
+                  value={editingSplit?.name || ''}
+                  onChangeText={v => setEditingSplit((prev: any) => ({ ...prev, name: v }))}
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
 
-            {/* Tab Content */}
-            {editSplitTab === 0 && (
-              <View>
-                <Text style={{ marginBottom: 4, fontWeight: '500' }}>Split Name:</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Mode:</Text>
+              <View style={{ flexDirection: 'row', marginBottom: 16 }}>
+                <TouchableOpacity
+                  style={[
+                    styles.modeButton,
+                    { backgroundColor: editingSplit?.mode === 'week' ? '#007AFF' : '#e0e0e0' }
+                  ]}
+                  onPress={() => setEditingSplit((prev: any) => ({ ...prev, mode: 'week' }))}
+                >
+                  <Text style={{ color: editingSplit?.mode === 'week' ? '#fff' : '#333', fontWeight: 'bold' }}>
+                    Weekly
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.modeButton,
+                    { backgroundColor: editingSplit?.mode === 'rotation' ? '#007AFF' : '#e0e0e0', marginLeft: 8 }
+                  ]}
+                  onPress={() => setEditingSplit((prev: any) => ({ ...prev, mode: 'rotation' }))}
+                >
+                  <Text style={{ color: editingSplit?.mode === 'rotation' ? '#fff' : '#333', fontWeight: 'bold' }}>
+                    Rotation
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {editingSplit?.mode === 'rotation' && (
+                <View style={{ marginBottom: 12 }}>
+                  <Text style={{ marginBottom: 6, fontWeight: '500' }}>Rotation Length (days):</Text>
                   <TextInput
-                    style={{ width: '100%', marginBottom: 8, height: 35, fontSize: 16, textAlignVertical: 'top', padding: 8, borderWidth: 1, borderColor: '#ccc', borderRadius: 4 }}
-                    placeholder="e.g. PPL, Upper/Lower"
-                    value={editingSplit?.name || ''}
-                    onChangeText={v => setEditingSplit((prev: any) => ({ ...prev, name: v }))}
-                    returnKeyType="done"
-                    onSubmitEditing={() => Keyboard.dismiss()}
-                    multiline
-                    numberOfLines={3}
+                    ref={editSplitRotationRef}
+                    style={[styles.input, { width: 140 }]}
+                    keyboardType="numeric"
+                    value={String(editSplitRotationLength || 3)}
+                    onChangeText={v => {
+                      const n = parseInt(v, 10);
+                      if (!isNaN(n) && n > 0) setEditSplitRotationLength(n);
+                    }}
+                    onFocus={() => setEditRotationFocused(true)}
+                    onBlur={() => setEditRotationFocused(false)}
                   />
                 </View>
-                
-                <Text style={{ marginBottom: 4, fontWeight: '500' }}>Mode:</Text>
-                <View style={{ flexDirection: 'row', marginBottom: 16 }}>
-                  <TouchableOpacity
-                    style={[
-                      styles.modeButton,
-                      { backgroundColor: editingSplit?.mode === 'week' ? '#007AFF' : '#e0e0e0' }
-                    ]}
-                    onPress={() => setEditingSplit((prev: any) => ({ ...prev, mode: 'week' }))}
-                  >
-                    <Text style={{ color: editingSplit?.mode === 'week' ? '#fff' : '#333', fontWeight: 'bold' }}>
-                      Weekly
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.modeButton,
-                      { backgroundColor: editingSplit?.mode === 'rotation' ? '#007AFF' : '#e0e0e0', marginLeft: 8 }
-                    ]}
-                    onPress={() => setEditingSplit((prev: any) => ({ ...prev, mode: 'rotation' }))}
-                  >
-                    <Text style={{ color: editingSplit?.mode === 'rotation' ? '#fff' : '#333', fontWeight: 'bold' }}>
-                      Rotation
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-            {editSplitTab === 1 && (
-              <View>
-                {editingSplit?.mode === 'week' ? (
-                  <>
-                    <Text style={{ marginBottom: 8, fontWeight: '500' }}>Week Schedule:</Text>
-                    {WEEKDAYS.map((wd, idx) => {
-                      const assignedDay = editSplitWeekdays[idx] ? days.find(d => d.id === editSplitWeekdays[idx]) : null;
-                      return (
-                        <View key={wd} style={styles.splitDayBox}>
-                          <Text style={{ width: 60, fontWeight: '500' }}>{wd}:</Text>
-                          <TouchableOpacity
-                            style={styles.assignBtn}
-                            onPress={() => {
-                              setPendingDayId(`${idx}`);
-                              if (showEditModal) {
-                                setShowEditModal(false);
-                                setWeekdayModalFromEdit(true);
-                              } else {
-                                setWeekdayModalFromEdit(false);
-                              }
-                              setWeekdayModalFromAdd(false);
-                              setShowWeekdayModal(true);
-                            }}
-                          >
-                            <Text style={styles.assignBtnText}>{assignedDay ? assignedDay.name : 'Rest'}</Text>
-                          </TouchableOpacity>
-                        </View>
-                      );
-                    })}
-                  </>
-                ) : (
-                  <>
-                    <Text style={{ marginBottom: 8, fontWeight: '500' }}>Rotation Length (days):</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                      <TextInput
-                        ref={editSplitRotationRef}
-                        style={[styles.input, { width: 120, marginRight: 8 }]}
-                        keyboardType="numeric"
-                        returnKeyType="done"
-                        value={editSplitRotationInput}
-                        onChangeText={v => {
-                          setEditSplitRotationInput(v);
-                          const n = parseInt(v, 10);
-                          if (!isNaN(n) && n > 0) {
-                            setEditSplitRotationLength(n);
-                            setSelectedDaysForNewSplit(prev => {
-                              const arr = [...prev];
-                              arr.length = n;
-                              return arr.map(v2 => v2 ?? null);
-                            });
-                          }
-                        }}
-                        onFocus={() => setEditRotationFocused(true)}
-                        onBlur={() => {
-                          setEditRotationFocused(false);
-                          const n = parseInt(editSplitRotationInput, 10);
-                          if (isNaN(n) || n <= 0) {
-                            setEditSplitRotationInput(String(editSplitRotationLength));
-                          }
-                        }}
-                        onSubmitEditing={() => editSplitRotationRef.current?.blur()}
-                      />
-                      <Text style={{ color: '#666' }}>days in rotation</Text>
-                    </View>
-                    <Text style={{ marginBottom: 8, fontWeight: '500' }}>Assign Days To Rotation Slots:</Text>
-                    <View>
-                      {Array.from({ length: editSplitRotationLength }).map((_, idx) => {
-                        const assigned = selectedDaysForNewSplit[idx] ? days.find(d => d.id === selectedDaysForNewSplit[idx]) : null;
-                        return (
-                          <View key={`edit-rot-${idx}`} style={styles.splitDayBox}>
-                            <Text style={{ width: 60, fontWeight: '500' }}>{`Day ${idx + 1}:`}</Text>
-                            <TouchableOpacity
-                              style={styles.assignBtn}
-                              onPress={() => {
-                                setPendingRotationIndex(idx);
-                                setPendingDayId(null);
-                                if (showEditModal) {
-                                  setShowEditModal(false);
-                                  setWeekdayModalFromEdit(true);
-                                } else {
-                                  setWeekdayModalFromEdit(false);
-                                }
-                                setShowWeekdayModal(true);
-                              }}
-                            >
-                              <Text style={styles.assignBtnText}>{assigned ? assigned.name : 'Rest'}</Text>
-                            </TouchableOpacity>
-                          </View>
-                        );
-                      })}
-                    </View>
-                  </>
-                )}
-              </View>
-            )}
+              )}
+            </View>
 
             {/* Schedule removed from Edit modal; scheduling is handled via the Schedule button on the split card */}
 
             {/* Navigation Buttons - fixed three slots to keep buttons consistent size */}
             <View style={{ marginTop: 20 }}>
-              {editSplitTab === 0 ? (
-                <ModalButtons
-                  leftLabel="Cancel"
-                  rightLabel="Next"
-                  onLeftPress={() => setShowEditModal(false)}
-                  onRightPress={() => setEditSplitTab(1)}
-                  leftColor="#e0e0e0"
-                  rightColor="#007AFF"
-                  leftTextColor="#333"
-                  rightTextColor="#fff"
-                />
-              ) : (
-                <ModalButtons
-                  leftLabel="Cancel"
-                  rightLabel={adding ? 'Saving...' : 'Save Split'}
-                  onLeftPress={() => setShowEditModal(false)}
-                  onRightPress={handleSaveEditSplit}
-                  leftColor="#e0e0e0"
-                  rightColor="#007AFF"
-                  leftTextColor="#333"
-                  rightTextColor="#fff"
-                  rightDisabled={adding}
-                />
-              )}
+            <View style={{ marginTop: 20 }}>
+              <ModalButtons
+                leftLabel="Cancel"
+                rightLabel={adding ? 'Saving...' : 'Save Split'}
+                onLeftPress={() => setShowEditModal(false)}
+                onRightPress={handleSaveEditSplit}
+                leftColor="#e0e0e0"
+                rightColor="#007AFF"
+                leftTextColor="#333"
+                rightTextColor="#fff"
+                rightDisabled={adding}
+              />
+            </View>
             </View>
             </ScrollView>
           </View>
