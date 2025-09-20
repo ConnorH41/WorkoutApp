@@ -714,14 +714,25 @@ export default function TodayTab() {
       ))}
 
       {todayWorkout && !todayWorkout.completed && (
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={handleCompleteWorkout}
-          disabled={completing}
-          style={[styles.primaryButton, completing ? styles.primaryButtonDisabled : null]}
-        >
-          <Text style={[styles.primaryButtonText, completing ? styles.primaryButtonTextDisabled : null]}>{completing ? 'Completing...' : 'Mark Workout Complete'}</Text>
-        </TouchableOpacity>
+        <>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleCompleteWorkout}
+            disabled={completing}
+            style={[styles.primaryButton, completing ? styles.primaryButtonDisabled : null]}
+          >
+            <Text style={[styles.primaryButtonText, completing ? styles.primaryButtonTextDisabled : null]}>{completing ? 'Completing...' : 'Mark Workout Complete'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleRestDay}
+            disabled={resting}
+            style={[styles.secondaryButton, resting ? styles.secondaryButtonDisabled : null]}
+          >
+            <Text style={[styles.secondaryButtonText, resting ? styles.secondaryButtonTextDisabled : null]}>{resting ? 'Logging...' : 'Mark as Rest Day'}</Text>
+          </TouchableOpacity>
+        </>
       )}
       {todayWorkout && todayWorkout.completed && (
         <Text style={{ color: 'green', marginTop: 12 }}>Workout marked as complete!</Text>
@@ -1044,5 +1055,27 @@ const styles = StyleSheet.create({
   },
   primaryButtonTextDisabled: {
     color: '#f0f9ff',
+  },
+  secondaryButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  secondaryButtonDisabled: {
+    opacity: 0.6,
+  },
+  secondaryButtonText: {
+    color: '#333',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  secondaryButtonTextDisabled: {
+    color: '#666',
   },
 });
