@@ -239,9 +239,9 @@ export default function SplitsTab() {
         const msPerDay = 24 * 60 * 60 * 1000;
         let weeks = '0';
         if (endDate) {
-          const s = new Date(calendarDate);
+          const s = new Date(calendarDate as Date);
           s.setHours(0, 0, 0, 0);
-          const e = new Date(endDate);
+          const e = new Date(endDate as Date);
           e.setHours(0, 0, 0, 0);
           const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
           weeks = String(Math.max(1, Math.ceil(diffDays / 7)));
@@ -256,8 +256,8 @@ export default function SplitsTab() {
           await supabase.from('split_runs').insert({
             split_id: pendingSplit.id,
             user_id: profile.id,
-            start_date: toDateOnly(calendarDate),
-            end_date: endDate ? toDateOnly(endDate) : null,
+            start_date: toDateOnly(calendarDate as Date),
+            end_date: endDate ? toDateOnly(endDate as Date) : null,
             num_weeks: endDate ? parseInt(weeks, 10) || 1 : null,
             num_rotations: null,
             active: true,
@@ -270,9 +270,9 @@ export default function SplitsTab() {
         let computedRotations = 1;
         if (calendarDate && endDate && pendingRotationLength && pendingRotationLength > 0) {
           const msPerDay = 24 * 60 * 60 * 1000;
-          const s = new Date(calendarDate);
+          const s = new Date(calendarDate as Date);
           s.setHours(0, 0, 0, 0);
-          const e = new Date(endDate);
+          const e = new Date(endDate as Date);
           e.setHours(0, 0, 0, 0);
           const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
           computedRotations = Math.max(0, Math.floor(diffDays / pendingRotationLength));
@@ -284,8 +284,8 @@ export default function SplitsTab() {
           await supabase.from('split_runs').insert({
             split_id: pendingSplit.id,
             user_id: profile.id,
-            start_date: toDateOnly(calendarDate),
-            end_date: endDate ? toDateOnly(endDate) : null,
+            start_date: toDateOnly(calendarDate as Date),
+            end_date: endDate ? toDateOnly(endDate as Date) : null,
             num_weeks: null,
             num_rotations: computedRotations || 1,
             active: true,
@@ -992,7 +992,7 @@ export default function SplitsTab() {
                             rightColor="#007AFF"
                             leftTextColor="#333"
                             rightTextColor="#fff"
-                            rightDisabled={pendingSplit?.mode === 'week' && endBeforeStart}
+                            rightDisabled={!calendarDate || (pendingSplit?.mode === 'week' && endBeforeStart)}
                           />
                         </View>
                       </ScrollView>
