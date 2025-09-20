@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, TextInput, Button, FlatList, TouchableOpacity, 
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
 import ModalButtons from '../components/ModalButtons';
+import EditPencil from '../components/EditPencil';
 
 export default function DaysTab() {
   const profile = useProfileStore((state) => state.profile);
@@ -262,7 +263,10 @@ export default function DaysTab() {
               style={styles.dayBox}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={styles.dayName}>{item.name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.dayName}>{item.name}</Text>
+                  <EditPencil onPress={() => handleEditDay(item.id, item.name)} accessibilityLabel={`Edit ${item.name}`} />
+                </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <View style={styles.exerciseCountBadge}>
                     <Text style={styles.badgeText}>
@@ -272,62 +276,47 @@ export default function DaysTab() {
                 </View>
               </View>
               <View style={styles.dayActions}>
-                <TouchableOpacity
-                  style={[styles.actionBtn, styles.dangerBtn]}
-                  onPress={() => handleDeleteDay(item.id)}
-                >
-                  <Text style={[styles.actionBtnText, styles.dangerBtnText]}>Delete</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionBtn, styles.primaryBtn]}
-                  onPress={() => handleEditDay(item.id, item.name)}
-                >
-                  <Text style={[styles.actionBtnText, styles.primaryBtnText]}>Edit</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: '#4CAF50' }]}
-                  onPress={() => {
-                    setSelectedDayId(item.id);
-                    fetchExercises(item.id);
-                    setShowAddExerciseModal(true);
-                  }}
-                >
-                  <Text style={[styles.actionBtnText, { color: '#fff', fontWeight: '700' }]}>Add Exercise</Text>
+                <TouchableOpacity onPress={() => handleDeleteDay(item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={styles.deleteText}>Delete</Text>
                 </TouchableOpacity>
               </View>
               {selectedDayId === item.id && (
                 <View style={styles.exerciseSection}>
                   <Text style={styles.exerciseTitle}>Exercises</Text>
                   {exLoading ? <Text>Loading...</Text> : (
-                    <FlatList
-                      data={exercises}
-                      keyExtractor={ex => ex.id}
-                      renderItem={({ item: ex }) => (
-                        <View style={styles.exerciseBox}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.exerciseName}>{ex.name}</Text>
-                              <Text style={styles.exerciseDetails}>{ex.sets} sets × {ex.reps} reps</Text>
-                              {ex.notes ? <Text style={styles.exerciseNotes}>{ex.notes}</Text> : null}
-                            </View>
-                            <View style={styles.exerciseActions}>
-                              <TouchableOpacity
-                                style={[styles.actionBtn, styles.dangerBtn]}
-                                onPress={() => handleDeleteExercise(ex.id)}
-                              >
-                                <Text style={[styles.actionBtnText, styles.dangerBtnText]}>Delete</Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                style={[styles.actionBtn, styles.primaryBtn]}
-                                onPress={() => handleEditExercise(ex)}
-                              >
-                                <Text style={[styles.actionBtnText, styles.primaryBtnText]}>Edit</Text>
-                              </TouchableOpacity>
+                    <View>
+                      <FlatList
+                        data={exercises}
+                        keyExtractor={ex => ex.id}
+                        renderItem={({ item: ex }) => (
+                          <View style={styles.exerciseBox}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.exerciseName}>{ex.name}</Text>
+                                <Text style={styles.exerciseDetails}>{ex.sets} sets × {ex.reps} reps</Text>
+                                {ex.notes ? <Text style={styles.exerciseNotes}>{ex.notes}</Text> : null}
+                              </View>
+                              <View style={styles.exerciseActions}>
+                                <TouchableOpacity onPress={() => handleDeleteExercise(ex.id)}>
+                                  <Text style={styles.deleteTextSmall}>Delete</Text>
+                                </TouchableOpacity>
+                                <EditPencil onPress={() => handleEditExercise(ex)} accessibilityLabel={`Edit ${ex.name}`} />
+                              </View>
                             </View>
                           </View>
-                        </View>
-                      )}
-                    />
+                        )}
+                      />
+                      <TouchableOpacity
+                        style={{ marginTop: 6 }}
+                        onPress={() => {
+                          setSelectedDayId(item.id);
+                          fetchExercises(item.id);
+                          setShowAddExerciseModal(true);
+                        }}
+                      >
+                        <Text style={styles.addExerciseLink}>+ Add Exercise</Text>
+                      </TouchableOpacity>
+                    </View>
                   )}
                 </View>
               )}
@@ -759,6 +748,24 @@ const styles = StyleSheet.create({
   exerciseActions: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  iconButton: {
+    marginLeft: 8,
+    padding: 6,
+    borderRadius: 20,
+  },
+  deleteText: {
+    color: '#ff3b30',
+    fontWeight: '600',
+  },
+  deleteTextSmall: {
+    color: '#ff3b30',
+    fontWeight: '600',
+    marginRight: 8,
+  },
+  addExerciseLink: {
+    color: '#007AFF',
+    fontWeight: '700',
   },
   modalButton: {
     paddingVertical: 12,

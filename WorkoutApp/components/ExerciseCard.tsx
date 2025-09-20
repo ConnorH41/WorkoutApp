@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import EditPencil from './EditPencil';
 
 type SetRow = { setNumber: number; reps: string; weight: string; completed?: boolean; logId?: string | null };
 
@@ -33,9 +34,7 @@ export default function ExerciseCard(props: {
         {!editing ? (
           <>
             <Text style={styles.exerciseTitle}>{name || item.name}</Text>
-            <TouchableOpacity style={styles.editPencil} onPress={onToggleEdit}>
-              {IconFeather ? <IconFeather name="edit-2" size={14} color="#666" /> : <Text style={styles.editPencilText}>✎</Text>}
-            </TouchableOpacity>
+            <EditPencil onPress={onToggleEdit} />
           </>
         ) : (
           <TextInput value={name || item.name} onChangeText={onChangeName} style={styles.exerciseTitleInput} autoFocus onBlur={onToggleEdit} />
