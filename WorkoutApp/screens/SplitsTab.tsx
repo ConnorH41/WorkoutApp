@@ -5,6 +5,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
 import ModalButtons from '../components/ModalButtons';
+import EditPencil from '../components/EditPencil';
+import RemoveButton from '../components/RemoveButton';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -949,7 +951,10 @@ export default function SplitsTab() {
               style={styles.splitBox}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={styles.splitName}>{item.name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.splitName}>{item.name}</Text>
+                  <EditPencil onPress={() => handleEditSplit(item)} accessibilityLabel={`Edit ${item.name}`} />
+                </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <View style={styles.modeBadge}>
                     <Text style={styles.badgeText}>{item.mode === 'week' ? 'Weekly' : 'Rotation'}</Text>
@@ -961,72 +966,66 @@ export default function SplitsTab() {
                   )}
                 </View>
               </View>
-              <View style={styles.splitActions}>
-                <TouchableOpacity
-                  style={[styles.actionBtn, styles.dangerBtn]}
-                  onPress={() => { setDeleteTargetId(item.id); setShowDeleteConfirm(true); }}
-                >
-                  <Text style={[styles.actionBtnText, styles.dangerBtnText]}>Remove</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionBtn, styles.primaryBtn]}
-                  onPress={() => handleEditSplit(item)}
-                >
-                  <Text style={[styles.actionBtnText, styles.primaryBtnText]}>Edit</Text>
-                </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#4CAF50' }]}
-                    onPress={() => handleSetCurrentSplit(item)}
-                  >
-                    <Text style={[styles.actionBtnText, { color: '#fff', fontWeight: '700' }]}>
-                      {isSplitCurrentlyActive(item.id) ? 'Change Timeframe' : 'Schedule'}
-                    </Text>
+
+              <View style={styles.splitFooter}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontStyle: 'italic', color: '#666' }}>
+                    {splitStartDate ? `Start: ${new Date(splitStartDate).toLocaleDateString()}` : 'Start: —'}
+                    {`  •  `}
+                    {splitEndDate ? `End: ${new Date(splitEndDate).toLocaleDateString()}` : 'End: Forever'}
+                  </Text>
+                  <TouchableOpacity onPress={() => handleSetCurrentSplit(item)}>
+                    <Text style={styles.linkText}>{isSplitCurrentlyActive(item.id) ? 'Change Timeframe' : 'Schedule'}</Text>
                   </TouchableOpacity>
-      {/* Modal for setting current split with calendar and weeks/rotations */}
-      <Modal
-        visible={showSetModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowSetModal(false)}
-      >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
-            <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Schedule Split</Text>
+                </View>
 
-              <ScheduleEditor
-                mode={pendingSplit?.mode}
-                startDate={calendarDate}
-                setStartDate={setCalendarDate}
-                endDate={endDate}
-                setEndDate={setEndDate}
-                showStartPicker={showStartPicker}
-                setShowStartPicker={setShowStartPicker}
-                showEndPicker={showEndPicker}
-                setShowEndPicker={setShowEndPicker}
-                durationWeeks={durationWeeks}
-                setDurationWeeks={setDurationWeeks}
-                rotationLength={pendingRotationLength}
-              />
+                <RemoveButton onPress={() => { setDeleteTargetId(item.id); setShowDeleteConfirm(true); }} label="Remove" accessibilityLabel={`Remove ${item.name}`} textStyle={styles.removeTextStyle} />
 
-              {/* removed display of number of rotations here — it's calculated when scheduling and saved to the DB */}
-              <View style={{ marginTop: 8 }}>
-                <ModalButtons
-                  leftLabel="Cancel"
-                  rightLabel="Schedule"
-                  onLeftPress={() => setShowSetModal(false)}
-                  onRightPress={handleConfirmSetCurrentSplit}
-                  leftColor="#e0e0e0"
-                  rightColor="#007AFF"
-                  leftTextColor="#333"
-                  rightTextColor="#fff"
-                  rightDisabled={pendingSplit?.mode === 'week' && endBeforeStart}
-                />
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+                {/* Modal for setting current split with calendar and weeks/rotations */}
+                <Modal
+                  visible={showSetModal}
+                  transparent
+                  animationType="slide"
+                  onRequestClose={() => setShowSetModal(false)}
+                >
+                  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                    <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
+                      <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
+                        <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Schedule Split</Text>
+
+                        <ScheduleEditor
+                          mode={pendingSplit?.mode}
+                          startDate={calendarDate}
+                          setStartDate={setCalendarDate}
+                          endDate={endDate}
+                          setEndDate={setEndDate}
+                          showStartPicker={showStartPicker}
+                          setShowStartPicker={setShowStartPicker}
+                          showEndPicker={showEndPicker}
+                          setShowEndPicker={setShowEndPicker}
+                          durationWeeks={durationWeeks}
+                          setDurationWeeks={setDurationWeeks}
+                          rotationLength={pendingRotationLength}
+                        />
+
+                        {/* removed display of number of rotations here — it's calculated when scheduling and saved to the DB */}
+                        <View style={{ marginTop: 8 }}>
+                          <ModalButtons
+                            leftLabel="Cancel"
+                            rightLabel="Schedule"
+                            onLeftPress={() => setShowSetModal(false)}
+                            onRightPress={handleConfirmSetCurrentSplit}
+                            leftColor="#e0e0e0"
+                            rightColor="#007AFF"
+                            leftTextColor="#333"
+                            rightTextColor="#fff"
+                            rightDisabled={pendingSplit?.mode === 'week' && endBeforeStart}
+                          />
+                        </View>
+                      </ScrollView>
+                    </View>
+                  </View>
+                </Modal>
               </View>
               {currentSplitId === item.id && (
                 <View style={{ marginTop: 8 }}>
@@ -1923,5 +1922,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#007AFF',
+  },
+  splitFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  linkText: {
+    color: '#007AFF',
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  removeTextStyle: {
+    color: '#ff3b30',
+    fontWeight: '600',
+    fontSize: 12,
   },
 });
