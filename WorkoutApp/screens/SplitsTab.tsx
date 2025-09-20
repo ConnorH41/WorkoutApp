@@ -78,7 +78,7 @@ export default function SplitsTab() {
   const [showSetModal, setShowSetModal] = useState(false);
   const [pendingSplit, setPendingSplit] = useState<any>(null);
   const [pendingRotationLength, setPendingRotationLength] = useState<number | null>(null);
-  const [calendarDate, setCalendarDate] = useState<Date>(new Date());
+  const [calendarDate, setCalendarDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [showStartPicker, setShowStartPicker] = useState(false);
@@ -102,50 +102,25 @@ export default function SplitsTab() {
   const computedWeeks = (() => {
     if (!calendarDate || !endDate) return 0;
     const msPerDay = 24 * 60 * 60 * 1000;
-    const s = new Date(calendarDate);
+    const s = new Date(calendarDate as Date);
     s.setHours(0, 0, 0, 0);
-    const e = new Date(endDate);
+    const e = new Date(endDate as Date);
     e.setHours(0, 0, 0, 0);
     const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
     if (diffDays <= 0) return 0;
     return Math.max(1, Math.ceil(diffDays / 7));
   })();
 
-  const endBeforeStart = !!endDate && new Date(endDate).setHours(0, 0, 0, 0) < new Date(calendarDate).setHours(0, 0, 0, 0);
+  const endBeforeStart = !!endDate && !!calendarDate && new Date(endDate).setHours(0, 0, 0, 0) < new Date(calendarDate).setHours(0, 0, 0, 0);
   // initial load of active runs handled by fetchActiveRun() in the profile effect below
 
 
   // Open modal to set current split
   const handleSetCurrentSplit = async (split: any) => {
     setPendingSplit(split);
-    // If rotation mode, fetch split_days to determine rotation length (number of slots)
-    if (split?.mode === 'rotation') {
-      try {
-        const { data: sdData, error: sdError } = await supabase
-          .from('split_days')
-          .select('*')
-          .eq('split_id', split.id)
-          .order('order_index', { ascending: true });
-        if (!sdError && sdData) {
-          // Determine length from max order_index or count
-          const withIndex = sdData.filter((sd: any) => sd.order_index !== null && sd.order_index !== undefined);
-          if (withIndex.length > 0) {
-            const maxIndex = Math.max(...withIndex.map((sd: any) => sd.order_index ?? 0));
-            setPendingRotationLength(maxIndex + 1);
-          } else if (sdData.length > 0) {
-            setPendingRotationLength(sdData.length);
-          } else {
-            setPendingRotationLength(3);
-          }
-        } else {
-          setPendingRotationLength(3);
-        }
-      } catch (e) {
-        setPendingRotationLength(3);
-      }
-    } else {
-      setPendingRotationLength(null);
-    }
+    // For scheduling we want the fields to be empty by default when there is no existing run.
+    // Do not prefill rotation length/start/end unless there is an active run to copy from.
+    setPendingRotationLength(null);
     // If there is an existing active run for this split, prefill with those dates
     const run = activeRuns.find(r => r.split_id === split.id);
     if (run && run.start_date) {
@@ -171,14 +146,11 @@ export default function SplitsTab() {
       return;
     }
 
-    // Otherwise use sensible defaults
-    const defaultStart = getNextMonday(new Date());
-    setCalendarDate(defaultStart);
-  const defaultWeeks = 4;
-  setDurationWeeks(defaultWeeks);
-    setEndDate(getEndDateForWeeks(defaultStart, defaultWeeks));
+    // Otherwise leave fields empty so the user can choose dates explicitly
+    setCalendarDate(null);
+    setDurationWeeks(null);
+    setEndDate(null);
     setEndManuallyEdited(false);
-  // reset rotations placeholder
     setShowSetModal(true);
   };
 
@@ -242,21 +214,26 @@ export default function SplitsTab() {
   const handleConfirmSetCurrentSplit = async () => {
     if (!pendingSplit) return;
     try {
+        // Require a start date to schedule
+        if (!calendarDate) {
+          showValidationToast('Please select a start date to schedule this split.');
+          return;
+        }
       // Prevent overlaps: compute intended start/end (ISO dates) and ensure no active run overlaps
-      const intendedStart = calendarDate ? toDateOnly(calendarDate) : null;
-      const intendedEnd = endDate ? toDateOnly(endDate) : null;
+        const intendedStart = toDateOnly(calendarDate as Date);
+        const intendedEnd = endDate ? toDateOnly(endDate) : null;
       // If any existing active run (for other splits) overlaps, block scheduling
       const overlapping = activeRuns.some(r => r.split_id !== pendingSplit.id && rangesOverlap(r.start_date, r.end_date, intendedStart, intendedEnd));
       if (overlapping) {
         showValidationToast('Scheduling would overlap an existing split run. Pick different dates.');
         return;
       }
-      setCurrentSplitId(pendingSplit.id);
-      setSplitStartDate(calendarDate.toISOString());
-      if (endDate) setSplitEndDate(endDate.toISOString());
-      await safeStorage.setItem('currentSplitId', pendingSplit.id);
-      await safeStorage.setItem('splitStartDate', calendarDate.toISOString());
-      if (endDate) await safeStorage.setItem('splitEndDate', endDate.toISOString());
+  setCurrentSplitId(pendingSplit.id);
+  setSplitStartDate((calendarDate as Date).toISOString());
+  if (endDate) setSplitEndDate((endDate as Date).toISOString());
+  await safeStorage.setItem('currentSplitId', pendingSplit.id);
+  await safeStorage.setItem('splitStartDate', (calendarDate as Date).toISOString());
+  if (endDate) await safeStorage.setItem('splitEndDate', (endDate as Date).toISOString());
       if (pendingSplit.mode === 'week') {
         // calculate number of weeks from start (calendarDate) to endDate (inclusive)
         const msPerDay = 24 * 60 * 60 * 1000;
