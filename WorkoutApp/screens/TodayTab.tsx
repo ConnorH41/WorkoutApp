@@ -9,6 +9,8 @@ import WorkoutControls from '../components/WorkoutControls';
 import { useTodayWorkout } from '../hooks/useTodayWorkout';
 import { useExerciseLogs } from '../hooks/useExerciseLogs';
 import * as api from '../lib/api';
+import { supabase } from '../lib/supabase';
+import { useProfileStore } from '../lib/profileStore';
 
 
 
@@ -61,6 +63,7 @@ export default function TodayTab() {
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showRestConfirm, setShowRestConfirm] = useState(false);
   const [showBodyweightModal, setShowBodyweightModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [bodyweight, setBodyweight] = useState('');
   const [isKg, setIsKg] = useState(true);
   const [bodyweightSubmitting, setBodyweightSubmitting] = useState(false);
@@ -105,9 +108,14 @@ export default function TodayTab() {
           const dayLabel = splitDayName || dayNameFromWorkout || 'Today';
           return <Text style={[styles.title, { marginBottom: 0 }]}>{`${abbrev} - ${dayLabel}`}</Text>;
         })()}
-        <TouchableOpacity onPress={() => setShowBodyweightModal(true)} style={styles.bodyweightBtn} activeOpacity={0.9}>
-          {IconFeather ? <IconFeather name="user" size={18} color="#fff" /> : <Text style={styles.bodyweightIcon}>🏋️‍♂️</Text>}
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', marginLeft: 'auto' }}>
+          <TouchableOpacity onPress={() => setShowBodyweightModal(true)} style={styles.bodyweightBtn} activeOpacity={0.9} accessibilityLabel="Open bodyweight modal">
+            {IconFeather ? <IconFeather name="user" size={18} color="#fff" /> : <Text style={styles.bodyweightIcon}>🏋️‍♂️</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowSettingsModal(true)} style={[styles.bodyweightBtn, { backgroundColor: '#444', marginLeft: 8 }]} activeOpacity={0.9} accessibilityLabel="Open settings">
+            {IconFeather ? <IconFeather name="settings" size={18} color="#fff" /> : <Text style={styles.bodyweightIcon}>⚙️</Text>}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Modal for entering bodyweight */}
@@ -155,6 +163,31 @@ export default function TodayTab() {
                 rightDisabled={bodyweightSubmitting}
               />
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Settings modal (simple placeholder with Logout) */}
+      <Modal visible={showSettingsModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 12 }}>Settings</Text>
+            <TouchableOpacity
+              onPress={async () => {
+                try {
+                  await supabase.auth.signOut();
+                } catch (e) {
+                  // ignore
+                }
+                useProfileStore.getState().setProfile(null);
+              }}
+              style={{ backgroundColor: '#ff3b30', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 8 }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '700' }}>Logout</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowSettingsModal(false)} style={{ padding: 12, alignItems: 'center' }}>
+              <Text style={{ color: '#007AFF', fontWeight: '700' }}>Close</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
