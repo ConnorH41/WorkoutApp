@@ -201,6 +201,18 @@ export default function TodayTab() {
         />
       </View>
 
+      {/* If there's no workout for today still allow marking as rest day */}
+      {!todayWorkout && (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setShowRestConfirm(true)}
+          disabled={resting}
+          style={[styles.secondaryButton, resting ? styles.secondaryButtonDisabled : null]}
+        >
+          <Text style={[styles.secondaryButtonText, resting ? styles.secondaryButtonTextDisabled : null]}>{resting ? 'Logging...' : (isRestDay ? 'Unmark as Rest Day' : 'Mark as Rest Day')}</Text>
+        </TouchableOpacity>
+      )}
+
       <ConfirmModal
         visible={showCompleteConfirm}
         title="Mark Workout Complete?"
