@@ -44,6 +44,8 @@ export default function TodayTab() {
     setTodayWorkout,
     setExercises,
     setSplitDayExercises,
+    createWorkoutFromScheduledDay,
+    createExercise,
   } = useTodayWorkout();
 
   // useExerciseLogs will be initialized after helper functions are declared
@@ -76,74 +78,7 @@ export default function TodayTab() {
     }
   };
 
-  // Create a workout for today based on the scheduled day (if any)
-  const createWorkoutFromScheduledDay = async () => {
-    if (!profile || !profile.id || !splitDayName) return null;
-    setCreatingWorkout(true);
-    try {
-      const today = new Date().toISOString().slice(0, 10);
-      const payload: any = { user_id: profile.id, date: today };
-      // If we have a mapped split day name and the day exists we can attach day_id after fetching it
-      // Try to resolve day by name
-      if (splitDayName) {
-        const { data: dayData } = await supabase.from('days').select('*').eq('name', splitDayName).limit(1);
-        if (dayData && dayData.length > 0) payload.day_id = dayData[0].id;
-      }
-      const { data, error } = await supabase.from('workouts').insert([payload]).select().limit(1);
-      setCreatingWorkout(false);
-      if (error) {
-        Alert.alert('Error', error.message);
-        return null;
-      }
-      if (data && data.length > 0) {
-        const w = data[0];
-        // refresh today's workout state
-        setTodayWorkout(w);
-        // fetch exercises for the workout's day_id if set
-        if (w.day_id) {
-          const { data: exData } = await supabase.from('exercises').select('*').eq('day_id', w.day_id);
-          setExercises(exData || []);
-          (exData || []).forEach((ex: any) => ensureSetsForExercise(ex));
-        }
-        return w;
-      }
-      return null;
-    } catch (e: any) {
-      setCreatingWorkout(false);
-      return null;
-    }
-  };
-
-  // Create a new exercise row when the user renames a card to a new name
-  const createExercise = async (originalExercise: any, newName: string) => {
-    if (!profile || !profile.id) return null;
-    // Determine day_id to attach the exercise to: prefer today's workout.day_id, fallback to original's day_id
-    const dayId = todayWorkout?.day_id || originalExercise?.day_id || null;
-    try {
-      const payload: any = {
-        name: newName,
-        user_id: profile.id,
-        day_id: dayId,
-        sets: originalExercise?.sets || 3,
-        reps: originalExercise?.reps || 8,
-      };
-      const { data, error } = await supabase.from('exercises').insert([payload]).select().limit(1);
-      if (error) {
-        Alert.alert('Error', error.message);
-        return null;
-      }
-      if (data && data.length > 0) {
-        const ex = data[0];
-        // update local exercises list
-        setExercises(prev => [...prev, ex]);
-        ensureSetsForExercise(ex);
-        return ex;
-      }
-    } catch (e: any) {
-      Alert.alert('Error', e.message || String(e));
-    }
-    return null;
-  };
+  // Use hook-provided workout/exercise actions (already destructured above)
 
   // Initialize exercise logs hook with callbacks that need local helpers
   const { logs, notesByExercise, setLogs, setNotesByExercise, addSetRow, removeSetRow, handleSetChange, handleNotesChange, ensureSetsForExercise, toggleSetCompleted, saveSetsForExercise } = useExerciseLogs({

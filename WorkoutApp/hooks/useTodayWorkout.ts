@@ -123,6 +123,63 @@ export function useTodayWorkout() {
     setWorkoutLoading(false);
   };
 
+  // Create a workout for today based on the scheduled day (if any)
+  const createWorkoutFromScheduledDay = async () => {
+    if (!profile || !profile.id || !splitDayName) return null;
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const payload: any = { user_id: profile.id, date: today };
+      if (splitDayName) {
+        const { data: dayData } = await supabase.from('days').select('*').eq('name', splitDayName).limit(1);
+        if (dayData && dayData.length > 0) payload.day_id = dayData[0].id;
+      }
+      const { data, error } = await supabase.from('workouts').insert([payload]).select().limit(1);
+      if (error) {
+        return null;
+      }
+      if (data && data.length > 0) {
+        const w = data[0];
+        setTodayWorkout(w);
+        // fetch exercises for the workout's day_id if set
+        if (w.day_id) {
+          const { data: exData } = await supabase.from('exercises').select('*').eq('day_id', w.day_id);
+          setExercises(exData || []);
+        }
+        return w;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  // Create a new exercise row when the user renames a card to a new name
+  const createExercise = async (originalExercise: any, newName: string) => {
+    if (!profile || !profile.id) return null;
+    const dayId = todayWorkout?.day_id || originalExercise?.day_id || null;
+    try {
+      const payload: any = {
+        name: newName,
+        user_id: profile.id,
+        day_id: dayId,
+        sets: originalExercise?.sets || 3,
+        reps: originalExercise?.reps || 8,
+      };
+      const { data, error } = await supabase.from('exercises').insert([payload]).select().limit(1);
+      if (error) {
+        return null;
+      }
+      if (data && data.length > 0) {
+        const ex = data[0];
+        setExercises(prev => [...prev, ex]);
+        return ex;
+      }
+    } catch (e: any) {
+      return null;
+    }
+    return null;
+  };
+
   return {
     profile,
     workoutLoading,
@@ -136,6 +193,8 @@ export function useTodayWorkout() {
     fetchTodayWorkout,
     fetchActiveSplitRun,
     ensureSetsForExercise,
+    createWorkoutFromScheduledDay,
+    createExercise,
     setTodayWorkout,
     setExercises,
     setSplitDayExercises,
