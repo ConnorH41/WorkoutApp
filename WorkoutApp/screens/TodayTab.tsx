@@ -29,7 +29,7 @@ export default function TodayTab() {
   const [splitDayExercises, setSplitDayExercises] = useState<any[]>([]);
   const [splitDayName, setSplitDayName] = useState<string | null>(null);
   const [dayNameFromWorkout, setDayNameFromWorkout] = useState<string | null>(null);
-  const [logs, setLogs] = useState<{ [exerciseId: string]: Array<{ setNumber: number; reps: string; weight: string }> }>({});
+  const [logs, setLogs] = useState<{ [exerciseId: string]: Array<{ setNumber: number; reps: string; weight: string; completed?: boolean; logId?: string | null }> }>({});
   const [notesByExercise, setNotesByExercise] = useState<{ [exerciseId: string]: string }>({});
   const [nameByExercise, setNameByExercise] = useState<{ [exerciseId: string]: string }>({});
   const [editingByExercise, setEditingByExercise] = useState<{ [exerciseId: string]: boolean }>({});
@@ -311,6 +311,73 @@ export default function TodayTab() {
     });
   };
 
+  // Toggle a single set as completed/uncompleted — writes/updates a single log row in the DB
+  const toggleSetCompleted = async (exerciseId: string, index: number) => {
+    const setRow = (logs[exerciseId] || [])[index];
+    if (!setRow) return;
+    // validate numeric fields before marking complete
+    if (!setRow.reps || !setRow.weight || isNaN(Number(setRow.reps)) || isNaN(Number(setRow.weight))) {
+      Alert.alert('Invalid fields', 'Please enter numeric reps and weight for this set before marking it complete.');
+      return;
+    }
+    const willComplete = !setRow.completed;
+    try {
+      // ensure workout exists
+      let workout = todayWorkout;
+      if (!workout) {
+        workout = await createWorkoutFromScheduledDay();
+        if (!workout) {
+          Alert.alert('Error', 'Could not create workout for today');
+          return;
+        }
+      }
+      // determine exercise id (handle renamed -> new exercise)
+      let targetExerciseId = exerciseId;
+      const displayedName = nameByExercise[exerciseId];
+      const originalExercise = exercises.find(e => e.id === exerciseId) || splitDayExercises.find(e => e.id === exerciseId);
+      if (displayedName && originalExercise && displayedName.trim() !== originalExercise.name) {
+        const created = await createExercise(originalExercise, displayedName.trim());
+        if (created && created.id) targetExerciseId = created.id;
+      }
+
+      // if there's an existing log id, update; else insert
+      if (setRow.logId) {
+        const { error } = await supabase.from('logs').update({ completed: willComplete }).eq('id', setRow.logId);
+        if (error) throw error;
+      } else if (willComplete) {
+        const payload: any = {
+          workout_id: workout.id,
+          exercise_id: targetExerciseId,
+          set_number: setRow.setNumber,
+          reps: parseInt(setRow.reps, 10),
+          weight: parseFloat(setRow.weight),
+          notes: notesByExercise[exerciseId] || '',
+          completed: true,
+        };
+        const { data, error } = await supabase.from('logs').insert([payload]).select().limit(1);
+        if (error) throw error;
+        if (data && data.length > 0) {
+          // store returned log id
+          setLogs(prev => {
+            const arr = prev[exerciseId] ? [...prev[exerciseId]] : [];
+            arr[index] = { ...(arr[index] || {}), completed: true, logId: data[0].id } as any;
+            return { ...prev, [exerciseId]: arr };
+          });
+        }
+      } else {
+        // unchecking without logId — nothing to do
+        // If unchecking an existing saved log (should have logId), it was handled above
+        setLogs(prev => {
+          const arr = prev[exerciseId] ? [...prev[exerciseId]] : [];
+          arr[index] = { ...(arr[index] || {}), completed: false } as any;
+          return { ...prev, [exerciseId]: arr };
+        });
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message || String(e));
+    }
+  };
+
   const handleNotesChange = (exerciseId: string, value: string) => {
     setNotesByExercise(prev => ({ ...prev, [exerciseId]: value }));
   };
@@ -386,7 +453,7 @@ export default function TodayTab() {
       if (existing.length >= target) return prev;
       const arr = [...existing];
       for (let i = existing.length; i < target; i++) {
-        arr.push({ setNumber: i + 1, reps: '', weight: '' });
+        arr.push({ setNumber: i + 1, reps: '', weight: '', completed: false, logId: null });
       }
       return { ...prev, [exercise.id]: arr };
     });
@@ -603,11 +670,14 @@ export default function TodayTab() {
                   <TextInput value={nameByExercise[item.id] || item.name} onChangeText={(v) => setNameByExercise(prev => ({ ...prev, [item.id]: v }))} style={styles.exerciseTitleInput} autoFocus onBlur={() => setEditingByExercise(prev => ({ ...prev, [item.id]: false }))} />
                 )}
               </View>
-              {(logs[item.id] || [{ setNumber: 1, reps: '', weight: '' }]).map((s, idx) => (
+              {(logs[item.id] || [{ setNumber: 1, reps: '', weight: '', completed: false }]).map((s, idx) => (
                 <View key={`${item.id}-set-${idx}`} style={styles.setRow}>
+                  <TouchableOpacity style={[styles.checkbox, s.completed ? styles.checkboxChecked : null]} onPress={() => toggleSetCompleted(item.id, idx)}>
+                    <Text style={styles.checkboxText}>{s.completed ? '✓' : ''}</Text>
+                  </TouchableOpacity>
                   <Text style={styles.setLabel}>{`Set ${s.setNumber}`}</Text>
-                  <TextInput style={[styles.input, styles.inputWeight]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => handleSetChange(item.id, idx, 'weight', v)} />
-                  <TextInput style={[styles.input, styles.inputReps]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => handleSetChange(item.id, idx, 'reps', v)} />
+                  <TextInput editable={!s.completed} style={[styles.input, styles.inputWeight, s.completed ? styles.inputDisabled : null]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => handleSetChange(item.id, idx, 'weight', v)} />
+                  <TextInput editable={!s.completed} style={[styles.input, styles.inputReps, s.completed ? styles.inputDisabled : null]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => handleSetChange(item.id, idx, 'reps', v)} />
                   <TouchableOpacity onPress={() => confirmRemoveSetRow(item.id, idx)} style={styles.removeBtn}>
                     <Text style={styles.removeBtnText}>-</Text>
                   </TouchableOpacity>
@@ -617,9 +687,7 @@ export default function TodayTab() {
                 <Text style={styles.addSetText}>+ Add Set</Text>
               </TouchableOpacity>
               <TextInput style={[styles.input, styles.textInputMultiline, styles.notesInput]} placeholder="Notes (optional)" value={notesByExercise[item.id] || ''} onChangeText={(v) => handleNotesChange(item.id, v)} multiline numberOfLines={3} />
-              <View style={styles.saveButtonWrap}>
-                <Button title={savingLog ? 'Saving...' : 'Save Sets'} onPress={() => saveSetsForExercise(item.id)} disabled={savingLog} />
-              </View>
+              
               <TouchableOpacity style={styles.removeExerciseAbsolute} onPress={() => confirmRemoveExercise(item)}>
                 <Text style={styles.removeExerciseText}>Remove</Text>
               </TouchableOpacity>
@@ -737,6 +805,7 @@ const styles = StyleSheet.create({
     borderColor: '#eee',
     borderRadius: 8,
     padding: 12,
+    paddingBottom: 40,
     marginBottom: 16,
     backgroundColor: '#fafafa',
   },
@@ -972,5 +1041,27 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 6,
     backgroundColor: 'transparent',
+  },
+  checkbox: {
+    width: 28,
+    height: 28,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  checkboxChecked: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  checkboxText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  inputDisabled: {
+    backgroundColor: '#f2f2f2',
+    color: '#999',
   },
 });
