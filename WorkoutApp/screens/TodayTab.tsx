@@ -18,6 +18,7 @@ try {
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
 import { useTodayWorkout } from '../hooks/useTodayWorkout';
+import ExerciseList from '../components/ExerciseList';
 
 export default function TodayTab() {
   const profile = useProfileStore((state) => state.profile);
@@ -559,29 +560,25 @@ export default function TodayTab() {
       ) : (
         <View>
           <Text style={{ fontSize: 16, fontWeight: '700', marginBottom: 8 }}>{splitDayName ? `${splitDayName}` : (dayNameFromWorkout || 'Today')}</Text>
-          {( (exercises && exercises.length > 0) ? exercises : splitDayExercises ).map((item) => (
-            <ExerciseCard
-              key={item.id}
-              item={item}
-              sets={logs[item.id] || [{ setNumber: 1, reps: '', weight: '', completed: false }]}
-              name={nameByExercise[item.id]}
-              editing={!!editingByExercise[item.id]}
-              readonlyMode={isRestDay}
-              notes={notesByExercise[item.id]}
-              onToggleEdit={() => setEditingByExercise(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
-              onChangeName={(v) => setNameByExercise(prev => ({ ...prev, [item.id]: v }))}
-              onChangeSet={(idx, field, v) => handleSetChange(item.id, idx, field as any, v)}
-              onToggleCompleted={(idx) => toggleSetCompleted(item.id, idx)}
-              onAddSet={() => addSetRow(item.id)}
-              onRemoveSet={(idx) => confirmRemoveSetRow(item.id, idx)}
-              onChangeNotes={(v) => handleNotesChange(item.id, v)}
-              onRemoveExercise={() => confirmRemoveExercise(item)}
-              IconFeather={IconFeather}
-            />
-          ))}
-          <TouchableOpacity style={styles.addExerciseBtn} onPress={() => (exercises && exercises.length > 0) ? addBlankExerciseToWorkout() : addBlankExerciseToSplit()} disabled={isRestDay}>
-            <Text style={styles.addExerciseText}>+ Add Exercise</Text>
-          </TouchableOpacity>
+          <ExerciseList
+            exercises={exercises}
+            splitDayExercises={splitDayExercises}
+            logs={logs}
+            nameByExercise={nameByExercise}
+            editingByExercise={editingByExercise}
+            notesByExercise={notesByExercise}
+            isRestDay={isRestDay}
+            IconFeather={IconFeather}
+            onToggleEdit={(id: string) => setEditingByExercise(prev => ({ ...prev, [id]: !prev[id] }))}
+            onChangeName={(id: string, v: string) => setNameByExercise(prev => ({ ...prev, [id]: v }))}
+            onChangeSet={(id: string, idx: number, field: string, v: string) => handleSetChange(id, idx, field as any, v)}
+            onToggleCompleted={(id: string, idx: number) => toggleSetCompleted(id, idx)}
+            onAddSet={(id: string) => addSetRow(id)}
+            onRemoveSet={(id: string, idx: number) => confirmRemoveSetRow(id, idx)}
+            onChangeNotes={(id: string, v: string) => handleNotesChange(id, v)}
+            onRemoveExercise={(item: any) => confirmRemoveExercise(item)}
+            onAddExercise={() => (exercises && exercises.length > 0) ? addBlankExerciseToWorkout() : addBlankExerciseToSplit()}
+          />
         </View>
       )}
 
