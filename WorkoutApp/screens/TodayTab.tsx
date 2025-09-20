@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Button, ScrollView, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity } from 'react-native';
 import ModalButtons from '../components/ModalButtons';
+import ExerciseCard from '../components/ExerciseCard';
 // Import icons at runtime to avoid type errors when package isn't installed in the environment
 let IconFeather: any = null;
 try {
@@ -652,46 +653,23 @@ export default function TodayTab() {
       ) : todayWorkout && exercises.length > 0 ? (
         <View>
           {exercises.map((item) => (
-            <View key={item.id} style={styles.exerciseBox}>
-              {!(String(item.id).startsWith('tmp')) && (
-                <View style={styles.goalBadge}>
-                  <Text style={styles.goalBadgeText}>{`${item.sets}×${item.reps}`}</Text>
-                </View>
-              )}
-              <View style={styles.titleRow}>
-                {!editingByExercise[item.id] ? (
-                  <>
-                    <Text style={styles.exerciseTitle}>{nameByExercise[item.id] || item.name}</Text>
-                    <TouchableOpacity style={styles.editPencil} onPress={() => setEditingByExercise(prev => ({ ...prev, [item.id]: true }))}>
-                      {IconFeather ? <IconFeather name="edit-2" size={14} color="#666" /> : <Text style={styles.editPencilText}>✎</Text>}
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <TextInput value={nameByExercise[item.id] || item.name} onChangeText={(v) => setNameByExercise(prev => ({ ...prev, [item.id]: v }))} style={styles.exerciseTitleInput} autoFocus onBlur={() => setEditingByExercise(prev => ({ ...prev, [item.id]: false }))} />
-                )}
-              </View>
-              {(logs[item.id] || [{ setNumber: 1, reps: '', weight: '', completed: false }]).map((s, idx) => (
-                <View key={`${item.id}-set-${idx}`} style={styles.setRow}>
-                  <TouchableOpacity style={[styles.checkbox, s.completed ? styles.checkboxChecked : null]} onPress={() => toggleSetCompleted(item.id, idx)}>
-                    <Text style={styles.checkboxText}>{s.completed ? '✓' : ''}</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.setLabel}>{`Set ${s.setNumber}`}</Text>
-                  <TextInput editable={!s.completed} style={[styles.input, styles.inputWeight, s.completed ? styles.inputDisabled : null]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => handleSetChange(item.id, idx, 'weight', v)} />
-                  <TextInput editable={!s.completed} style={[styles.input, styles.inputReps, s.completed ? styles.inputDisabled : null]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => handleSetChange(item.id, idx, 'reps', v)} />
-                  <TouchableOpacity onPress={() => confirmRemoveSetRow(item.id, idx)} style={styles.removeBtn}>
-                    <Text style={styles.removeBtnText}>-</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-              <TouchableOpacity onPress={() => addSetRow(item.id)} style={styles.addSetLink}>
-                <Text style={styles.addSetText}>+ Add Set</Text>
-              </TouchableOpacity>
-              <TextInput style={[styles.input, styles.textInputMultiline, styles.notesInput]} placeholder="Notes (optional)" value={notesByExercise[item.id] || ''} onChangeText={(v) => handleNotesChange(item.id, v)} multiline numberOfLines={3} />
-              
-              <TouchableOpacity style={styles.removeExerciseAbsolute} onPress={() => confirmRemoveExercise(item)}>
-                <Text style={styles.removeExerciseText}>Remove</Text>
-              </TouchableOpacity>
-            </View>
+            <ExerciseCard
+              key={item.id}
+              item={item}
+              sets={logs[item.id] || [{ setNumber: 1, reps: '', weight: '', completed: false }]}
+              name={nameByExercise[item.id]}
+              editing={!!editingByExercise[item.id]}
+              notes={notesByExercise[item.id]}
+              onToggleEdit={() => setEditingByExercise(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+              onChangeName={(v) => setNameByExercise(prev => ({ ...prev, [item.id]: v }))}
+              onChangeSet={(idx, field, v) => handleSetChange(item.id, idx, field as any, v)}
+              onToggleCompleted={(idx) => toggleSetCompleted(item.id, idx)}
+              onAddSet={() => addSetRow(item.id)}
+              onRemoveSet={(idx) => confirmRemoveSetRow(item.id, idx)}
+              onChangeNotes={(v) => handleNotesChange(item.id, v)}
+              onRemoveExercise={() => confirmRemoveExercise(item)}
+              IconFeather={IconFeather}
+            />
           ))}
           <TouchableOpacity style={styles.addExerciseBtn} onPress={addBlankExerciseToWorkout}>
             <Text style={styles.addExerciseText}>+ Add Exercise</Text>
@@ -706,43 +684,23 @@ export default function TodayTab() {
           <Text style={{ fontSize: 16, fontWeight: '700', marginBottom: 8 }}>{splitDayName ? `Scheduled: ${splitDayName}` : 'Scheduled Day'}</Text>
           <Button title={todayWorkout ? 'Edit Workout' : creatingWorkout ? 'Creating...' : 'Create Today\'s Workout'} onPress={createWorkoutFromScheduledDay} disabled={creatingWorkout || !!todayWorkout} />
           {splitDayExercises.map((item) => (
-            <View key={item.id} style={styles.exerciseBox}>
-              {!(String(item.id).startsWith('tmp')) && (
-                <View style={styles.goalBadge}>
-                  <Text style={styles.goalBadgeText}>{`${item.sets}×${item.reps}`}</Text>
-                </View>
-              )}
-              <View style={styles.titleRow}>
-                {!editingByExercise[item.id] ? (
-                  <>
-                    <Text style={styles.exerciseTitle}>{nameByExercise[item.id] || item.name}</Text>
-                    <TouchableOpacity style={styles.editPencil} onPress={() => setEditingByExercise(prev => ({ ...prev, [item.id]: true }))}>
-                      {IconFeather ? <IconFeather name="edit-2" size={14} color="#666" /> : <Text style={styles.editPencilText}>✎</Text>}
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <TextInput value={nameByExercise[item.id] || item.name} onChangeText={(v) => setNameByExercise(prev => ({ ...prev, [item.id]: v }))} style={styles.exerciseTitleInput} autoFocus onBlur={() => setEditingByExercise(prev => ({ ...prev, [item.id]: false }))} />
-                )}
-              </View>
-              {/* Per-set rows */}
-              {(logs[item.id] || [{ setNumber: 1, reps: '', weight: '' }]).map((s, idx) => (
-                <View key={`${item.id}-set-${idx}`} style={styles.setRow}>
-                  <Text style={styles.setLabel}>{`Set ${s.setNumber}`}</Text>
-                  <TextInput style={[styles.input, styles.inputWeight]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => handleSetChange(item.id, idx, 'weight', v)} />
-                  <TextInput style={[styles.input, styles.inputReps]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => handleSetChange(item.id, idx, 'reps', v)} />
-                  <TouchableOpacity onPress={() => confirmRemoveSetRow(item.id, idx)} style={styles.removeBtn}>
-                    <Text style={styles.removeBtnText}>-</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-              <TouchableOpacity onPress={() => addSetRow(item.id)} style={styles.addSetLink}>
-                <Text style={styles.addSetText}>+ Add Set</Text>
-              </TouchableOpacity>
-              <TextInput style={[styles.input, styles.textInputMultiline, styles.notesInput]} placeholder="Notes (optional)" value={notesByExercise[item.id] || ''} onChangeText={(v) => handleNotesChange(item.id, v)} multiline numberOfLines={3} />
-              <View style={styles.saveButtonWrap}>
-                <Button title={savingLog ? 'Saving...' : 'Save Sets'} onPress={() => saveSetsForExercise(item.id)} disabled={savingLog} />
-              </View>
-            </View>
+            <ExerciseCard
+              key={item.id}
+              item={item}
+              sets={logs[item.id] || [{ setNumber: 1, reps: '', weight: '' }]}
+              name={nameByExercise[item.id]}
+              editing={!!editingByExercise[item.id]}
+              notes={notesByExercise[item.id]}
+              onToggleEdit={() => setEditingByExercise(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+              onChangeName={(v) => setNameByExercise(prev => ({ ...prev, [item.id]: v }))}
+              onChangeSet={(idx, field, v) => handleSetChange(item.id, idx, field as any, v)}
+              onToggleCompleted={(idx) => toggleSetCompleted(item.id, idx)}
+              onAddSet={() => addSetRow(item.id)}
+              onRemoveSet={(idx) => confirmRemoveSetRow(item.id, idx)}
+              onChangeNotes={(v) => handleNotesChange(item.id, v)}
+              onRemoveExercise={() => confirmRemoveExercise(item)}
+              IconFeather={IconFeather}
+            />
           ))}
           <TouchableOpacity style={styles.addExerciseBtn} onPress={addBlankExerciseToSplit}>
             <Text style={styles.addExerciseText}>+ Add Exercise</Text>
@@ -756,11 +714,14 @@ export default function TodayTab() {
       ))}
 
       {todayWorkout && !todayWorkout.completed && (
-        <Button
-          title={completing ? 'Completing...' : 'Mark Workout Complete'}
+        <TouchableOpacity
+          activeOpacity={0.8}
           onPress={handleCompleteWorkout}
           disabled={completing}
-        />
+          style={[styles.primaryButton, completing ? styles.primaryButtonDisabled : null]}
+        >
+          <Text style={[styles.primaryButtonText, completing ? styles.primaryButtonTextDisabled : null]}>{completing ? 'Completing...' : 'Mark Workout Complete'}</Text>
+        </TouchableOpacity>
       )}
       {todayWorkout && todayWorkout.completed && (
         <Text style={{ color: 'green', marginTop: 12 }}>Workout marked as complete!</Text>
@@ -1063,5 +1024,25 @@ const styles = StyleSheet.create({
   inputDisabled: {
     backgroundColor: '#f2f2f2',
     color: '#999',
+  },
+  primaryButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  primaryButtonDisabled: {
+    backgroundColor: '#90C3FF',
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  primaryButtonTextDisabled: {
+    color: '#f0f9ff',
   },
 });

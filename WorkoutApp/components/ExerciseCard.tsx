@@ -1,0 +1,133 @@
+import React from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+
+type SetRow = { setNumber: number; reps: string; weight: string; completed?: boolean; logId?: string | null };
+
+export default function ExerciseCard(props: {
+  item: any;
+  sets: SetRow[];
+  name: string;
+  editing: boolean;
+  notes: string;
+  onToggleEdit: () => void;
+  onChangeName: (v: string) => void;
+  onChangeSet: (index: number, field: 'reps' | 'weight', value: string) => void;
+  onToggleCompleted: (index: number) => void;
+  onAddSet: () => void;
+  onRemoveSet: (index: number) => void;
+  onChangeNotes: (v: string) => void;
+  onRemoveExercise: () => void;
+  IconFeather?: any;
+}) {
+  const { item, sets, name, editing, notes, onToggleEdit, onChangeName, onChangeSet, onToggleCompleted, onAddSet, onRemoveSet, onChangeNotes, onRemoveExercise, IconFeather } = props;
+
+  return (
+    <View style={styles.exerciseBox}>
+      {!(String(item.id).startsWith('tmp')) && (
+        <View style={styles.goalBadge}>
+          <Text style={styles.goalBadgeText}>{`${item.sets}×${item.reps}`}</Text>
+        </View>
+      )}
+      <View style={styles.titleRow}>
+        {!editing ? (
+          <>
+            <Text style={styles.exerciseTitle}>{name || item.name}</Text>
+            <TouchableOpacity style={styles.editPencil} onPress={onToggleEdit}>
+              {IconFeather ? <IconFeather name="edit-2" size={14} color="#666" /> : <Text style={styles.editPencilText}>✎</Text>}
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TextInput value={name || item.name} onChangeText={onChangeName} style={styles.exerciseTitleInput} autoFocus onBlur={onToggleEdit} />
+        )}
+      </View>
+
+      {sets.map((s, idx) => (
+        <View key={`${item.id}-set-${idx}`} style={styles.setRow}>
+          <TouchableOpacity style={[styles.checkbox, s.completed ? styles.checkboxChecked : null]} onPress={() => onToggleCompleted(idx)}>
+            <Text style={styles.checkboxText}>{s.completed ? '✓' : ''}</Text>
+          </TouchableOpacity>
+          <Text style={styles.setLabel}>{`Set ${s.setNumber}`}</Text>
+          <TextInput editable={!s.completed} style={[styles.input, styles.inputWeight, s.completed ? styles.inputDisabled : null]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => onChangeSet(idx, 'weight', v)} />
+          <TextInput editable={!s.completed} style={[styles.input, styles.inputReps, s.completed ? styles.inputDisabled : null]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => onChangeSet(idx, 'reps', v)} />
+          <TouchableOpacity onPress={() => onRemoveSet(idx)} style={styles.removeBtn}>
+            <Text style={styles.removeBtnText}>-</Text>
+          </TouchableOpacity>
+        </View>
+      ))}
+
+      <TouchableOpacity onPress={onAddSet} style={styles.addSetLink}>
+        <Text style={styles.addSetText}>+ Add Set</Text>
+      </TouchableOpacity>
+
+  <TextInput style={[styles.input, styles.notesInput]} placeholder="Notes (optional)" value={notes || ''} onChangeText={onChangeNotes} multiline numberOfLines={3} />
+
+      <TouchableOpacity style={styles.removeExerciseAbsolute} onPress={onRemoveExercise}>
+        <Text style={styles.removeExerciseText}>Remove</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  exerciseBox: {
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderRadius: 8,
+    padding: 12,
+    paddingBottom: 40,
+    marginBottom: 16,
+    backgroundColor: '#fafafa',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  exerciseTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 0,
+  },
+  exerciseTitleInput: {
+    fontSize: 16,
+    fontWeight: '600',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 8,
+    borderRadius: 6,
+    flex: 1,
+  },
+  editPencil: {
+    marginLeft: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#f2f2f2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editPencilText: { fontSize: 14 },
+  setRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    minHeight: 44,
+  },
+  setLabel: { width: 64, fontWeight: '600', marginRight: 8, height: 40, lineHeight: 40 },
+  input: { borderWidth: 1, borderColor: '#ccc', padding: 8, borderRadius: 4, flex: 1, marginRight: 8, marginBottom: 8 },
+  inputWeight: { width: 100, marginRight: 8, height: 40, paddingVertical: 6, textAlignVertical: 'center' },
+  inputReps: { width: 80, marginRight: 8, height: 40, paddingVertical: 6, textAlignVertical: 'center' },
+  addSetLink: { marginBottom: 8 },
+  addSetText: { color: '#007AFF', fontWeight: '700' },
+  notesInput: { marginTop: 8 },
+  removeBtn: { marginLeft: 8, paddingHorizontal: 4, paddingVertical: 0, width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginTop: -8 },
+  removeBtnText: { color: '#ff3b30', fontWeight: '700', fontSize: 18 },
+  goalBadge: { position: 'absolute', right: 10, top: 8, backgroundColor: '#007AFF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
+  goalBadgeText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  checkbox: { width: 28, height: 28, borderRadius: 4, borderWidth: 1, borderColor: '#ccc', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  checkboxChecked: { backgroundColor: '#007AFF', borderColor: '#007AFF' },
+  checkboxText: { color: '#fff', fontWeight: '700' },
+  inputDisabled: { backgroundColor: '#f2f2f2', color: '#999' },
+  removeExerciseAbsolute: { position: 'absolute', right: 10, bottom: 10, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 6, backgroundColor: 'transparent' },
+  removeExerciseText: { color: '#ff3b30', fontWeight: '600', fontSize: 12 },
+});
