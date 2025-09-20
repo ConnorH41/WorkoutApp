@@ -378,19 +378,34 @@ export default function SplitsTab() {
     }
   };
 
-  // Return true if the given split id is the current active run and today's date
-  // falls within the run's start/end range. If end is null treat as ongoing.
+  // Return true if two date ranges overlap.
+  // Uses YYYY-MM-DD date-only parsing to avoid timezone shifts and treats missing
+  // start dates as non-overlapping (cannot determine overlap without a start).
+  const parseDateOnlyEpoch = (d: string | null) => {
+    if (!d) return null;
+    const parts = String(d).split('-').map(p => parseInt(p, 10));
+    if (parts.length < 3 || parts.some(p => Number.isNaN(p))) return null;
+    const [y, m, day] = parts;
+    return Date.UTC(y, m - 1, day);
+  };
+
   const rangesOverlap = (s1: string | null, e1: string | null, s2: string | null, e2: string | null) => {
-    if (!s1 || !s2) return true; // conservative
-    const a1 = new Date(s1).setHours(0,0,0,0);
-    const b1 = e1 ? new Date(e1).setHours(0,0,0,0) : null;
-    const a2 = new Date(s2).setHours(0,0,0,0);
-    const b2 = e2 ? new Date(e2).setHours(0,0,0,0) : null;
-    if (b1 && b2) return !(b1 < a2 || b2 < a1);
-    if (!b1 && !b2) return true;
-    if (!b1 && b2) return !(b2 < a1);
-    if (b1 && !b2) return !(b1 < a2);
-    return true;
+    // If either range lacks a start we cannot reliably determine overlap — treat as non-overlap.
+    if (!s1 || !s2) return false;
+    const a1 = parseDateOnlyEpoch(s1);
+    const b1 = parseDateOnlyEpoch(e1);
+    const a2 = parseDateOnlyEpoch(s2);
+    const b2 = parseDateOnlyEpoch(e2);
+    if (a1 === null || a2 === null) return false;
+    // Both have end dates
+    if (b1 !== null && b2 !== null) return !(b1 < a2 || b2 < a1);
+    // Neither have end dates: both open-ended -> overlap
+    if (b1 === null && b2 === null) return true;
+    // Only first is open-ended
+    if (b1 === null && b2 !== null) return !(b2 < a1);
+    // Only second is open-ended
+    if (b1 !== null && b2 === null) return !(b1 < a2);
+    return false;
   };
 
   const isSplitCurrentlyActive = (splitId: string) => {
