@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, TextInput, Button, Text, StyleSheet } from 'react-native';
+import { View, TextInput, Button, Text } from 'react-native';
 import { supabase } from '../lib/supabase';
+import styles from '../styles/authStyles';
 
 export default function AuthScreen({ onAuthSuccess }: { onAuthSuccess: () => void }) {
   const [email, setEmail] = useState('');
@@ -42,8 +43,4 @@ export default function AuthScreen({ onAuthSuccess }: { onAuthSuccess: () => voi
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 16 },
-  input: { borderWidth: 1, borderColor: '#ccc', padding: 8, marginBottom: 12, borderRadius: 4 },
-  error: { color: 'red', marginBottom: 8 },
-});
+ 

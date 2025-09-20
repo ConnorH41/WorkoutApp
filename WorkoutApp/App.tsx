@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import MainNavigator from './MainNavigator';
 import { supabase } from './lib/supabase';
 import { useProfileStore } from './lib/profileStore';
 import AuthScreen from './screens/AuthScreen';
+import styles from './styles/appStyles';
 
 async function fetchAndStoreProfile(userId: string, setProfile: (profile: any) => void) {
   const { data, error } = await supabase
@@ -59,11 +60,4 @@ export default function App() {
   return <MainNavigator />;
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+ 
