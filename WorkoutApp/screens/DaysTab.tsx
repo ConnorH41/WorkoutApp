@@ -19,6 +19,7 @@ export default function DaysTab() {
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
   const [exercises, setExercises] = useState<any[]>([]);
   const [exLoading, setExLoading] = useState(false);
+  const [exerciseCounts, setExerciseCounts] = useState<Record<string, number>>({});
   const [newExercise, setNewExercise] = useState({ name: '', sets: '', reps: '', notes: '' });
   const [addingEx, setAddingEx] = useState(false);
   const [editingExId, setEditingExId] = useState<string | null>(null);
@@ -74,6 +75,11 @@ export default function DaysTab() {
         setNewExercise({ name: '', sets: '', reps: '', notes: '' });
         setShowAddExerciseModal(false);
         fetchExercises(selectedDayId);
+        // update counts for the day
+        if (selectedDayId) {
+          const { data: exData } = await supabase.from('exercises').select('id').eq('day_id', selectedDayId);
+          setExerciseCounts(prev => ({ ...prev, [selectedDayId]: (exData || []).length }));
+        }
       }
     } finally {
       setAddingEx(false);
@@ -113,6 +119,9 @@ export default function DaysTab() {
         setEditingEx({ name: '', sets: '', reps: '', notes: '' });
         setShowEditExerciseModal(false);
         fetchExercises(selectedDayId);
+        // refresh count for this day
+        const { data: exData } = await supabase.from('exercises').select('id').eq('day_id', selectedDayId);
+        setExerciseCounts(prev => ({ ...prev, [selectedDayId]: (exData || []).length }));
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to update exercise');
@@ -134,6 +143,21 @@ export default function DaysTab() {
       .order('created_at', { ascending: true });
     if (!error && data) {
       setDays(data);
+      // Fetch exercises for these days to compute counts for the badges
+      const dayIds = data.map((d: any) => d.id);
+      if (dayIds.length > 0) {
+        const { data: exData } = await supabase
+          .from('exercises')
+          .select('id, day_id')
+          .in('day_id', dayIds as string[]);
+        const counts: Record<string, number> = {};
+        (exData || []).forEach((e: any) => {
+          counts[e.day_id] = (counts[e.day_id] || 0) + 1;
+        });
+        setExerciseCounts(counts);
+      } else {
+        setExerciseCounts({});
+      }
     }
     setLoading(false);
   };
@@ -189,6 +213,9 @@ export default function DaysTab() {
           Alert.alert('Error', error.message);
         } else if (selectedDayId) {
           fetchExercises(selectedDayId);
+          // refresh count for this day
+          const { data: exData } = await supabase.from('exercises').select('id').eq('day_id', selectedDayId);
+          setExerciseCounts(prev => ({ ...prev, [selectedDayId]: (exData || []).length }));
         }
       }
     } finally {
@@ -271,7 +298,7 @@ export default function DaysTab() {
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <View style={styles.exerciseCountBadge}>
                     <Text style={styles.badgeText}>
-                      {exercises.length} {exercises.length === 1 ? 'Exercise' : 'Exercises'}
+                      { (exerciseCounts[item.id] ?? 0) } { (exerciseCounts[item.id] ?? 0) === 1 ? 'Exercise' : 'Exercises' }
                     </Text>
                   </View>
                 </View>
