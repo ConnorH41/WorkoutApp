@@ -263,7 +263,7 @@ export default function DaysTab() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <ScrollView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]} contentContainerStyle={{ padding: 16 }}>
       <View style={styles.header}>
         <Text style={styles.title}>Days</Text>
         <TouchableOpacity 
@@ -636,7 +636,7 @@ export default function DaysTab() {
           </View>
         </View>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }
 
