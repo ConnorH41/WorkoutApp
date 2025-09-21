@@ -183,6 +183,8 @@ export function useTodayWorkout() {
   const { data: workout, error: workoutError } = await api.getWorkoutByUserDate(profile.id, today);
       if (workout && !workoutError) {
         setTodayWorkout(workout);
+        // Mark rest day if the workout exists and is marked completed
+        setIsRestDay(!!workout.completed);
         if (workout.day_id) {
           const { data: dayData } = await api.getDayById(workout.day_id);
           if (dayData && dayData.length > 0) setDayNameFromWorkout(dayData[0].name);
@@ -197,6 +199,8 @@ export function useTodayWorkout() {
         setTodayWorkout(null);
         setExercises([]);
         setDayNameFromWorkout(null);
+        // No explicit workout record for this date -> not a completed rest day
+        setIsRestDay(false);
       }
       // Regardless of whether there's a created workout for the date, compute
       // the scheduled split day (if any) for this date so the UI can show the
@@ -211,9 +215,16 @@ export function useTodayWorkout() {
             setSplitDayName(day ? day.name : null);
             const { data: exData } = await api.getExercisesByDayId(mappedId);
             setSplitDayExercises(exData || []);
+            // If there is a scheduled split day and no explicit workout marked completed,
+            // ensure isRestDay is false.
+            setIsRestDay(false);
           } else {
             setSplitDayName(null);
             setSplitDayExercises([]);
+            // No scheduled split day mapped for this date; keep isRestDay false unless
+            // a persisted workout indicated completion (handled earlier).
+            // (explicit rest-day state remains as set by workout record)
+            // No action here.
           }
         }
       } catch (e) {

@@ -122,14 +122,14 @@ export default function TodayTab() {
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
         {(() => {
           const refDate = calendarDate ?? new Date();
-          const dayLabel = splitDayName || dayNameFromWorkout || 'Today';
+          const dayLabel = splitDayName || dayNameFromWorkout || 'Rest';
           const weekdayLong = refDate.toLocaleString(undefined, { weekday: 'long' });
           const monthLong = refDate.toLocaleString(undefined, { month: 'long' });
           const dayNum = refDate.getDate();
           const fullDateLine = `${weekdayLong} ${monthLong} ${dayNum}`;
           return (
             <View style={{ flexDirection: 'column' }}>
-              <Text style={[styles.title, { marginBottom: 2 }]}>{`${dayLabel} Day`}</Text>
+              <Text style={[styles.title, { marginBottom: 2 }]}>{isRestDay ? 'Rest' : `${dayLabel} Day`}</Text>
               <Text style={{ color: '#666', fontSize: 14 }}>{fullDateLine}</Text>
             </View>
           );
@@ -154,13 +154,7 @@ export default function TodayTab() {
     </View>
   );
 
-  const Footer = () => (
-      <View style={{ paddingHorizontal: 16 }}>
-      <View>
-        <Text style={{ fontSize: 16, fontWeight: '700', marginBottom: 8 }}>{splitDayName ? `${splitDayName}` : (dayNameFromWorkout || 'Today')}</Text>
-      </View>
-    </View>
-  );
+  // Footer removed: day-name display moved to header to avoid duplication.
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}> 
@@ -172,7 +166,6 @@ export default function TodayTab() {
       ListHeaderComponent={Header}
       ListFooterComponent={() => (
         <View>
-          <Footer />
           <View style={{ marginTop: 12 }}>
             <WorkoutControls
               todayWorkout={todayWorkout}
