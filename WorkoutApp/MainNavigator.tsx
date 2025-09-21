@@ -10,7 +10,7 @@ const Tab = createBottomTabNavigator();
 export default function MainNavigator() {
   return (
     <NavigationContainer>
-      <Tab.Navigator>
+      <Tab.Navigator screenOptions={{ headerShown: false }}>
         <Tab.Screen name="Today" component={TodayTab} />
         <Tab.Screen name="Days" component={DaysTab} />
         <Tab.Screen name="Splits" component={SplitsTab} />
