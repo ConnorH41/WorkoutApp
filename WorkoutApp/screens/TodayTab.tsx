@@ -62,6 +62,8 @@ export default function TodayTab() {
 
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showRestConfirm, setShowRestConfirm] = useState(false);
+  const [showDeleteSetConfirm, setShowDeleteSetConfirm] = useState(false);
+  const [deleteSetTarget, setDeleteSetTarget] = useState<{ exerciseId: string; index: number } | null>(null);
   const [showBodyweightModal, setShowBodyweightModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [bodyweight, setBodyweight] = useState('');
@@ -211,7 +213,7 @@ export default function TodayTab() {
               onChangeSet={(idx, field, v) => logsHook.handleSetChange(item.id, idx, field as any, v)}
               onToggleCompleted={(idx) => logsHook.toggleSetCompleted(item.id, idx)}
               onAddSet={() => logsHook.addSetRow(item.id)}
-              onRemoveSet={(idx) => logsHook.removeSetRow(item.id, idx)}
+              onRemoveSet={(idx) => { setDeleteSetTarget({ exerciseId: item.id, index: idx }); setShowDeleteSetConfirm(true); }}
               onChangeNotes={(v) => logsHook.handleNotesChange(item.id, v)}
               onRemoveExercise={() => deleteExercise(item.id)}
               IconFeather={IconFeather}
@@ -261,6 +263,28 @@ export default function TodayTab() {
         confirmLabel={isRestDay ? 'Unmark' : 'Mark'}
         onConfirm={async () => { setShowRestConfirm(false); if (isRestDay) await unmarkRestDay(); else await markRestDay(); }}
         onCancel={() => setShowRestConfirm(false)}
+      />
+
+      <ConfirmModal
+        visible={showDeleteSetConfirm}
+        title="Delete Set?"
+        message="Are you sure you want to permanently delete this set? This cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={async () => {
+          if (deleteSetTarget) {
+            const { exerciseId, index } = deleteSetTarget;
+            setShowDeleteSetConfirm(false);
+            setDeleteSetTarget(null);
+            try {
+              await logsHook.removeSetRow(exerciseId, index);
+            } catch (e) {
+              // ignore or alert
+            }
+          } else {
+            setShowDeleteSetConfirm(false);
+          }
+        }}
+        onCancel={() => { setShowDeleteSetConfirm(false); setDeleteSetTarget(null); }}
       />
     </ScrollView>
   );
