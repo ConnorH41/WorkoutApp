@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, ScrollView, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import styles from '../styles/todayStyles';
 import ConfirmModal from '../components/ConfirmModal';
 import ExerciseCard from '../components/ExerciseCard';
@@ -15,6 +16,7 @@ import { useProfileStore } from '../lib/profileStore';
 
 
 export default function TodayTab() {
+  const insets = useSafeAreaInsets();
   const {
     profile,
     workoutLoading,
@@ -109,7 +111,7 @@ export default function TodayTab() {
   );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
+    <ScrollView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]} contentContainerStyle={{ padding: 16 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
         {/* Compute weekday abbreviation + day name (prefer splitDayName, then workout day name) */}
         {(() => {

@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Alert, Modal, Platform, Keyboard, ToastAndroid, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
@@ -70,6 +71,7 @@ const safeStorage = {
 };
 
 export default function SplitsTab() {
+  const insets = useSafeAreaInsets();
   const profile = useProfileStore((state) => state.profile);
   const [splits, setSplits] = useState<any[]>([]);
   const [currentSplitId, setCurrentSplitId] = useState<string | null>(null);
@@ -906,7 +908,7 @@ export default function SplitsTab() {
   }, [selectedSplitId]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.header}>
         <Text style={styles.title}>Splits</Text>
         <TouchableOpacity 

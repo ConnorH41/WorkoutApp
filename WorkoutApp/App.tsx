@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import MainNavigator from './MainNavigator';
 import { supabase } from './lib/supabase';
 import { useProfileStore } from './lib/profileStore';
@@ -57,7 +58,11 @@ export default function App() {
   }
 
   // Main app UI goes here
-  return <MainNavigator />;
+  return (
+    <SafeAreaProvider>
+      <MainNavigator />
+    </SafeAreaProvider>
+  );
 }
 
  

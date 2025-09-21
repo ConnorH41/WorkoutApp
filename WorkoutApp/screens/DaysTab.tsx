@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Alert, Keyboard, Modal, Platform, ToastAndroid, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import styles from '../styles/daysStyles';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
@@ -9,6 +10,7 @@ import EditPencil from '../components/EditPencil';
 import RemoveButton from '../components/RemoveButton';
 
 export default function DaysTab() {
+  const insets = useSafeAreaInsets();
   const profile = useProfileStore((state) => state.profile);
   const [days, setDays] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -261,7 +263,7 @@ export default function DaysTab() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.header}>
         <Text style={styles.title}>Days</Text>
         <TouchableOpacity 
