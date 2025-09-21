@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, ScrollView, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, FlatList, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import styles from '../styles/todayStyles';
 import ConfirmModal from '../components/ConfirmModal';
@@ -110,10 +110,13 @@ export default function TodayTab() {
     </View>
   );
 
-  return (
-    <ScrollView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]} contentContainerStyle={{ padding: 8 }}>
+  // Prepare the data array for the FlatList: prefer `exercises` if present, else `splitDayExercises`.
+  const base = ((exercises && exercises.length > 0) ? exercises : splitDayExercises) || [];
+  const visibleExercises = base.filter((it) => !removedExerciseIds.includes(it.id));
+
+    const Header = () => (
+      <View style={{ paddingHorizontal: 16 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-        {/* Compute weekday abbreviation + day name (prefer splitDayName, then workout day name) */}
         {(() => {
           const wdNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
           const today = new Date();
@@ -130,8 +133,76 @@ export default function TodayTab() {
           </TouchableOpacity>
         </View>
       </View>
+    </View>
+  );
 
-      {/* Modal for entering bodyweight */}
+  const Footer = () => (
+      <View style={{ paddingHorizontal: 16 }}>
+      <View>
+        <Text style={{ fontSize: 16, fontWeight: '700', marginBottom: 8 }}>{splitDayName ? `${splitDayName}` : (dayNameFromWorkout || 'Today')}</Text>
+      </View>
+    </View>
+  );
+
+  return (
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}> 
+  <FlatList
+    style={{ flex: 1 }}
+    contentContainerStyle={{ paddingBottom: 24 }}
+      data={visibleExercises}
+      keyExtractor={(item) => item.id}
+      ListHeaderComponent={Header}
+      ListFooterComponent={() => (
+        <View>
+          <Footer />
+          <View style={{ marginTop: 12 }}>
+            <WorkoutControls
+              todayWorkout={todayWorkout}
+              isRestDay={!!isRestDay}
+              completing={completing}
+              resting={resting}
+              onConfirmComplete={() => setShowCompleteConfirm(true)}
+              onConfirmRestToggle={() => setShowRestConfirm(true)}
+            />
+          </View>
+
+          {/* If there's no workout for today still allow marking as rest day */}
+          {!todayWorkout && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setShowRestConfirm(true)}
+              disabled={resting}
+              style={[styles.secondaryButton, resting ? styles.secondaryButtonDisabled : null]}
+            >
+              <Text style={[styles.secondaryButtonText, resting ? styles.secondaryButtonTextDisabled : null]}>{resting ? 'Logging...' : (isRestDay ? 'Unmark as Rest Day' : 'Mark as Rest Day')}</Text>
+            </TouchableOpacity>
+          )}
+
+        </View>
+      )}
+      renderItem={({ item }) => (
+        <ExerciseCard
+          key={item.id}
+          item={item}
+          sets={logsHook.logs[item.id] || [{ setNumber: 1, reps: '', weight: '', completed: false }]}
+          name={editedNames[item.id] ?? item.name}
+          editing={!!editingByExercise[item.id]}
+          readonlyMode={isRestDay}
+          notes={logsHook.notesByExercise[item.id] || ''}
+          onToggleEdit={() => setEditingByExercise(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+          onChangeName={(v) => setEditedNames(prev => ({ ...prev, [item.id]: v }))}
+          onChangeSet={(idx, field, v) => logsHook.handleSetChange(item.id, idx, field as any, v)}
+          onToggleCompleted={(idx) => logsHook.toggleSetCompleted(item.id, idx)}
+          onAddSet={() => logsHook.addSetRow(item.id)}
+          onRemoveSet={(idx) => { setDeleteSetTarget({ exerciseId: item.id, index: idx }); setShowDeleteSetConfirm(true); }}
+          onChangeNotes={(v) => logsHook.handleNotesChange(item.id, v)}
+          onRemoveExercise={() => { setDeleteExerciseTarget(item.id); setShowDeleteExerciseConfirm(true); }}
+          IconFeather={IconFeather}
+        />
+      )}
+    />
+
+      {/* Modals and confirmations placed outside the FlatList but inside the component root */}
       <Modal visible={showBodyweightModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -204,64 +275,6 @@ export default function TodayTab() {
           </View>
         </View>
       </Modal>
-
-      {workoutLoading ? (
-        <ActivityIndicator />
-      ) : (
-        <View>
-          <Text style={{ fontSize: 16, fontWeight: '700', marginBottom: 8 }}>{splitDayName ? `${splitDayName}` : (dayNameFromWorkout || 'Today')}</Text>
-          {(() => {
-            const base = ((exercises && exercises.length > 0) ? exercises : splitDayExercises) || [];
-            const visible = base.filter((it) => !removedExerciseIds.includes(it.id));
-            return visible.map((item) => (
-              <ExerciseCard
-                key={item.id}
-                item={item}
-                sets={logsHook.logs[item.id] || [{ setNumber: 1, reps: '', weight: '', completed: false }]}
-                name={editedNames[item.id] ?? item.name}
-                editing={!!editingByExercise[item.id]}
-                readonlyMode={isRestDay}
-                notes={logsHook.notesByExercise[item.id] || ''}
-                onToggleEdit={() => setEditingByExercise(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
-                onChangeName={(v) => setEditedNames(prev => ({ ...prev, [item.id]: v }))}
-                onChangeSet={(idx, field, v) => logsHook.handleSetChange(item.id, idx, field as any, v)}
-                onToggleCompleted={(idx) => logsHook.toggleSetCompleted(item.id, idx)}
-                onAddSet={() => logsHook.addSetRow(item.id)}
-                onRemoveSet={(idx) => { setDeleteSetTarget({ exerciseId: item.id, index: idx }); setShowDeleteSetConfirm(true); }}
-                onChangeNotes={(v) => logsHook.handleNotesChange(item.id, v)}
-                onRemoveExercise={() => { setDeleteExerciseTarget(item.id); setShowDeleteExerciseConfirm(true); }}
-                IconFeather={IconFeather}
-              />
-            ));
-          })()}
-          <TouchableOpacity style={styles.addExerciseBtn} onPress={() => (exercises && exercises.length > 0) ? addBlankExerciseToWorkout() : addBlankExerciseToSplit()} disabled={isRestDay}>
-            <Text style={styles.addExerciseText}>+ Add Exercise</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <View style={{ marginTop: 12 }}>
-        <WorkoutControls
-          todayWorkout={todayWorkout}
-          isRestDay={!!isRestDay}
-          completing={completing}
-          resting={resting}
-          onConfirmComplete={() => setShowCompleteConfirm(true)}
-          onConfirmRestToggle={() => setShowRestConfirm(true)}
-        />
-      </View>
-
-      {/* If there's no workout for today still allow marking as rest day */}
-      {!todayWorkout && (
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => setShowRestConfirm(true)}
-          disabled={resting}
-          style={[styles.secondaryButton, resting ? styles.secondaryButtonDisabled : null]}
-        >
-          <Text style={[styles.secondaryButtonText, resting ? styles.secondaryButtonTextDisabled : null]}>{resting ? 'Logging...' : (isRestDay ? 'Unmark as Rest Day' : 'Mark as Rest Day')}</Text>
-        </TouchableOpacity>
-      )}
 
       <ConfirmModal
         visible={showCompleteConfirm}
@@ -346,7 +359,8 @@ export default function TodayTab() {
         }}
         onCancel={() => { setShowDeleteExerciseConfirm(false); setDeleteExerciseTarget(null); }}
       />
-    </ScrollView>
+
+    </View>
   );
 }
 

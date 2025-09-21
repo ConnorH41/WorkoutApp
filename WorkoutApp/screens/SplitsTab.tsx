@@ -907,8 +907,8 @@ export default function SplitsTab() {
     }
   }, [selectedSplitId]);
 
-  return (
-    <ScrollView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]} contentContainerStyle={{ padding: 8 }}>
+  const ListHeader = () => (
+    <View style={{ paddingHorizontal: 16 }}>
       <View style={styles.header}>
         <Text style={styles.title}>Splits</Text>
         <TouchableOpacity 
@@ -918,12 +918,20 @@ export default function SplitsTab() {
           <Text style={styles.addButtonText}>Add New Split</Text>
         </TouchableOpacity>
       </View>
+      {loading && <Text>Loading...</Text>}
+    </View>
+  );
+
+  return (
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}> 
       {loading ? (
         <Text>Loading...</Text>
       ) : (
         <FlatList
           data={splits}
           keyExtractor={item => item.id}
+          contentContainerStyle={{ paddingBottom: 24 }}
+          ListHeaderComponent={ListHeader}
           renderItem={({ item }) => (
             <TouchableOpacity
               activeOpacity={0.9}
@@ -1631,7 +1639,7 @@ export default function SplitsTab() {
           </View>
         </View>
       </Modal>
-    </ScrollView>
+    </View>
   );
 }
 

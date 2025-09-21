@@ -1,6 +1,6 @@
 
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Alert, Keyboard, Modal, Platform, ToastAndroid, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TextInput, FlatList, TouchableOpacity, Alert, Keyboard, Modal, Platform, ToastAndroid, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import styles from '../styles/daysStyles';
 import { supabase } from '../lib/supabase';
@@ -18,6 +18,7 @@ export default function DaysTab() {
   const [adding, setAdding] = useState(false);
   const [editingDayId, setEditingDayId] = useState<string | null>(null);
   const [editingDayName, setEditingDayName] = useState('');
+
   // Exercises state
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
   const [exercises, setExercises] = useState<any[]>([]);
@@ -27,6 +28,7 @@ export default function DaysTab() {
   const [addingEx, setAddingEx] = useState(false);
   const [editingExId, setEditingExId] = useState<string | null>(null);
   const [editingEx, setEditingEx] = useState({ name: '', sets: '', reps: '', notes: '' });
+
   // Modal states
   const [showAddDayModal, setShowAddDayModal] = useState(false);
   const [showEditDayModal, setShowEditDayModal] = useState(false);
@@ -43,6 +45,7 @@ export default function DaysTab() {
       Alert.alert('Validation', msg);
     }
   };
+
   // Fetch exercises for a day
   const fetchExercises = async (dayId: string) => {
     setExLoading(true);
@@ -57,86 +60,7 @@ export default function DaysTab() {
     setExLoading(false);
   };
 
-  // Add exercise
-  const handleAddExercise = async () => {
-    if (!selectedDayId || !newExercise.name.trim() || !newExercise.sets || !newExercise.reps) {
-      showValidationToast('Exercise name, sets, and reps are required');
-      return;
-    }
-    setAddingEx(true);
-    try {
-      const { error } = await supabase.from('exercises').insert({
-        day_id: selectedDayId,
-        name: newExercise.name.trim(),
-        sets: parseInt(newExercise.sets),
-        reps: parseInt(newExercise.reps),
-        notes: newExercise.notes,
-      });
-      if (error) {
-        Alert.alert('Error', error.message);
-      } else {
-        setNewExercise({ name: '', sets: '', reps: '', notes: '' });
-        setShowAddExerciseModal(false);
-        fetchExercises(selectedDayId);
-        // update counts for the day
-        if (selectedDayId) {
-          const { data: exData } = await supabase.from('exercises').select('id').eq('day_id', selectedDayId);
-          setExerciseCounts(prev => ({ ...prev, [selectedDayId]: (exData || []).length }));
-        }
-      }
-    } finally {
-      setAddingEx(false);
-    }
-  };
-
-  // Delete exercise
-  const handleDeleteExercise = async (id: string) => {
-    setDeleteTargetId(id);
-    setDeleteTargetType('exercise');
-    setShowDeleteConfirm(true);
-  };
-
-  // Edit exercise
-  const handleEditExercise = (ex: any) => {
-    setEditingExId(ex.id);
-    setEditingEx({ name: ex.name, sets: String(ex.sets), reps: String(ex.reps), notes: ex.notes || '' });
-    setShowEditExerciseModal(true);
-  };
-
-  const handleSaveEditExercise = async () => {
-    if (!editingExId || !editingEx.name.trim() || !editingEx.sets || !editingEx.reps) {
-      showValidationToast('Exercise name, sets, and reps are required');
-      return;
-    }
-    try {
-      const { error } = await supabase.from('exercises').update({
-        name: editingEx.name.trim(),
-        sets: parseInt(editingEx.sets),
-        reps: parseInt(editingEx.reps),
-        notes: editingEx.notes,
-      }).eq('id', editingExId);
-      if (error) {
-        Alert.alert('Error', error.message);
-      } else if (selectedDayId) {
-        setEditingExId(null);
-        setEditingEx({ name: '', sets: '', reps: '', notes: '' });
-        setShowEditExerciseModal(false);
-        fetchExercises(selectedDayId);
-        // refresh count for this day
-        const { data: exData } = await supabase.from('exercises').select('id').eq('day_id', selectedDayId);
-        setExerciseCounts(prev => ({ ...prev, [selectedDayId]: (exData || []).length }));
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update exercise');
-    }
-  };
-
-  useEffect(() => {
-    if (profile && profile.id) {
-      fetchDays();
-    }
-  }, [profile?.id]);
-
+  // Day CRUD
   const fetchDays = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -146,7 +70,6 @@ export default function DaysTab() {
       .order('created_at', { ascending: true });
     if (!error && data) {
       setDays(data);
-      // Fetch exercises for these days to compute counts for the badges
       const dayIds = data.map((d: any) => d.id);
       if (dayIds.length > 0) {
         const { data: exData } = await supabase
@@ -170,61 +93,18 @@ export default function DaysTab() {
       showValidationToast('Day name is required');
       return false;
     }
-    if (!profile || !profile.id) {
-      Alert.alert('Error', 'You must be signed in to create a day');
-      return false;
-    }
     setAdding(true);
     try {
-      const { error } = await supabase.from('days').insert({
-        user_id: profile.id,
-        name: newDayName.trim(),
-      });
+      const { error } = await supabase.from('days').insert({ name: newDayName.trim(), user_id: profile?.id });
       if (error) {
         Alert.alert('Error', error.message);
         return false;
-      } else {
-        setNewDayName('');
-        fetchDays();
-        return true;
       }
+      setNewDayName('');
+      fetchDays();
+      return true;
     } finally {
       setAdding(false);
-    }
-  };
-
-  const handleDeleteDay = async (id: string) => {
-    setDeleteTargetId(id);
-    setDeleteTargetType('day');
-    setShowDeleteConfirm(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!deleteTargetId || !deleteTargetType) return;
-    
-    try {
-      if (deleteTargetType === 'day') {
-        const { error } = await supabase.from('days').delete().eq('id', deleteTargetId);
-        if (error) {
-          Alert.alert('Error', error.message);
-        } else {
-          fetchDays();
-        }
-      } else if (deleteTargetType === 'exercise') {
-        const { error } = await supabase.from('exercises').delete().eq('id', deleteTargetId);
-        if (error) {
-          Alert.alert('Error', error.message);
-        } else if (selectedDayId) {
-          fetchExercises(selectedDayId);
-          // refresh count for this day
-          const { data: exData } = await supabase.from('exercises').select('id').eq('day_id', selectedDayId);
-          setExerciseCounts(prev => ({ ...prev, [selectedDayId]: (exData || []).length }));
-        }
-      }
-    } finally {
-      setShowDeleteConfirm(false);
-      setDeleteTargetId(null);
-      setDeleteTargetType(null);
     }
   };
 
@@ -232,14 +112,6 @@ export default function DaysTab() {
     setEditingDayId(id);
     setEditingDayName(name);
     setShowEditDayModal(true);
-  };
-
-  const newDayInputRef = useRef<any>(null);
-
-  const focusNewDayInput = () => {
-    try {
-      newDayInputRef.current?.focus();
-    } catch (e) {}
   };
 
   const handleSaveEditDay = async () => {
@@ -257,100 +129,204 @@ export default function DaysTab() {
         setShowEditDayModal(false);
         fetchDays();
       }
-    } catch (error) {
+    } catch (err) {
       Alert.alert('Error', 'Failed to update day');
     }
   };
 
-  return (
-    <ScrollView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]} contentContainerStyle={{ padding: 8 }}>
+  const handleDeleteDay = (id: string) => {
+    setDeleteTargetId(id);
+    setDeleteTargetType('day');
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteExercise = (id: string) => {
+    setDeleteTargetId(id);
+    setDeleteTargetType('exercise');
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTargetId || !deleteTargetType) return;
+    try {
+      if (deleteTargetType === 'exercise') {
+        const { error } = await supabase.from('exercises').delete().eq('id', deleteTargetId);
+        if (error) throw error;
+        if (selectedDayId) fetchExercises(selectedDayId);
+        // refresh counts
+        fetchDays();
+      } else if (deleteTargetType === 'day') {
+        // delete exercises first, then day
+        const { error: err1 } = await supabase.from('exercises').delete().eq('day_id', deleteTargetId);
+        if (err1) throw err1;
+        const { error: err2 } = await supabase.from('days').delete().eq('id', deleteTargetId);
+        if (err2) throw err2;
+        if (selectedDayId === deleteTargetId) setSelectedDayId(null);
+        fetchDays();
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Failed to delete');
+    } finally {
+      setShowDeleteConfirm(false);
+      setDeleteTargetId(null);
+      setDeleteTargetType(null);
+    }
+  };
+
+  // Exercise handlers
+  const handleAddExercise = async () => {
+    if (!selectedDayId || !newExercise.name.trim() || !newExercise.sets || !newExercise.reps) {
+      showValidationToast('Exercise name, sets, and reps are required');
+      return;
+    }
+    setAddingEx(true);
+    try {
+      const { error } = await supabase.from('exercises').insert({
+        day_id: selectedDayId,
+        name: newExercise.name.trim(),
+        sets: parseInt(newExercise.sets, 10),
+        reps: parseInt(newExercise.reps, 10),
+        notes: newExercise.notes,
+      });
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else {
+        setNewExercise({ name: '', sets: '', reps: '', notes: '' });
+        setShowAddExerciseModal(false);
+        fetchExercises(selectedDayId);
+        fetchDays();
+      }
+    } finally {
+      setAddingEx(false);
+    }
+  };
+
+  const handleEditExercise = (ex: any) => {
+    setEditingExId(ex.id);
+    setEditingEx({ name: ex.name, sets: String(ex.sets), reps: String(ex.reps), notes: ex.notes || '' });
+    setShowEditExerciseModal(true);
+  };
+
+  const handleSaveEditExercise = async () => {
+    if (!editingExId || !editingEx.name.trim() || !editingEx.sets || !editingEx.reps) {
+      showValidationToast('Exercise name, sets, and reps are required');
+      return;
+    }
+    try {
+      const { error } = await supabase.from('exercises').update({
+        name: editingEx.name.trim(),
+        sets: parseInt(editingEx.sets, 10),
+        reps: parseInt(editingEx.reps, 10),
+        notes: editingEx.notes,
+      }).eq('id', editingExId);
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else if (selectedDayId) {
+        setEditingExId(null);
+        setEditingEx({ name: '', sets: '', reps: '', notes: '' });
+        setShowEditExerciseModal(false);
+        fetchExercises(selectedDayId);
+        fetchDays();
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update exercise');
+    }
+  };
+
+  useEffect(() => {
+    if (profile && profile.id) {
+      fetchDays();
+    }
+  }, [profile?.id]);
+
+  const ListHeader = () => (
+    <View style={{ paddingHorizontal: 16 }}>
       <View style={styles.header}>
         <Text style={styles.title}>Days</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.addButton}
           onPress={() => setShowAddDayModal(true)}
         >
           <Text style={styles.addButtonText}>Add New Day</Text>
         </TouchableOpacity>
       </View>
+      {loading && <Text>Loading...</Text>}
+    </View>
+  );
 
-      {loading ? (
-        <Text>Loading...</Text>
-      ) : (
-        <FlatList
-          data={days}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() => {
-                if (selectedDayId === item.id) {
-                  setSelectedDayId(null);
-                } else {
-                  setSelectedDayId(item.id);
-                  fetchExercises(item.id);
-                }
-              }}
-              style={styles.dayBox}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={styles.dayName}>{item.name}</Text>
-                  <EditPencil onPress={() => handleEditDay(item.id, item.name)} accessibilityLabel={`Edit ${item.name}`} />
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <View style={styles.exerciseCountBadge}>
-                    <Text style={styles.badgeText}>
-                      { (exerciseCounts[item.id] ?? 0) } { (exerciseCounts[item.id] ?? 0) === 1 ? 'Exercise' : 'Exercises' }
-                    </Text>
-                  </View>
+  return (
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}> 
+      <FlatList
+        data={days}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: 24 }}
+        ListHeaderComponent={ListHeader}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => {
+              if (selectedDayId === item.id) {
+                setSelectedDayId(null);
+              } else {
+                setSelectedDayId(item.id);
+                fetchExercises(item.id);
+              }
+            }}
+            style={styles.dayBox}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.dayName}>{item.name}</Text>
+                <EditPencil onPress={() => handleEditDay(item.id, item.name)} accessibilityLabel={`Edit ${item.name}`} />
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={styles.exerciseCountBadge}>
+                  <Text style={styles.badgeText}>
+                    { (exerciseCounts[item.id] ?? 0) } { (exerciseCounts[item.id] ?? 0) === 1 ? 'Exercise' : 'Exercises' }
+                  </Text>
                 </View>
               </View>
-              <View style={styles.dayActions}>
-                <RemoveButton onPress={() => handleDeleteDay(item.id)} label="Delete" accessibilityLabel={`Delete ${item.name}`} />
-              </View>
-              {selectedDayId === item.id && (
-                <View style={styles.exerciseSection}>
-                  <Text style={styles.exerciseTitle}>Exercises</Text>
-                  {exLoading ? <Text>Loading...</Text> : (
-                    <View>
-                      <FlatList
-                        data={exercises}
-                        keyExtractor={ex => ex.id}
-                        renderItem={({ item: ex }) => (
-                          <View style={styles.exerciseBox}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <View style={{ flex: 1 }}>
-                                <Text style={styles.exerciseName}>{ex.name}</Text>
-                                <Text style={styles.exerciseDetails}>{ex.sets} sets × {ex.reps} reps</Text>
-                                {ex.notes ? <Text style={styles.exerciseNotes}>{ex.notes}</Text> : null}
-                              </View>
-                              <View style={styles.exerciseActions}>
-                                <RemoveButton onPress={() => handleDeleteExercise(ex.id)} label="Delete" accessibilityLabel={`Delete ${ex.name}`} textStyle={styles.deleteTextSmall} />
-                                <EditPencil onPress={() => handleEditExercise(ex)} accessibilityLabel={`Edit ${ex.name}`} />
-                              </View>
-                            </View>
+            </View>
+            <View style={styles.dayActions}>
+              <RemoveButton onPress={() => handleDeleteDay(item.id)} label="Delete" accessibilityLabel={`Delete ${item.name}`} />
+            </View>
+            {selectedDayId === item.id && (
+              <View style={styles.exerciseSection}>
+                <Text style={styles.exerciseTitle}>Exercises</Text>
+                {exLoading ? <Text>Loading...</Text> : (
+                  <View>
+                    {(exercises || []).map((ex) => (
+                      <View key={ex.id} style={styles.exerciseBox}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.exerciseName}>{ex.name}</Text>
+                            <Text style={styles.exerciseDetails}>{ex.sets} sets × {ex.reps} reps</Text>
+                            {ex.notes ? <Text style={styles.exerciseNotes}>{ex.notes}</Text> : null}
                           </View>
-                        )}
-                      />
-                      <TouchableOpacity
-                        style={{ marginTop: 6 }}
-                        onPress={() => {
-                          setSelectedDayId(item.id);
-                          fetchExercises(item.id);
-                          setShowAddExerciseModal(true);
-                        }}
-                      >
-                        <Text style={styles.addExerciseLink}>+ Add Exercise</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-              )}
-            </TouchableOpacity>
-          )}
-        />
-      )}
+                          <View style={styles.exerciseActions}>
+                            <RemoveButton onPress={() => handleDeleteExercise(ex.id)} label="Delete" accessibilityLabel={`Delete ${ex.name}`} textStyle={styles.deleteTextSmall} />
+                            <EditPencil onPress={() => handleEditExercise(ex)} accessibilityLabel={`Edit ${ex.name}`} />
+                          </View>
+                        </View>
+                      </View>
+                    ))}
+                    <TouchableOpacity
+                      style={{ marginTop: 6 }}
+                      onPress={() => {
+                        setSelectedDayId(item.id);
+                        fetchExercises(item.id);
+                        setShowAddExerciseModal(true);
+                      }}
+                    >
+                      <Text style={styles.addExerciseLink}>+ Add Exercise</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
+      />
 
       {/* Add Day Modal */}
       <Modal
@@ -623,7 +599,7 @@ export default function DaysTab() {
               <View>
                 <ModalButtons
                   leftLabel="Cancel"
-                    rightLabel="Delete"
+                  rightLabel="Delete"
                   onLeftPress={() => { setShowDeleteConfirm(false); setDeleteTargetId(null); setDeleteTargetType(null); }}
                   onRightPress={confirmDelete}
                   leftColor="#e0e0e0"
@@ -636,7 +612,7 @@ export default function DaysTab() {
           </View>
         </View>
       </Modal>
-    </ScrollView>
+    </View>
   );
 }
 
