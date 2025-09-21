@@ -64,6 +64,9 @@ export default function TodayTab() {
   const [showRestConfirm, setShowRestConfirm] = useState(false);
   const [showDeleteSetConfirm, setShowDeleteSetConfirm] = useState(false);
   const [deleteSetTarget, setDeleteSetTarget] = useState<{ exerciseId: string; index: number } | null>(null);
+  const [showDeleteExerciseConfirm, setShowDeleteExerciseConfirm] = useState(false);
+  const [deleteExerciseTarget, setDeleteExerciseTarget] = useState<string | null>(null);
+  const [removedExerciseIds, setRemovedExerciseIds] = useState<string[]>([]);
   const [showBodyweightModal, setShowBodyweightModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [bodyweight, setBodyweight] = useState('');
@@ -92,6 +95,12 @@ export default function TodayTab() {
   useEffect(() => {
     fetchTodayWorkout();
   }, []);
+
+  const getExerciseName = (id: string | null) => {
+    if (!id) return '';
+    const ex = (exercises || []).find(e => e.id === id) || (splitDayExercises || []).find(e => e.id === id);
+    return ex ? ex.name : '';
+  };
 
   if (workoutLoading) return (
     <View style={styles.container}>
@@ -199,26 +208,30 @@ export default function TodayTab() {
       ) : (
         <View>
           <Text style={{ fontSize: 16, fontWeight: '700', marginBottom: 8 }}>{splitDayName ? `${splitDayName}` : (dayNameFromWorkout || 'Today')}</Text>
-          {(((exercises && exercises.length > 0) ? exercises : splitDayExercises) || []).map((item) => (
-            <ExerciseCard
-              key={item.id}
-              item={item}
-              sets={logsHook.logs[item.id] || [{ setNumber: 1, reps: '', weight: '', completed: false }]}
-              name={editedNames[item.id] ?? item.name}
-              editing={!!editingByExercise[item.id]}
-              readonlyMode={isRestDay}
-              notes={logsHook.notesByExercise[item.id] || ''}
-              onToggleEdit={() => setEditingByExercise(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
-              onChangeName={(v) => setEditedNames(prev => ({ ...prev, [item.id]: v }))}
-              onChangeSet={(idx, field, v) => logsHook.handleSetChange(item.id, idx, field as any, v)}
-              onToggleCompleted={(idx) => logsHook.toggleSetCompleted(item.id, idx)}
-              onAddSet={() => logsHook.addSetRow(item.id)}
-              onRemoveSet={(idx) => { setDeleteSetTarget({ exerciseId: item.id, index: idx }); setShowDeleteSetConfirm(true); }}
-              onChangeNotes={(v) => logsHook.handleNotesChange(item.id, v)}
-              onRemoveExercise={() => deleteExercise(item.id)}
-              IconFeather={IconFeather}
-            />
-          ))}
+          {(() => {
+            const base = ((exercises && exercises.length > 0) ? exercises : splitDayExercises) || [];
+            const visible = base.filter((it) => !removedExerciseIds.includes(it.id));
+            return visible.map((item) => (
+              <ExerciseCard
+                key={item.id}
+                item={item}
+                sets={logsHook.logs[item.id] || [{ setNumber: 1, reps: '', weight: '', completed: false }]}
+                name={editedNames[item.id] ?? item.name}
+                editing={!!editingByExercise[item.id]}
+                readonlyMode={isRestDay}
+                notes={logsHook.notesByExercise[item.id] || ''}
+                onToggleEdit={() => setEditingByExercise(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+                onChangeName={(v) => setEditedNames(prev => ({ ...prev, [item.id]: v }))}
+                onChangeSet={(idx, field, v) => logsHook.handleSetChange(item.id, idx, field as any, v)}
+                onToggleCompleted={(idx) => logsHook.toggleSetCompleted(item.id, idx)}
+                onAddSet={() => logsHook.addSetRow(item.id)}
+                onRemoveSet={(idx) => { setDeleteSetTarget({ exerciseId: item.id, index: idx }); setShowDeleteSetConfirm(true); }}
+                onChangeNotes={(v) => logsHook.handleNotesChange(item.id, v)}
+                onRemoveExercise={() => { setDeleteExerciseTarget(item.id); setShowDeleteExerciseConfirm(true); }}
+                IconFeather={IconFeather}
+              />
+            ));
+          })()}
           <TouchableOpacity style={styles.addExerciseBtn} onPress={() => (exercises && exercises.length > 0) ? addBlankExerciseToWorkout() : addBlankExerciseToSplit()} disabled={isRestDay}>
             <Text style={styles.addExerciseText}>+ Add Exercise</Text>
           </TouchableOpacity>
@@ -285,6 +298,51 @@ export default function TodayTab() {
           }
         }}
         onCancel={() => { setShowDeleteSetConfirm(false); setDeleteSetTarget(null); }}
+      />
+
+      <ConfirmModal
+        visible={showDeleteExerciseConfirm}
+        title="Delete Exercise?"
+        message={`Are you sure you want to delete "${getExerciseName(deleteExerciseTarget)}" for today? This will only hide it for today and will not delete it from your exercises.`}
+        confirmLabel="Delete"
+        onConfirm={async () => {
+          if (deleteExerciseTarget) {
+            const id = deleteExerciseTarget;
+            setShowDeleteExerciseConfirm(false);
+            setDeleteExerciseTarget(null);
+            try {
+              // Hide exercise locally for today
+              setRemovedExerciseIds(prev => [...prev, id]);
+              // Clear any local logs/notes for the exercise
+              logsHook.setLogs(prev => {
+                const copy = { ...prev };
+                delete copy[id];
+                return copy;
+              });
+              logsHook.setNotesByExercise(prev => {
+                const copy = { ...prev };
+                delete copy[id];
+                return copy;
+              });
+              // Clear any transient edited name or editing state
+              setEditedNames(prev => {
+                const copy = { ...prev };
+                delete copy[id];
+                return copy;
+              });
+              setEditingByExercise(prev => {
+                const copy = { ...prev };
+                delete copy[id];
+                return copy;
+              });
+            } catch (e) {
+              // ignore
+            }
+          } else {
+            setShowDeleteExerciseConfirm(false);
+          }
+        }}
+        onCancel={() => { setShowDeleteExerciseConfirm(false); setDeleteExerciseTarget(null); }}
       />
     </ScrollView>
   );
