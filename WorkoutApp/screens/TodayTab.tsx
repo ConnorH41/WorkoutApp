@@ -121,11 +121,18 @@ export default function TodayTab() {
       <View style={{ paddingHorizontal: 16 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
         {(() => {
-          const wdNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-          const today = new Date();
-          const abbrev = wdNames[today.getDay()];
+          const refDate = calendarDate ?? new Date();
           const dayLabel = splitDayName || dayNameFromWorkout || 'Today';
-          return <Text style={[styles.title, { marginBottom: 0 }]}>{`${abbrev} - ${dayLabel}`}</Text>;
+          const weekdayLong = refDate.toLocaleString(undefined, { weekday: 'long' });
+          const monthLong = refDate.toLocaleString(undefined, { month: 'long' });
+          const dayNum = refDate.getDate();
+          const fullDateLine = `${weekdayLong} ${monthLong} ${dayNum}`;
+          return (
+            <View style={{ flexDirection: 'column' }}>
+              <Text style={[styles.title, { marginBottom: 2 }]}>{`${dayLabel} Day`}</Text>
+              <Text style={{ color: '#666', fontSize: 14 }}>{fullDateLine}</Text>
+            </View>
+          );
         })()}
         <View style={{ flexDirection: 'row', marginLeft: 'auto' }}>
           <TouchableOpacity onPress={() => setShowBodyweightModal(true)} style={styles.bodyweightBtn} activeOpacity={0.9} accessibilityLabel="Open bodyweight modal">
@@ -294,8 +301,14 @@ export default function TodayTab() {
         onCancel={() => setShowCalendarModal(false)}
         onConfirm={(isoDate) => {
           setShowCalendarModal(false);
-          // update local calendarDate for future opens
-          setCalendarDate(new Date(isoDate));
+          // normalize to midnight UTC-local date representation
+          const d = new Date(`${isoDate}T00:00:00`);
+          d.setHours(0, 0, 0, 0);
+          setCalendarDate(d);
+          // clear transient UI state so day-specific edits don't carry across
+          setRemovedExerciseIds([]);
+          setEditedNames({});
+          setEditingByExercise({});
           fetchTodayWorkout(isoDate);
         }}
       />
