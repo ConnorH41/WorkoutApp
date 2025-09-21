@@ -19,10 +19,14 @@ export default function RemoveButton({ onPress, label = 'Delete', style, textSty
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
     backgroundColor: 'transparent',
+    height: 36,
+    minWidth: 68,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   text: {
     color: '#ff3b30',
