@@ -12,6 +12,9 @@ import styles from '../styles/splitsStyles';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+// Round a number to the nearest 0.5 (half-week)
+const roundToHalf = (n: number) => Math.round(n * 2) / 2;
+
 // Helper date utilities (no external deps)
 const addDays = (date: Date, days: number) => {
   const d = new Date(date);
@@ -109,9 +112,10 @@ export default function SplitsTab() {
     s.setHours(0, 0, 0, 0);
     const e = new Date(endDate as Date);
     e.setHours(0, 0, 0, 0);
-    const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
+    const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay);
     if (diffDays <= 0) return 0;
-    return Math.max(1, Math.ceil(diffDays / 7));
+    const weeks = diffDays / 7;
+    return Math.max(0.5, roundToHalf(weeks));
   })();
 
   const endBeforeStart = !!endDate && !!calendarDate && new Date(endDate).setHours(0, 0, 0, 0) < new Date(calendarDate).setHours(0, 0, 0, 0);
@@ -129,7 +133,7 @@ export default function SplitsTab() {
     if (run && run.start_date) {
       const s = new Date(run.start_date);
       setCalendarDate(s);
-      if (run.end_date) {
+        if (run.end_date) {
         const e = new Date(run.end_date);
         setEndDate(e);
         const msPerDay = 24 * 60 * 60 * 1000;
@@ -137,9 +141,9 @@ export default function SplitsTab() {
         s0.setHours(0, 0, 0, 0);
         const e0 = new Date(e);
         e0.setHours(0, 0, 0, 0);
-        const diffDays = Math.floor((e0.getTime() - s0.getTime()) / msPerDay) + 1;
-        const weeks = Math.max(1, Math.ceil(diffDays / 7));
-        setDurationWeeks(weeks);
+  const diffDays = Math.floor((e0.getTime() - s0.getTime()) / msPerDay);
+  const uiWeeks = Math.max(0.5, roundToHalf(diffDays / 7));
+  setDurationWeeks(uiWeeks);
       } else {
         setEndDate(null);
         setDurationWeeks(-1);
@@ -237,7 +241,7 @@ export default function SplitsTab() {
   await safeStorage.setItem('currentSplitId', pendingSplit.id);
   await safeStorage.setItem('splitStartDate', (calendarDate as Date).toISOString());
   if (endDate) await safeStorage.setItem('splitEndDate', (endDate as Date).toISOString());
-      if (pendingSplit.mode === 'week') {
+  if (pendingSplit.mode === 'week') {
         // calculate number of weeks from start (calendarDate) to endDate (inclusive)
         const msPerDay = 24 * 60 * 60 * 1000;
         let weeks = '0';
@@ -246,8 +250,10 @@ export default function SplitsTab() {
           s.setHours(0, 0, 0, 0);
           const e = new Date(endDate as Date);
           e.setHours(0, 0, 0, 0);
-          const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
-          weeks = String(Math.max(1, Math.ceil(diffDays / 7)));
+          const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay);
+          const uiWeeks = Math.max(0.5, roundToHalf(diffDays / 7));
+          // store the UI half-week value (e.g. 1.5) directly in DB
+          weeks = String(uiWeeks);
         } else {
           // Forever preset - set a large number of weeks or handle differently
           weeks = '999';
@@ -256,12 +262,12 @@ export default function SplitsTab() {
         await safeStorage.removeItem('splitNumRotations');
         // Persist to split_runs
         if (profile?.id) {
-          await supabase.from('split_runs').insert({
+            await supabase.from('split_runs').insert({
             split_id: pendingSplit.id,
             user_id: profile.id,
             start_date: toDateOnly(calendarDate as Date),
             end_date: endDate ? toDateOnly(endDate as Date) : null,
-            num_weeks: endDate ? parseInt(weeks, 10) || 1 : null,
+              num_weeks: endDate ? parseFloat(weeks) || 1 : null,
             num_rotations: null,
             active: true,
           });
@@ -277,7 +283,7 @@ export default function SplitsTab() {
           s.setHours(0, 0, 0, 0);
           const e = new Date(endDate as Date);
           e.setHours(0, 0, 0, 0);
-          const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
+          const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay);
           computedRotations = Math.max(0, Math.floor(diffDays / pendingRotationLength));
         }
         await safeStorage.setItem('splitNumRotations', String(computedRotations));
@@ -448,12 +454,26 @@ export default function SplitsTab() {
       s.setHours(0, 0, 0, 0);
       const e = new Date(endDate);
       e.setHours(0, 0, 0, 0);
-      const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
-      if (diffDays <= 0) return 0;
-      return Math.max(1, Math.ceil(diffDays / 7));
+  const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay);
+  if (diffDays <= 0) return 0;
+  const weeks = diffDays / 7;
+  return Math.max(0.5, roundToHalf(weeks));
     })();
 
     const endBeforeStart = !!endDate && new Date(endDate).setHours(0, 0, 0, 0) < new Date(startDate).setHours(0, 0, 0, 0);
+
+    // Helper: calculate weeks (integer weeks, min 1) between two dates (inclusive)
+    const calcWeeksFromDates = (sDate: Date, eDate: Date) => {
+      const msPerDay = 24 * 60 * 60 * 1000;
+      const s = new Date(sDate);
+      s.setHours(0, 0, 0, 0);
+      const e = new Date(eDate);
+      e.setHours(0, 0, 0, 0);
+      const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay);
+      if (diffDays <= 0) return 0;
+      const weeks = diffDays / 7;
+      return Math.max(0.5, roundToHalf(weeks));
+    };
 
     return (
       <View>
@@ -468,7 +488,7 @@ export default function SplitsTab() {
           {startDate && (
             <TouchableOpacity
               style={{ marginLeft: 8, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6, backgroundColor: '#f0f0f0' }}
-              onPress={() => { setStartDate(null); }}
+              onPress={() => { setStartDate(null); setDurationWeeks(null); }}
             >
               <Text style={{ color: '#333', fontWeight: '600' }}>Clear</Text>
             </TouchableOpacity>
@@ -487,9 +507,16 @@ export default function SplitsTab() {
               if (Platform.OS === 'android') setShowStartPicker(false);
               if (date) {
                 setStartDate(date);
+                // If user has specified a numeric duration, recalc end from that duration
                 if (durationWeeks !== null && durationWeeks !== -1) {
                   const days = durationWeeks * 7 - 1;
                   setEndDate(addDaysFloat(date, days));
+                }
+                // If an end date is already present and duration wasn't manually provided,
+                // auto-calc the duration from the selected start/end range.
+                if (endDate && (durationWeeks === null || durationWeeks === undefined)) {
+                  const weeks = calcWeeksFromDates(date, endDate as Date);
+                  if (weeks > 0) setDurationWeeks(weeks);
                 }
               }
             }}
@@ -508,7 +535,7 @@ export default function SplitsTab() {
           {endDate && (
             <TouchableOpacity
               style={{ marginLeft: 8, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6, backgroundColor: '#f0f0f0' }}
-              onPress={() => { setEndDate(null); }}
+              onPress={() => { setEndDate(null); setDurationWeeks(null); }}
             >
               <Text style={{ color: '#333', fontWeight: '600' }}>Clear</Text>
             </TouchableOpacity>
@@ -527,7 +554,14 @@ export default function SplitsTab() {
               if (Platform.OS === 'android') setShowEndPicker(false);
               if (date) {
                 setEndDate(date);
-                setDurationWeeks(null);
+                // Auto-calc duration from start->end when both present
+                const baseStart = startDate ?? date;
+                const weeks = calcWeeksFromDates(baseStart as Date, date);
+                if (weeks > 0) {
+                  setDurationWeeks(weeks);
+                } else {
+                  setDurationWeeks(null);
+                }
               }
             }}
             style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', maxWidth: 320, height: iosInlineSupported ? 200 : undefined }}
@@ -672,7 +706,7 @@ export default function SplitsTab() {
       
       // Schedule the split (create split_run) only if a start date was provided
   if (newSplitStartDate) {
-        if (newSplit.mode === 'week') {
+          if (newSplit.mode === 'week') {
           const msPerDay = 24 * 60 * 60 * 1000;
           let weeks = '0';
           if (newSplitEndDate) {
@@ -680,8 +714,10 @@ export default function SplitsTab() {
             s.setHours(0, 0, 0, 0);
             const e = new Date(newSplitEndDate);
             e.setHours(0, 0, 0, 0);
-            const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
-            weeks = String(Math.max(1, Math.ceil(diffDays / 7)));
+            const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay);
+            const uiWeeks = Math.max(0.5, roundToHalf(diffDays / 7));
+            // store half-week UI value directly
+            weeks = String(uiWeeks);
           } else {
             weeks = '999'; // Forever
           }
@@ -698,7 +734,7 @@ export default function SplitsTab() {
             user_id: profile.id,
             start_date: toDateOnly(newSplitStartDate),
             end_date: newSplitEndDate ? toDateOnly(newSplitEndDate) : null,
-            num_weeks: newSplitEndDate ? parseInt(weeks, 10) || 1 : null,
+                num_weeks: newSplitEndDate ? parseFloat(weeks) || 1 : null,
             num_rotations: null,
             active: true,
               });
@@ -713,7 +749,7 @@ export default function SplitsTab() {
             s.setHours(0, 0, 0, 0);
             const e = new Date(newSplitEndDate);
             e.setHours(0, 0, 0, 0);
-            const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
+            const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay);
             computedRotations = Math.max(0, Math.floor(diffDays / newSplitRotationLength));
           }
           // Check overlap before inserting rotation-mode run
