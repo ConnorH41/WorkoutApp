@@ -458,12 +458,22 @@ export default function SplitsTab() {
     return (
       <View>
         <Text style={{ marginBottom: 4, fontWeight: '500' }}>Start Date:</Text>
-        <TouchableOpacity
-          style={{ padding: 10, backgroundColor: '#eee', borderRadius: 6, marginBottom: 8 }}
-          onPress={() => { setShowStartPicker((v: boolean) => !v); setShowEndPicker(false); }}
-        >
-          <Text>{startDate ? startDate.toDateString() : 'Select start date'}</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          <TouchableOpacity
+            style={{ flex: 1, padding: 10, backgroundColor: '#eee', borderRadius: 6 }}
+            onPress={() => { setShowStartPicker((v: boolean) => !v); setShowEndPicker(false); }}
+          >
+            <Text>{startDate ? startDate.toDateString() : 'Select start date'}</Text>
+          </TouchableOpacity>
+          {startDate && (
+            <TouchableOpacity
+              style={{ marginLeft: 8, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6, backgroundColor: '#f0f0f0' }}
+              onPress={() => { setStartDate(null); }}
+            >
+              <Text style={{ color: '#333', fontWeight: '600' }}>Clear</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         {showStartPicker && (
           <DateTimePicker
             value={startDate ?? getNextMonday(new Date())}
@@ -488,12 +498,22 @@ export default function SplitsTab() {
         )}
 
         <Text style={{ marginBottom: 4, fontWeight: '500' }}>End Date:</Text>
-        <TouchableOpacity
-          style={{ padding: 10, backgroundColor: '#eee', borderRadius: 6, marginBottom: 8 }}
-          onPress={() => { setShowEndPicker((v: boolean) => !v); setShowStartPicker(false); }}
-        >
-          <Text>{endDate ? endDate.toDateString() : 'Select end date'}</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          <TouchableOpacity
+            style={{ flex: 1, padding: 10, backgroundColor: '#eee', borderRadius: 6 }}
+            onPress={() => { setShowEndPicker((v: boolean) => !v); setShowStartPicker(false); }}
+          >
+            <Text>{endDate ? endDate.toDateString() : 'Select end date'}</Text>
+          </TouchableOpacity>
+          {endDate && (
+            <TouchableOpacity
+              style={{ marginLeft: 8, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6, backgroundColor: '#f0f0f0' }}
+              onPress={() => { setEndDate(null); }}
+            >
+              <Text style={{ color: '#333', fontWeight: '600' }}>Clear</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         {showEndPicker && (
           <DateTimePicker
             value={endDate ?? startDate ?? getNextMonday(new Date())}
