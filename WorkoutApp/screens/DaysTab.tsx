@@ -263,7 +263,7 @@ export default function DaysTab() {
   };
 
   return (
-    <ScrollView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]} contentContainerStyle={{ padding: 16 }}>
+    <ScrollView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]} contentContainerStyle={{ padding: 8 }}>
       <View style={styles.header}>
         <Text style={styles.title}>Days</Text>
         <TouchableOpacity 

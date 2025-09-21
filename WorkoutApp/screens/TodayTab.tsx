@@ -111,7 +111,7 @@ export default function TodayTab() {
   );
 
   return (
-    <ScrollView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]} contentContainerStyle={{ padding: 16 }}>
+    <ScrollView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]} contentContainerStyle={{ padding: 8 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
         {/* Compute weekday abbreviation + day name (prefer splitDayName, then workout day name) */}
         {(() => {
