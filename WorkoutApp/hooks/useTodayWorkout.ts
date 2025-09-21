@@ -118,15 +118,15 @@ export function useTodayWorkout() {
     }
   };
 
-  const fetchTodayWorkout = async () => {
+  const fetchTodayWorkout = async (dateStr?: string) => {
     setWorkoutLoading(true);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = (dateStr && String(dateStr).slice(0, 10)) || new Date().toISOString().slice(0, 10);
     if (!profile || !profile.id) {
       setWorkoutLoading(false);
       return;
     }
     try {
-      const { data: workout, error: workoutError } = await api.getWorkoutByUserDate(profile.id, today);
+  const { data: workout, error: workoutError } = await api.getWorkoutByUserDate(profile.id, today);
       if (workout && !workoutError) {
         setTodayWorkout(workout);
         if (workout.day_id) {

@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Alert, Modal, Platform, Keyboard, ToastAndroid, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DatePickerModal from '../components/DatePickerModal';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
 import ModalButtons from '../components/ModalButtons';
@@ -494,35 +494,24 @@ export default function SplitsTab() {
             </TouchableOpacity>
           )}
         </View>
-        {showStartPicker && (
-          <DateTimePicker
-            value={startDate ?? getNextMonday(new Date())}
-            mode="date"
-            display={Platform.OS === 'ios' ? (iosInlineSupported ? 'inline' : 'spinner') : 'calendar'}
-            // @ts-ignore: iOS specific prop
-            preferredDatePickerStyle={iosInlineSupported ? 'inline' : undefined}
-            // @ts-ignore: iOS specific prop
-            themeVariant={Platform.OS === 'ios' ? 'light' : undefined}
-            onChange={(event, date) => {
-              if (Platform.OS === 'android') setShowStartPicker(false);
-              if (date) {
-                setStartDate(date);
-                // If user has specified a numeric duration, recalc end from that duration
-                if (durationWeeks !== null && durationWeeks !== -1) {
-                  const days = durationWeeks * 7 - 1;
-                  setEndDate(addDaysFloat(date, days));
-                }
-                // If an end date is already present and duration wasn't manually provided,
-                // auto-calc the duration from the selected start/end range.
-                if (endDate && (durationWeeks === null || durationWeeks === undefined)) {
-                  const weeks = calcWeeksFromDates(date, endDate as Date);
-                  if (weeks > 0) setDurationWeeks(weeks);
-                }
-              }
-            }}
-            style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', maxWidth: 320, height: iosInlineSupported ? 200 : undefined }}
-          />
-        )}
+        <DatePickerModal
+          visible={showStartPicker}
+          initialDate={startDate ?? getNextMonday(new Date())}
+          onCancel={() => setShowStartPicker(false)}
+          onConfirm={(iso) => {
+            setShowStartPicker(false);
+            const d = new Date(`${iso}T00:00:00`);
+            setStartDate(d);
+            if (durationWeeks !== null && durationWeeks !== -1) {
+              const days = durationWeeks * 7 - 1;
+              setEndDate(addDaysFloat(d, days));
+            }
+            if (endDate && (durationWeeks === null || durationWeeks === undefined)) {
+              const weeks = calcWeeksFromDates(d, endDate as Date);
+              if (weeks > 0) setDurationWeeks(weeks);
+            }
+          }}
+        />
 
         <Text style={{ marginBottom: 4, fontWeight: '500' }}>End Date:</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
@@ -541,32 +530,23 @@ export default function SplitsTab() {
             </TouchableOpacity>
           )}
         </View>
-        {showEndPicker && (
-          <DateTimePicker
-            value={endDate ?? startDate ?? getNextMonday(new Date())}
-            mode="date"
-            display={Platform.OS === 'ios' ? (iosInlineSupported ? 'inline' : 'spinner') : 'calendar'}
-            // @ts-ignore: iOS specific prop
-            preferredDatePickerStyle={iosInlineSupported ? 'inline' : undefined}
-            // @ts-ignore: iOS specific prop
-            themeVariant={Platform.OS === 'ios' ? 'light' : undefined}
-            onChange={(event, date) => {
-              if (Platform.OS === 'android') setShowEndPicker(false);
-              if (date) {
-                setEndDate(date);
-                // Auto-calc duration from start->end when both present
-                const baseStart = startDate ?? date;
-                const weeks = calcWeeksFromDates(baseStart as Date, date);
-                if (weeks > 0) {
-                  setDurationWeeks(weeks);
-                } else {
-                  setDurationWeeks(null);
-                }
-              }
-            }}
-            style={{ backgroundColor: '#fff', marginBottom: 8, width: '100%', maxWidth: 320, height: iosInlineSupported ? 200 : undefined }}
-          />
-        )}
+        <DatePickerModal
+          visible={showEndPicker}
+          initialDate={endDate ?? startDate ?? getNextMonday(new Date())}
+          onCancel={() => setShowEndPicker(false)}
+          onConfirm={(iso) => {
+            setShowEndPicker(false);
+            const d = new Date(`${iso}T00:00:00`);
+            setEndDate(d);
+            const baseStart = startDate ?? d;
+            const weeks = calcWeeksFromDates(baseStart as Date, d);
+            if (weeks > 0) {
+              setDurationWeeks(weeks);
+            } else {
+              setDurationWeeks(null);
+            }
+          }}
+        />
 
         <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Duration (Weeks or Rotations):</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>

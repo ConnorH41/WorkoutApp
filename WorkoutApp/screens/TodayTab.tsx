@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, FlatList, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, FlatList, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity, Platform } from 'react-native';
+import DatePickerModal from '../components/DatePickerModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import styles from '../styles/todayStyles';
 import ConfirmModal from '../components/ConfirmModal';
@@ -74,6 +75,8 @@ export default function TodayTab() {
   const [bodyweight, setBodyweight] = useState('');
   const [isKg, setIsKg] = useState(true);
   const [bodyweightSubmitting, setBodyweightSubmitting] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [calendarDate, setCalendarDate] = useState<Date | null>(new Date());
 
   const onSaveBodyweight = async () => {
     if (!profile || !profile.id) return;
@@ -127,6 +130,14 @@ export default function TodayTab() {
         <View style={{ flexDirection: 'row', marginLeft: 'auto' }}>
           <TouchableOpacity onPress={() => setShowBodyweightModal(true)} style={styles.bodyweightBtn} activeOpacity={0.9} accessibilityLabel="Open bodyweight modal">
             {IconFeather ? <IconFeather name="user" size={18} color="#fff" /> : <Text style={styles.bodyweightIcon}>🏋️‍♂️</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowCalendarModal(true)}
+            style={[styles.bodyweightBtn, { backgroundColor: '#2a9df4', marginLeft: 8 }]}
+            activeOpacity={0.9}
+            accessibilityLabel="Open calendar"
+          >
+            {IconFeather ? <IconFeather name="calendar" size={18} color="#fff" /> : <Text style={styles.bodyweightIcon}>📅</Text>}
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setShowSettingsModal(true)} style={[styles.bodyweightBtn, { backgroundColor: '#444', marginLeft: 8 }]} activeOpacity={0.9} accessibilityLabel="Open settings">
             {IconFeather ? <IconFeather name="settings" size={18} color="#fff" /> : <Text style={styles.bodyweightIcon}>⚙️</Text>}
@@ -275,6 +286,19 @@ export default function TodayTab() {
           </View>
         </View>
       </Modal>
+
+      {/* Calendar modal (placeholder) */}
+      <DatePickerModal
+        visible={showCalendarModal}
+        initialDate={calendarDate}
+        onCancel={() => setShowCalendarModal(false)}
+        onConfirm={(isoDate) => {
+          setShowCalendarModal(false);
+          // update local calendarDate for future opens
+          setCalendarDate(new Date(isoDate));
+          fetchTodayWorkout(isoDate);
+        }}
+      />
 
       <ConfirmModal
         visible={showCompleteConfirm}
