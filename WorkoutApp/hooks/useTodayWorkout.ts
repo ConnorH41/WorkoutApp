@@ -61,6 +61,45 @@ export function useTodayWorkout() {
         else mappedDayId = null;
       }
 
+      // Handle rotation-style splits: compute offset from the run start date and
+      // map into the rotation slots (split_days ordered by order_index).
+      if (split && typeof split.mode === 'string' && split.mode.toLowerCase().includes('rotation')) {
+        try {
+          const rotSlots = (splitDays || []).filter((sd: any) => sd.order_index != null).sort((a: any, b: any) => (Number(a.order_index) || 0) - (Number(b.order_index) || 0));
+          if (rotSlots.length === 0) {
+            mappedDayId = null;
+          } else {
+            // If the active run defines a start_date, compute days since start.
+            // Dates in DB are stored as YYYY-MM-DD; parse date-only to avoid timezone shifts.
+            const parseDateOnly = (s: string | null) => {
+              if (!s) return null;
+              const parts = String(s).split('-').map((p) => parseInt(p, 10));
+              if (parts.length < 3 || parts.some((p) => Number.isNaN(p))) return null;
+              return new Date(parts[0], parts[1] - 1, parts[2]);
+            };
+
+            const runStart = parseDateOnly(run?.start_date ?? null);
+            if (runStart) {
+              runStart.setHours(0, 0, 0, 0);
+              const diffMs = today.getTime() - runStart.getTime();
+              if (diffMs < 0) {
+                // Before the rotation start — don't map a day yet
+                mappedDayId = null;
+              } else {
+                const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+                const idx = ((diffDays % rotSlots.length) + rotSlots.length) % rotSlots.length;
+                mappedDayId = rotSlots[idx].day_id || null;
+              }
+            } else {
+              // No explicit start date — default to first rotation slot
+              mappedDayId = rotSlots[0].day_id || null;
+            }
+          }
+        } catch (e) {
+          mappedDayId = null;
+        }
+      }
+
       if (mappedDayId) {
   const { data: dayData } = await api.getDayById(mappedDayId);
         const day = dayData && dayData.length > 0 ? dayData[0] : null;
