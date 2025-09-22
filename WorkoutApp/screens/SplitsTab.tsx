@@ -148,7 +148,7 @@ export default function SplitsTab() {
     if (run && run.start_date) {
       const s = parseDateOnlyLocal(run.start_date);
       setCalendarDate(s);
-        if (run.end_date) {
+      if (run.end_date) {
         const e = parseDateOnlyLocal(run.end_date);
         setEndDate(e);
         if (s && e) {
@@ -158,8 +158,16 @@ export default function SplitsTab() {
           const e0 = new Date(e);
           e0.setHours(0, 0, 0, 0);
           const diffDays = Math.floor((e0.getTime() - s0.getTime()) / msPerDay);
-          const uiWeeks = Math.max(0.5, roundToHalf(diffDays / 7));
-          setDurationWeeks(uiWeeks);
+          const inclusiveDays = Math.max(0, diffDays) + 1;
+          // If this split is rotation-mode, compute rotations (allow half-rotations in UI)
+          if (pendingSplit?.mode === 'rotation') {
+            const rotationLen = pendingSplit?.rotation_length ?? pendingRotationLength ?? 3;
+            const uiRotations = Math.max(0.5, roundToHalf(inclusiveDays / (rotationLen || 3)));
+            setDurationWeeks(uiRotations);
+          } else {
+            const uiWeeks = Math.max(0.5, roundToHalf(inclusiveDays / 7));
+            setDurationWeeks(uiWeeks);
+          }
         }
       } else {
         setEndDate(null);
@@ -312,9 +320,15 @@ export default function SplitsTab() {
           const e = new Date(endDate as Date);
           e.setHours(0, 0, 0, 0);
           const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay);
-          computedRotations = Math.max(0, Math.floor(diffDays / pendingRotationLength));
+          const inclusiveDays = Math.max(0, diffDays) + 1;
+          const rotationLen = pendingRotationLength || 3;
+          const uiRotations = Math.max(0.5, roundToHalf(inclusiveDays / rotationLen));
+          const dbRotations = Math.max(1, Math.ceil(inclusiveDays / rotationLen));
+          computedRotations = dbRotations;
+          await safeStorage.setItem('splitNumRotations', String(uiRotations));
+        } else {
+          await safeStorage.setItem('splitNumRotations', String(computedRotations));
         }
-        await safeStorage.setItem('splitNumRotations', String(computedRotations));
         await safeStorage.removeItem('splitNumWeeks');
         // Persist to split_runs
         if (profile?.id) {
@@ -544,12 +558,31 @@ export default function SplitsTab() {
             const d = new Date(`${iso}T00:00:00`);
             setStartDate(d);
             if (durationWeeks !== null && durationWeeks !== -1) {
-              const days = durationWeeks * 7 - 1;
-              setEndDate(addDaysFloat(d, days));
+              if (mode === 'rotation') {
+                const rotLen = rotationLength && rotationLength > 0 ? rotationLength : 3;
+                const days = durationWeeks * rotLen - 1;
+                setEndDate(addDaysFloat(d, days));
+              } else {
+                const days = durationWeeks * 7 - 1;
+                setEndDate(addDaysFloat(d, days));
+              }
             }
             if (endDate && (durationWeeks === null || durationWeeks === undefined)) {
-              const weeks = calcWeeksFromDates(d, endDate as Date);
-              if (weeks > 0) setDurationWeeks(weeks);
+              if (mode === 'rotation') {
+                const msPerDay = 24 * 60 * 60 * 1000;
+                const s = new Date(d);
+                s.setHours(0, 0, 0, 0);
+                const e = new Date(endDate as Date);
+                e.setHours(0, 0, 0, 0);
+                const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay);
+                const inclusiveDays = Math.max(0, diffDays) + 1;
+                const rotLen = rotationLength && rotationLength > 0 ? rotationLength : 3;
+                const uiRot = Math.max(0.5, roundToHalf(inclusiveDays / rotLen));
+                if (uiRot > 0) setDurationWeeks(uiRot);
+              } else {
+                const weeks = calcWeeksFromDates(d, endDate as Date);
+                if (weeks > 0) setDurationWeeks(weeks);
+              }
             }
           }}
         />
@@ -580,19 +613,34 @@ export default function SplitsTab() {
             const d = new Date(`${iso}T00:00:00`);
             setEndDate(d);
             const baseStart = startDate ?? d;
-            const weeks = calcWeeksFromDates(baseStart as Date, d);
-            if (weeks > 0) {
-              setDurationWeeks(weeks);
+            if (mode === 'rotation') {
+              const msPerDay = 24 * 60 * 60 * 1000;
+              const s = new Date(baseStart as Date);
+              s.setHours(0, 0, 0, 0);
+              const e = new Date(d);
+              e.setHours(0, 0, 0, 0);
+              const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay);
+              const inclusiveDays = Math.max(0, diffDays) + 1;
+              const rotLen = rotationLength && rotationLength > 0 ? rotationLength : 3;
+              const uiRot = Math.max(0.5, roundToHalf(inclusiveDays / rotLen));
+              if (uiRot > 0) setDurationWeeks(uiRot); else setDurationWeeks(null);
             } else {
-              setDurationWeeks(null);
+              const weeks = calcWeeksFromDates(baseStart as Date, d);
+              if (weeks > 0) {
+                setDurationWeeks(weeks);
+              } else {
+                setDurationWeeks(null);
+              }
             }
           }}
         />
 
-        <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Duration (Weeks or Rotations):</Text>
+        <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>
+          {mode === 'rotation' ? 'Duration (Rotations):' : 'Duration (Weeks):'}
+        </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
           <TextInput
-            placeholder="e.g. 4 or 4.5 (leave blank to auto-calc)"
+            placeholder={mode === 'rotation' ? "e.g. 3 (leave blank to auto-calc)" : "e.g. 4 or 4.5 (leave blank to auto-calc)"}
             style={[styles.input, { flex: 1, marginRight: 8 }]}
             value={durationWeeks === null || durationWeeks === -1 ? '' : String(durationWeeks)}
             onChangeText={(text) => {
@@ -604,7 +652,19 @@ export default function SplitsTab() {
               if (!isNaN(parsed)) {
                 setDurationWeeks(parsed);
                 const baseStart = startDate ?? getNextMonday(new Date());
-                const days = parsed * 7 - 1;
+                let days = 0;
+                if (mode === 'rotation') {
+                  // duration input represents number of rotations
+                  if (rotationLength && rotationLength > 0) {
+                    days = parsed * rotationLength - 1;
+                  } else {
+                    // fallback to 7-day rotations if rotationLength unknown
+                    days = parsed * 7 - 1;
+                  }
+                } else {
+                  // weeks -> days
+                  days = parsed * 7 - 1;
+                }
                 setEndDate(addDaysFloat(baseStart, days));
                 if (!startDate) setStartDate(baseStart);
               }
@@ -782,7 +842,14 @@ export default function SplitsTab() {
             const e = new Date(newSplitEndDate);
             e.setHours(0, 0, 0, 0);
             const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay);
-            computedRotations = Math.max(0, Math.floor(diffDays / newSplitRotationLength));
+            const inclusiveDays = Math.max(0, diffDays) + 1;
+            const rotationLen = newSplitRotationLength || 3;
+            const uiRotations = Math.max(0.5, roundToHalf(inclusiveDays / rotationLen));
+            const dbRotations = Math.max(1, Math.ceil(inclusiveDays / rotationLen));
+            computedRotations = dbRotations;
+            await safeStorage.setItem('splitNumRotations', String(uiRotations));
+          } else {
+            await safeStorage.setItem('splitNumRotations', String(computedRotations));
           }
           // Check overlap before inserting rotation-mode run
           const intendedStart = toDateOnly(newSplitStartDate);
