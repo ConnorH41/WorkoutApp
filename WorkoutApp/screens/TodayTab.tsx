@@ -27,6 +27,7 @@ export default function TodayTab() {
     splitDayName,
     dayNameFromWorkout,
     fetchTodayWorkout,
+  fetchActiveSplitRun,
     createWorkoutFromScheduledDay,
     createExercise,
     addBlankExerciseToWorkout,
@@ -102,7 +103,6 @@ export default function TodayTab() {
   };
 
   useEffect(() => {
-    fetchTodayWorkout();
   }, []);
 
   const getExerciseName = (id: string | null) => {
@@ -325,7 +325,15 @@ export default function TodayTab() {
           setRemovedExerciseIds([]);
           setEditedNames({});
           setEditingByExercise({});
-          fetchTodayWorkout(isoDate);
+          (async () => {
+            // ensure split/run data is loaded first so mapping is accurate for the chosen date
+            const splitInfo = await fetchActiveSplitRun();
+            if (splitInfo && splitInfo.run && splitInfo.split) {
+              await fetchTodayWorkout(isoDate, { activeRun: splitInfo.run, splitTemplate: splitInfo.split, splitDays: splitInfo.splitDays });
+            } else {
+              await fetchTodayWorkout(isoDate);
+            }
+          })();
         }}
       />
 

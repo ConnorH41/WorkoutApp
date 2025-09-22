@@ -23,8 +23,15 @@ export function useTodayWorkout() {
 
   useEffect(() => {
     if (profile && profile.id) {
-      fetchTodayWorkout();
-      fetchActiveSplitRun();
+      (async () => {
+        // Load split/run first so mapping info is available when we fetch today's workout
+        const splitInfo = await fetchActiveSplitRun();
+        if (splitInfo && splitInfo.run && splitInfo.split) {
+          await fetchTodayWorkout(undefined, { activeRun: splitInfo.run, splitTemplate: splitInfo.split, splitDays: splitInfo.splitDays });
+        } else {
+          await fetchTodayWorkout();
+        }
+      })();
     }
   }, [profile?.id]);
 
@@ -48,10 +55,11 @@ export function useTodayWorkout() {
   // Given a target date (Date) compute the mapped split day id using
   // activeSplitRun, splitTemplate, and splitDays state. Returns null if
   // no mapping applies (e.g., before run start or outside end date).
-  const computeMappedDayIdForDate = (targetDate: Date) => {
-    if (!activeSplitRun || !splitTemplate) return null;
-    const split = splitTemplate;
-    const sd = splitDays || [];
+  const computeMappedDayIdForDate = (targetDate: Date, opts?: { activeRun?: any; splitTemplate?: any; splitDays?: any[] }) => {
+    const run = opts?.activeRun ?? activeSplitRun;
+    const split = opts?.splitTemplate ?? splitTemplate;
+    const sd = opts?.splitDays ?? splitDays ?? [];
+    if (!run || !split) return null;
 
     // Weekly mode: map by weekday field on split_days
     if (split && typeof split.mode === 'string' && split.mode.toLowerCase().includes('week')) {
@@ -65,8 +73,8 @@ export function useTodayWorkout() {
       const rotSlots = (sd || []).filter((sdd: any) => sdd.order_index != null).sort((a: any, b: any) => (Number(a.order_index) || 0) - (Number(b.order_index) || 0));
       if (rotSlots.length === 0) return null;
 
-      const runStart = parseDateOnly(activeSplitRun?.start_date ?? null);
-      const runEnd = parseDateOnly(activeSplitRun?.end_date ?? null);
+  const runStart = parseDateOnly(run?.start_date ?? null);
+  const runEnd = parseDateOnly(run?.end_date ?? null);
 
       if (runStart) {
         // If targetDate is before start, no mapping
@@ -101,7 +109,7 @@ export function useTodayWorkout() {
         setSplitTemplate(null);
         setSplitDayExercises([]);
         setSplitDayName(null);
-        return;
+        return { run: null, split: null, splitDays: [] };
       }
       const run = data[0];
       setActiveSplitRun(run);
@@ -178,14 +186,16 @@ export function useTodayWorkout() {
         setSplitDayId(null);
         setSplitDayMapped(true);
       }
+      return { run, split, splitDays: splitDaysData };
     } catch (e) {
       setActiveSplitRun(null);
       setSplitTemplate(null);
       setSplitDayExercises([]);
+      return { run: null, split: null, splitDays: [] };
     }
   };
 
-  const fetchTodayWorkout = async (dateStr?: string) => {
+  const fetchTodayWorkout = async (dateStr?: string, opts?: { activeRun?: any; splitTemplate?: any; splitDays?: any[] }) => {
     setWorkoutLoading(true);
     const today = (dateStr && String(dateStr).slice(0, 10)) || formatDateOnly(new Date());
     if (!profile || !profile.id) {
@@ -219,13 +229,15 @@ export function useTodayWorkout() {
       // the scheduled split day (if any) for this date so the UI can show the
       // split's day name/exercises when no workout exists.
       try {
-    const target = parseDateOnly(today);
+        const target = parseDateOnly(today);
         if (target) {
-          if (activeSplitRun && splitTemplate) {
-            const mappedId = computeMappedDayIdForDate(target);
-            // debug log to help trace mapping behavior
-            try { console.debug('[useTodayWorkout] mappedId for', target.toISOString().slice(0,10), '=>', mappedId); } catch (e) {}
-            // indicate we've evaluated mapping for this target date
+          // If caller provided split/run info, use it directly so mapping doesn't rely on state propagation
+          const providedRun = opts?.activeRun;
+          const providedSplit = opts?.splitTemplate;
+          const providedSplitDays = opts?.splitDays;
+          if (providedRun && providedSplit) {
+            const mappedId = computeMappedDayIdForDate(target, { activeRun: providedRun, splitTemplate: providedSplit, splitDays: providedSplitDays });
+            try { console.debug('[useTodayWorkout] mappedId (provided) for', target.toISOString().slice(0,10), '=>', mappedId); } catch (e) {}
             setSplitDayMapped(true);
             setSplitDayId(mappedId ?? null);
             if (mappedId) {
@@ -234,17 +246,29 @@ export function useTodayWorkout() {
               setSplitDayName(day ? day.name : null);
               const { data: exData } = await api.getExercisesByDayId(mappedId);
               setSplitDayExercises(exData || []);
-              // If there is a scheduled split day and no explicit workout marked completed,
-              // ensure isRestDay is false.
               setIsRestDay(false);
             } else {
               setSplitDayName(null);
               setSplitDayExercises([]);
-              // No scheduled split day mapped for this date; keep isRestDay false unless
-              // a persisted workout indicated completion (handled earlier).
+            }
+          } else if (activeSplitRun && splitTemplate) {
+            const mappedId = computeMappedDayIdForDate(target);
+            try { console.debug('[useTodayWorkout] mappedId for', target.toISOString().slice(0,10), '=>', mappedId); } catch (e) {}
+            setSplitDayMapped(true);
+            setSplitDayId(mappedId ?? null);
+            if (mappedId) {
+              const { data: dayData } = await api.getDayById(mappedId);
+              const day = dayData && dayData.length > 0 ? dayData[0] : null;
+              setSplitDayName(day ? day.name : null);
+              const { data: exData } = await api.getExercisesByDayId(mappedId);
+              setSplitDayExercises(exData || []);
+              setIsRestDay(false);
+            } else {
+              setSplitDayName(null);
+              setSplitDayExercises([]);
             }
           } else {
-            // We haven't loaded split/run info yet — do not assume rest. Mark mapping as not evaluated.
+            // no split/run info available; mapping not evaluated
             setSplitDayMapped(false);
             setSplitDayId(null);
             setSplitDayName(null);
@@ -415,7 +439,7 @@ export function useTodayWorkout() {
     splitDayName,
     dayNameFromWorkout,
     fetchTodayWorkout,
-    fetchActiveSplitRun,
+  fetchActiveSplitRun,
     ensureSetsForExercise,
     createWorkoutFromScheduledDay,
     createExercise,
