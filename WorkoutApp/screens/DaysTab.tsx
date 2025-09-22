@@ -6,6 +6,7 @@ import styles from '../styles/daysStyles';
 import splitStyles from '../styles/splitsStyles';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
+import { Day, Exercise, ExerciseForm, DeleteTargetType } from '../lib/types';
 import ModalButtons from '../components/ModalButtons';
 import EditPencil from '../components/EditPencil';
 import RemoveButton from '../components/RemoveButton';
@@ -15,7 +16,7 @@ import AddExercise from '../components/AddExercise';
 export default function DaysTab() {
   const insets = useSafeAreaInsets();
   const profile = useProfileStore((state) => state.profile);
-  const [days, setDays] = useState<any[]>([]);
+  const [days, setDays] = useState<Day[]>([]);
   const [loading, setLoading] = useState(false);
   const [newDayName, setNewDayName] = useState('');
   const [adding, setAdding] = useState(false);
@@ -24,12 +25,12 @@ export default function DaysTab() {
 
   // Exercises state
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
-  const [exercises, setExercises] = useState<any[]>([]);
+  const [exercises, setExercises] = useState<ExerciseForm[]>([]);
   const [exLoading, setExLoading] = useState(false);
   const [exerciseCounts, setExerciseCounts] = useState<Record<string, number>>({});
   const [addingEx, setAddingEx] = useState(false);
   const [editingExId, setEditingExId] = useState<string | null>(null);
-  const [editingEx, setEditingEx] = useState({ name: '', sets: '', reps: '', notes: '' });
+  const [editingEx, setEditingEx] = useState<ExerciseForm>({ name: '', sets: '', reps: '', notes: '' });
 
   // Modal states
   const [showAddDayModal, setShowAddDayModal] = useState(false);
@@ -42,11 +43,11 @@ export default function DaysTab() {
   // Simplified exercise editing states for preview
   const [showPreviewEditModal, setShowPreviewEditModal] = useState(false);
   const [editingPreviewIdx, setEditingPreviewIdx] = useState<number | null>(null);
-  const [previewEditForm, setPreviewEditForm] = useState({ name: '', sets: '', reps: '', notes: '' });
+  const [previewEditForm, setPreviewEditForm] = useState<ExerciseForm>({ name: '', sets: '', reps: '', notes: '' });
   
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const [deleteTargetType, setDeleteTargetType] = useState<'day' | 'exercise' | 'preview' | null>(null);
+  const [deleteTargetType, setDeleteTargetType] = useState<DeleteTargetType | null>(null);
   const [previewDeleteIndex, setPreviewDeleteIndex] = useState<number | null>(null);
 
   const showValidationToast = (msg: string) => {
@@ -66,7 +67,16 @@ export default function DaysTab() {
       .eq('day_id', dayId)
       .order('created_at', { ascending: true });
     if (!error && data) {
-      setExercises(data);
+      // Map DB exercise rows to ExerciseForm which uses string fields for inputs
+      const mapped = (data as Exercise[]).map(e => ({
+        id: e.id,
+        day_id: e.day_id,
+        name: e.name,
+        sets: String(e.sets),
+        reps: String(e.reps),
+        notes: e.notes || ''
+      }));
+      setExercises(mapped);
     }
     setExLoading(false);
   };
@@ -81,14 +91,14 @@ export default function DaysTab() {
       .order('created_at', { ascending: true });
     if (!error && data) {
       setDays(data);
-      const dayIds = data.map((d: any) => d.id);
+  const dayIds = data.map((d: Day) => d.id);
       if (dayIds.length > 0) {
         const { data: exData } = await supabase
           .from('exercises')
           .select('id, day_id')
           .in('day_id', dayIds as string[]);
         const counts: Record<string, number> = {};
-        (exData || []).forEach((e: any) => {
+        (exData || []).forEach((e: { day_id: string }) => {
           counts[e.day_id] = (counts[e.day_id] || 0) + 1;
         });
         setExerciseCounts(counts);
@@ -194,8 +204,8 @@ export default function DaysTab() {
 
   // Exercise handlers - REBUILT FROM SCRATCH
 
-  const handleEditExercise = (ex: any) => {
-    setEditingExId(ex.id);
+  const handleEditExercise = (ex: ExerciseForm) => {
+    setEditingExId(ex.id ?? null);
     setEditingEx({ name: ex.name, sets: String(ex.sets), reps: String(ex.reps), notes: ex.notes || '' });
     setShowEditExerciseModal(true);
   };
@@ -333,8 +343,8 @@ export default function DaysTab() {
                 <Text style={styles.exerciseTitle}>Exercises</Text>
                 {exLoading ? <Text>Loading...</Text> : (
                   <View>
-                    {(exercises || []).map((ex) => (
-                      <View key={ex.id} style={styles.exerciseBox}>
+                    {(exercises || []).map((ex, i) => (
+                      <View key={ex.id ?? `${ex.name}-${i}`} style={styles.exerciseBox}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                           <View style={{ flex: 1 }}>
                             <Text style={styles.exerciseName}>{ex.name}</Text>
@@ -342,7 +352,7 @@ export default function DaysTab() {
                             {ex.notes ? <Text style={styles.exerciseNotes}>{ex.notes}</Text> : null}
                           </View>
                           <View style={[styles.exerciseActions, { alignSelf: 'center' }]}> 
-                            <RemoveButton onPress={() => handleDeleteExercise(ex.id)} label="Delete" accessibilityLabel={`Delete ${ex.name}`} textStyle={styles.deleteTextSmall} />
+                            <RemoveButton onPress={() => ex.id && handleDeleteExercise(ex.id)} label="Delete" accessibilityLabel={`Delete ${ex.name}`} textStyle={styles.deleteTextSmall} />
                             <EditPencil onPress={() => handleEditExercise(ex)} accessibilityLabel={`Edit ${ex.name}`} />
                           </View>
                         </View>
@@ -456,7 +466,9 @@ export default function DaysTab() {
                       mode="modal"
                       addButtonText="Add Exercise"
                       onAdd={(ex) => {
-                        setExercises(prev => [...prev, ex]);
+                        // Normalize to ExerciseForm (strings for sets/reps)
+                        const form: ExerciseForm = { name: ex.name, sets: String(ex.sets), reps: String(ex.reps), notes: ex.notes };
+                        setExercises(prev => [...prev, form]);
                       }}
                     />
                   </View>
