@@ -13,6 +13,8 @@ export function useTodayWorkout() {
   const [splitDays, setSplitDays] = useState<any[]>([]);
   const [splitDayExercises, setSplitDayExercises] = useState<any[]>([]);
   const [splitDayName, setSplitDayName] = useState<string | null>(null);
+  const [splitDayId, setSplitDayId] = useState<string | null>(null);
+  const [splitDayMapped, setSplitDayMapped] = useState<boolean>(false);
   const [dayNameFromWorkout, setDayNameFromWorkout] = useState<string | null>(null);
   const [creatingWorkout, setCreatingWorkout] = useState(false);
   const [completing, setCompleting] = useState(false);
@@ -165,12 +167,16 @@ export function useTodayWorkout() {
         const { data: dayData } = await api.getDayById(mappedDayId);
         const day = dayData && dayData.length > 0 ? dayData[0] : null;
         setSplitDayName(day ? day.name : null);
+        setSplitDayId(mappedDayId);
+        setSplitDayMapped(true);
 
         const { data: exData } = await api.getExercisesByDayId(mappedDayId);
         setSplitDayExercises(exData || []);
       } else {
         setSplitDayExercises([]);
         setSplitDayName(null);
+        setSplitDayId(null);
+        setSplitDayMapped(true);
       }
     } catch (e) {
       setActiveSplitRun(null);
@@ -215,23 +221,34 @@ export function useTodayWorkout() {
       try {
     const target = parseDateOnly(today);
         if (target) {
-          const mappedId = computeMappedDayIdForDate(target);
-          if (mappedId) {
-            const { data: dayData } = await api.getDayById(mappedId);
-            const day = dayData && dayData.length > 0 ? dayData[0] : null;
-            setSplitDayName(day ? day.name : null);
-            const { data: exData } = await api.getExercisesByDayId(mappedId);
-            setSplitDayExercises(exData || []);
-            // If there is a scheduled split day and no explicit workout marked completed,
-            // ensure isRestDay is false.
-            setIsRestDay(false);
+          if (activeSplitRun && splitTemplate) {
+            const mappedId = computeMappedDayIdForDate(target);
+            // debug log to help trace mapping behavior
+            try { console.debug('[useTodayWorkout] mappedId for', target.toISOString().slice(0,10), '=>', mappedId); } catch (e) {}
+            // indicate we've evaluated mapping for this target date
+            setSplitDayMapped(true);
+            setSplitDayId(mappedId ?? null);
+            if (mappedId) {
+              const { data: dayData } = await api.getDayById(mappedId);
+              const day = dayData && dayData.length > 0 ? dayData[0] : null;
+              setSplitDayName(day ? day.name : null);
+              const { data: exData } = await api.getExercisesByDayId(mappedId);
+              setSplitDayExercises(exData || []);
+              // If there is a scheduled split day and no explicit workout marked completed,
+              // ensure isRestDay is false.
+              setIsRestDay(false);
+            } else {
+              setSplitDayName(null);
+              setSplitDayExercises([]);
+              // No scheduled split day mapped for this date; keep isRestDay false unless
+              // a persisted workout indicated completion (handled earlier).
+            }
           } else {
+            // We haven't loaded split/run info yet — do not assume rest. Mark mapping as not evaluated.
+            setSplitDayMapped(false);
+            setSplitDayId(null);
             setSplitDayName(null);
             setSplitDayExercises([]);
-            // No scheduled split day mapped for this date; keep isRestDay false unless
-            // a persisted workout indicated completion (handled earlier).
-            // (explicit rest-day state remains as set by workout record)
-            // No action here.
           }
         }
       } catch (e) {
@@ -250,7 +267,7 @@ export function useTodayWorkout() {
     if (!profile || !profile.id || !splitDayName) return null;
     setCreatingWorkout(true);
     try {
-  const today = formatDateOnly(new Date());
+      const today = formatDateOnly(new Date());
       const payload: any = { user_id: profile.id, date: today };
       if (splitDayName) {
         const { data: dayData } = await api.getDayByName(splitDayName);
@@ -412,6 +429,8 @@ export function useTodayWorkout() {
     completing,
     resting,
     isRestDay,
+  splitDayId,
+  splitDayMapped,
     setTodayWorkout,
     setExercises,
     setSplitDayExercises,

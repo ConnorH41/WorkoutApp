@@ -39,6 +39,10 @@ export default function TodayTab() {
     completing,
     resting,
     isRestDay,
+    splitDayId,
+    splitDayMapped,
+    activeSplitRun,
+    splitTemplate,
   } = useTodayWorkout();
 
   const [editedNames, setEditedNames] = useState<Record<string, string>>({});
@@ -119,7 +123,11 @@ export default function TodayTab() {
 
   // Header label and rest detection: some splits (rotation rest-only) show 'Rest' in the header
   const headerDayLabel = (splitDayName || dayNameFromWorkout || 'Rest');
-  const headerIsRest = !!isRestDay || headerDayLabel === 'Rest';
+  const hasActiveSplit = !!activeSplitRun || !!splitTemplate;
+  // Treat as rest day for UI when either persisted as rest, or when the active split
+  // was evaluated for the date (`splitDayMapped === true`) and the mapping returned
+  // `null` (no split day slot) => treat as an explicit rest day from the split.
+  const headerIsRest = !!isRestDay || (hasActiveSplit && splitDayMapped && splitDayId == null);
 
     const Header = () => (
       <View style={{ paddingHorizontal: 16 }}>
@@ -133,7 +141,7 @@ export default function TodayTab() {
           const fullDateLine = `${weekdayLong} ${monthLong} ${dayNum}`;
           return (
             <View style={{ flexDirection: 'column' }}>
-              <Text style={[styles.title, { marginBottom: 2 }]}>{isRestDay ? 'Rest' : `${dayLabel} Day`}</Text>
+              <Text style={[styles.title, { marginBottom: 2 }]}>{headerIsRest ? 'Rest' : `${dayLabel} Day`}</Text>
               <Text style={{ color: '#666', fontSize: 14 }}>{fullDateLine}</Text>
             </View>
           );
@@ -209,7 +217,7 @@ export default function TodayTab() {
           sets={logsHook.logs[item.id] || [{ setNumber: 1, reps: '', weight: '', completed: false }]}
           name={editedNames[item.id] ?? item.name}
           editing={!!editingByExercise[item.id]}
-          readonlyMode={isRestDay}
+          readonlyMode={headerIsRest}
           notes={logsHook.notesByExercise[item.id] || ''}
           onToggleEdit={() => setEditingByExercise(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
           onChangeName={(v) => setEditedNames(prev => ({ ...prev, [item.id]: v }))}
