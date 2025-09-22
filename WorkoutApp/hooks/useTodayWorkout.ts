@@ -36,6 +36,13 @@ export function useTodayWorkout() {
     return d;
   };
 
+  const formatDateOnly = (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const dd = new Date(d);
+    dd.setHours(0, 0, 0, 0);
+    return `${dd.getFullYear()}-${pad(dd.getMonth() + 1)}-${pad(dd.getDate())}`;
+  };
+
   // Given a target date (Date) compute the mapped split day id using
   // activeSplitRun, splitTemplate, and splitDays state. Returns null if
   // no mapping applies (e.g., before run start or outside end date).
@@ -174,7 +181,7 @@ export function useTodayWorkout() {
 
   const fetchTodayWorkout = async (dateStr?: string) => {
     setWorkoutLoading(true);
-    const today = (dateStr && String(dateStr).slice(0, 10)) || new Date().toISOString().slice(0, 10);
+    const today = (dateStr && String(dateStr).slice(0, 10)) || formatDateOnly(new Date());
     if (!profile || !profile.id) {
       setWorkoutLoading(false);
       return;
@@ -206,7 +213,7 @@ export function useTodayWorkout() {
       // the scheduled split day (if any) for this date so the UI can show the
       // split's day name/exercises when no workout exists.
       try {
-        const target = parseDateOnly(today);
+    const target = parseDateOnly(today);
         if (target) {
           const mappedId = computeMappedDayIdForDate(target);
           if (mappedId) {
@@ -243,7 +250,7 @@ export function useTodayWorkout() {
     if (!profile || !profile.id || !splitDayName) return null;
     setCreatingWorkout(true);
     try {
-      const today = new Date().toISOString().slice(0, 10);
+  const today = formatDateOnly(new Date());
       const payload: any = { user_id: profile.id, date: today };
       if (splitDayName) {
         const { data: dayData } = await api.getDayByName(splitDayName);
@@ -341,7 +348,7 @@ export function useTodayWorkout() {
     if (!profile || !profile.id) return false;
     setResting(true);
     try {
-      const today = new Date().toISOString().slice(0, 10);
+  const today = formatDateOnly(new Date());
       if (todayWorkout && todayWorkout.id) {
         const { data, error } = await api.updateWorkout(todayWorkout.id, { completed: true });
         setResting(false);

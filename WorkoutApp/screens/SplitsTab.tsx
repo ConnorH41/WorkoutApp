@@ -94,7 +94,22 @@ export default function SplitsTab() {
   const [durationWeeks, setDurationWeeks] = useState<number | null>(4);
   const [endManuallyEdited, setEndManuallyEdited] = useState(false);
   const iosInlineSupported = Platform.OS === 'ios' && parseFloat(String(Platform.Version)) >= 14;
-  const toDateOnly = (d: Date) => d.toISOString().slice(0, 10);
+  const toDateOnly = (d: Date) => {
+    if (!d) return null;
+    const dd = new Date(d);
+    dd.setHours(0, 0, 0, 0);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${dd.getFullYear()}-${pad(dd.getMonth() + 1)}-${pad(dd.getDate())}`;
+  };
+
+  // Parse a YYYY-MM-DD date-only string into a local Date at midnight (avoids UTC parsing)
+  const parseDateOnlyLocal = (s: string | null | undefined) => {
+    if (!s) return null;
+    const parts = String(s).split('-').map(p => parseInt(p, 10));
+    if (parts.length < 3 || parts.some(p => Number.isNaN(p))) return null;
+    const [y, m, day] = parts;
+    return new Date(y, m - 1, day);
+  };
 
   const showValidationToast = (msg: string) => {
     if (Platform.OS === 'android' && ToastAndroid && ToastAndroid.show) {
@@ -131,19 +146,21 @@ export default function SplitsTab() {
     // If there is an existing active run for this split, prefill with those dates
     const run = activeRuns.find(r => r.split_id === split.id);
     if (run && run.start_date) {
-      const s = new Date(run.start_date);
+      const s = parseDateOnlyLocal(run.start_date);
       setCalendarDate(s);
         if (run.end_date) {
-        const e = new Date(run.end_date);
+        const e = parseDateOnlyLocal(run.end_date);
         setEndDate(e);
-        const msPerDay = 24 * 60 * 60 * 1000;
-        const s0 = new Date(s);
-        s0.setHours(0, 0, 0, 0);
-        const e0 = new Date(e);
-        e0.setHours(0, 0, 0, 0);
-  const diffDays = Math.floor((e0.getTime() - s0.getTime()) / msPerDay);
-  const uiWeeks = Math.max(0.5, roundToHalf(diffDays / 7));
-  setDurationWeeks(uiWeeks);
+        if (s && e) {
+          const msPerDay = 24 * 60 * 60 * 1000;
+          const s0 = new Date(s);
+          s0.setHours(0, 0, 0, 0);
+          const e0 = new Date(e);
+          e0.setHours(0, 0, 0, 0);
+          const diffDays = Math.floor((e0.getTime() - s0.getTime()) / msPerDay);
+          const uiWeeks = Math.max(0.5, roundToHalf(diffDays / 7));
+          setDurationWeeks(uiWeeks);
+        }
       } else {
         setEndDate(null);
         setDurationWeeks(-1);
@@ -236,11 +253,11 @@ export default function SplitsTab() {
         return;
       }
   setCurrentSplitId(pendingSplit.id);
-  setSplitStartDate((calendarDate as Date).toISOString());
-  if (endDate) setSplitEndDate((endDate as Date).toISOString());
+  setSplitStartDate(toDateOnly(calendarDate as Date));
+  if (endDate) setSplitEndDate(toDateOnly(endDate as Date));
   await safeStorage.setItem('currentSplitId', pendingSplit.id);
-  await safeStorage.setItem('splitStartDate', (calendarDate as Date).toISOString());
-  if (endDate) await safeStorage.setItem('splitEndDate', (endDate as Date).toISOString());
+  await safeStorage.setItem('splitStartDate', toDateOnly(calendarDate as Date) ?? '');
+  if (endDate) await safeStorage.setItem('splitEndDate', toDateOnly(endDate as Date) ?? '');
   if (pendingSplit.mode === 'week') {
         // calculate number of weeks from start (calendarDate) to endDate (inclusive)
         const msPerDay = 24 * 60 * 60 * 1000;
@@ -262,17 +279,28 @@ export default function SplitsTab() {
         await safeStorage.removeItem('splitNumRotations');
         // Persist to split_runs
         if (profile?.id) {
-            await supabase.from('split_runs').insert({
-            split_id: pendingSplit.id,
-            user_id: profile.id,
-            start_date: toDateOnly(calendarDate as Date),
-            end_date: endDate ? toDateOnly(endDate as Date) : null,
-              num_weeks: endDate ? parseFloat(weeks) || 1 : null,
-            num_rotations: null,
-            active: true,
-          });
-          await fetchActiveRun();
-          await fetchActiveRun();
+            const existingRun = activeRuns.find(r => r.split_id === pendingSplit.id && r.active);
+            if (existingRun && existingRun.id) {
+              await supabase.from('split_runs').update({
+                start_date: toDateOnly(calendarDate as Date),
+                end_date: endDate ? toDateOnly(endDate as Date) : null,
+                num_weeks: endDate ? parseFloat(weeks) || 1 : null,
+                num_rotations: null,
+                active: true,
+              }).eq('id', existingRun.id);
+            } else {
+              await supabase.from('split_runs').insert({
+                split_id: pendingSplit.id,
+                user_id: profile.id,
+                start_date: toDateOnly(calendarDate as Date),
+                end_date: endDate ? toDateOnly(endDate as Date) : null,
+                num_weeks: endDate ? parseFloat(weeks) || 1 : null,
+                num_rotations: null,
+                active: true,
+              });
+            }
+            await fetchActiveRun();
+            await fetchActiveRun();
         }
       } else {
         // For rotation mode, compute number of rotations from calendarDate->endDate range and rotation length
@@ -290,15 +318,26 @@ export default function SplitsTab() {
         await safeStorage.removeItem('splitNumWeeks');
         // Persist to split_runs
         if (profile?.id) {
-          await supabase.from('split_runs').insert({
-            split_id: pendingSplit.id,
-            user_id: profile.id,
-            start_date: toDateOnly(calendarDate as Date),
-            end_date: endDate ? toDateOnly(endDate as Date) : null,
-            num_weeks: null,
-            num_rotations: computedRotations || 1,
-            active: true,
-          });
+          const existingRun = activeRuns.find(r => r.split_id === pendingSplit.id && r.active);
+          if (existingRun && existingRun.id) {
+            await supabase.from('split_runs').update({
+              start_date: toDateOnly(calendarDate as Date),
+              end_date: endDate ? toDateOnly(endDate as Date) : null,
+              num_weeks: null,
+              num_rotations: computedRotations || 1,
+              active: true,
+            }).eq('id', existingRun.id);
+          } else {
+            await supabase.from('split_runs').insert({
+              split_id: pendingSplit.id,
+              user_id: profile.id,
+              start_date: toDateOnly(calendarDate as Date),
+              end_date: endDate ? toDateOnly(endDate as Date) : null,
+              num_weeks: null,
+              num_rotations: computedRotations || 1,
+              active: true,
+            });
+          }
           await fetchActiveRun();
           await fetchActiveRun();
         }
@@ -314,9 +353,9 @@ export default function SplitsTab() {
   // Start the current split (set start date)
   const handleStartSplit = async () => {
     if (!currentSplitId) return;
-    const now = new Date().toISOString();
-    setSplitStartDate(now);
-    await safeStorage.setItem('splitStartDate', now);
+  const now = toDateOnly(new Date());
+  setSplitStartDate(now);
+  await safeStorage.setItem('splitStartDate', now ?? '');
   };
   const [loading, setLoading] = useState(false);
   const [newSplit, setNewSplit] = useState({ name: '', mode: 'week' });
@@ -375,9 +414,9 @@ export default function SplitsTab() {
       setActiveRuns(data || []);
       if (data.length > 0) {
         const run: any = data[0];
-        setCurrentSplitId(run.split_id || null);
-        setSplitStartDate(run.start_date ? new Date(run.start_date).toISOString() : null);
-        setSplitEndDate(run.end_date ? new Date(run.end_date).toISOString() : null);
+  setCurrentSplitId(run.split_id || null);
+  setSplitStartDate(run.start_date ?? null);
+  setSplitEndDate(run.end_date ?? null);
       } else {
         setCurrentSplitId(null);
         setSplitStartDate(null);
@@ -422,13 +461,15 @@ export default function SplitsTab() {
     const today = new Date();
     today.setHours(0,0,0,0);
     if (!run.start_date) return true;
-    const s = new Date(run.start_date);
-    s.setHours(0,0,0,0);
-    if (today.getTime() < s.getTime()) return false;
+  const s = parseDateOnlyLocal(run.start_date);
+  if (s) s.setHours(0,0,0,0);
+  if (!s) return true; // cannot determine start -> treat as active
+  if (today.getTime() < s.getTime()) return false;
     if (!run.end_date) return true;
-    const e = new Date(run.end_date);
-    e.setHours(0,0,0,0);
-    if (today.getTime() > e.getTime()) return false;
+  const e = parseDateOnlyLocal(run.end_date);
+  if (e) e.setHours(0,0,0,0);
+  if (!e) return true;
+  if (today.getTime() > e.getTime()) return false;
     return true;
   };
 
@@ -667,7 +708,7 @@ export default function SplitsTab() {
         // For rotation mode, assign days in order
         const splitDayInserts = selectedDaysForNewSplit.map((dayId, index) => ({
           split_id: newSplitId,
-          day_id: dayId,
+          day_id: dayId ?? null,
           weekday: null,
           order_index: index,
         }));
@@ -709,16 +750,27 @@ export default function SplitsTab() {
           if (overlapping) {
             showValidationToast('Scheduling would overlap an existing split run. Pick different dates.');
           } else {
-              await supabase.from('split_runs').insert({
-            split_id: newSplitId,
-            user_id: profile.id,
-            start_date: toDateOnly(newSplitStartDate),
-            end_date: newSplitEndDate ? toDateOnly(newSplitEndDate) : null,
+            const existingRun = activeRuns.find(r => r.split_id === newSplitId && r.active);
+            if (existingRun && existingRun.id) {
+              await supabase.from('split_runs').update({
+                start_date: toDateOnly(newSplitStartDate),
+                end_date: newSplitEndDate ? toDateOnly(newSplitEndDate) : null,
                 num_weeks: newSplitEndDate ? parseFloat(weeks) || 1 : null,
-            num_rotations: null,
-            active: true,
+                num_rotations: null,
+                active: true,
+              }).eq('id', existingRun.id);
+            } else {
+              await supabase.from('split_runs').insert({
+                split_id: newSplitId,
+                user_id: profile.id,
+                start_date: toDateOnly(newSplitStartDate),
+                end_date: newSplitEndDate ? toDateOnly(newSplitEndDate) : null,
+                num_weeks: newSplitEndDate ? parseFloat(weeks) || 1 : null,
+                num_rotations: null,
+                active: true,
               });
-              await fetchActiveRun();
+            }
+            await fetchActiveRun();
           }
         } else {
           // For rotation-mode, compute number of rotations if an end date was provided
@@ -739,15 +791,26 @@ export default function SplitsTab() {
           if (overlapping) {
             showValidationToast('Scheduling would overlap an existing split run. Pick different dates.');
           } else {
-            await supabase.from('split_runs').insert({
-            split_id: newSplitId,
-            user_id: profile.id,
-            start_date: toDateOnly(newSplitStartDate),
-            end_date: newSplitEndDate ? toDateOnly(newSplitEndDate) : null,
-            num_weeks: null,
-            num_rotations: computedRotations || 1,
-            active: true,
-            });
+            const existingRun = activeRuns.find(r => r.split_id === newSplitId && r.active);
+            if (existingRun && existingRun.id) {
+              await supabase.from('split_runs').update({
+                start_date: toDateOnly(newSplitStartDate),
+                end_date: newSplitEndDate ? toDateOnly(newSplitEndDate) : null,
+                num_weeks: null,
+                num_rotations: computedRotations || 1,
+                active: true,
+              }).eq('id', existingRun.id);
+            } else {
+              await supabase.from('split_runs').insert({
+                split_id: newSplitId,
+                user_id: profile.id,
+                start_date: toDateOnly(newSplitStartDate),
+                end_date: newSplitEndDate ? toDateOnly(newSplitEndDate) : null,
+                num_weeks: null,
+                num_rotations: computedRotations || 1,
+                active: true,
+              });
+            }
             await fetchActiveRun();
           }
         }
@@ -828,16 +891,16 @@ export default function SplitsTab() {
           // Extend with null slots if shorter
           if (existing.length < targetLen) {
             const inserts = Array.from({ length: targetLen - existing.length }).map((_, idx) => ({ split_id: editingSplit.id, day_id: null, weekday: null, order_index: existing.length + idx }));
-            if (inserts.length > 0) await supabase.from('split_days').insert(inserts);
+            if (inserts.length > 0) await supabase.from('split_days').insert(inserts.map(i => ({ ...i, day_id: i.day_id ?? null })));
           }
           // Update any provided selectedDaysForNewSplit into their slots
           if (selectedDaysForNewSplit && selectedDaysForNewSplit.length > 0) {
-            const updates = selectedDaysForNewSplit.map((dayId, idx) => ({ id: existing[idx]?.id, day_id: dayId, order_index: idx }));
+            const updates = selectedDaysForNewSplit.map((dayId, idx) => ({ id: existing[idx]?.id, day_id: dayId ?? null, order_index: idx }));
             for (const up of updates) {
               if (up.id) {
                 await supabase.from('split_days').update({ day_id: up.day_id, order_index: up.order_index }).eq('id', up.id);
               } else if (up.day_id) {
-                await supabase.from('split_days').insert({ split_id: editingSplit.id, day_id: up.day_id, weekday: null, order_index: up.order_index });
+                await supabase.from('split_days').insert({ split_id: editingSplit.id, day_id: up.day_id ?? null, weekday: null, order_index: up.order_index });
               }
             }
           }
@@ -877,7 +940,7 @@ export default function SplitsTab() {
     setLinking(true);
     let payload: any = { split_id: selectedSplitId, day_id: dayId };
     if (split.mode === 'rotation') payload.order_index = splitDays.length;
-    const { error } = await supabase.from('split_days').insert(payload);
+  const { error } = await supabase.from('split_days').insert({ ...payload, day_id: payload.day_id ?? null });
     setLinking(false);
     if (error) {
       Alert.alert('Error', error.message);
@@ -891,7 +954,7 @@ export default function SplitsTab() {
     if (!selectedSplitId) return;
     setLinking(true);
     let payload: any = { split_id: selectedSplitId, day_id: dayId, weekday };
-    const { error } = await supabase.from('split_days').insert(payload);
+  const { error } = await supabase.from('split_days').insert({ ...payload, day_id: payload.day_id ?? null });
     setLinking(false);
     setShowWeekdayModal(false);
     setPendingDayId(null);
@@ -996,10 +1059,12 @@ export default function SplitsTab() {
                   {(() => {
                     const run = activeRuns.find(r => r.split_id === item.id);
                     if (run && run.start_date) {
+                      const s = parseDateOnlyLocal(run.start_date);
+                      const e = run.end_date ? parseDateOnlyLocal(run.end_date) : null;
                       return (
                         <Text style={{ fontStyle: 'italic', color: '#666' }}>
-                          {`Start: ${new Date(run.start_date).toLocaleDateString()}`}
-                          {run.end_date ? `  •  End: ${new Date(run.end_date).toLocaleDateString()}` : '  •  End: Forever'}
+                          {`Start: ${s ? s.toLocaleDateString() : run.start_date}`}
+                          {e ? `  •  End: ${e.toLocaleDateString()}` : '  •  End: Forever'}
                         </Text>
                       );
                     }
@@ -1539,7 +1604,7 @@ export default function SplitsTab() {
                       const existing = splitDays.find(sd => sd.order_index === idx);
                       if (existing) await handleRemoveSplitDay(existing.id);
                       // Insert new
-                      await supabase.from('split_days').insert({ split_id: selectedSplitId, day_id: d.id, weekday: null, order_index: idx });
+                      await supabase.from('split_days').insert({ split_id: selectedSplitId, day_id: d.id ?? null, weekday: null, order_index: idx });
                       fetchSplitDays(selectedSplitId);
                       setPendingRotationIndex(null);
                       setShowWeekdayModal(false);
