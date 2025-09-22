@@ -1157,25 +1157,39 @@ export default function SplitsTab() {
                   ) : (
                     <>
                       <Text style={styles.splitDaysTitle}>Rotation Days</Text>
-                      {splitDays.map((sd, index) => {
-                        const day = days.find(d => d.id === sd.day_id);
-                        return (
-                          <View key={sd.id} style={styles.splitDayBox}>
-                            <Text style={{ width: 80 }}>{`Day ${(sd.order_index ?? index) + 1}:`}</Text>
-                            <TouchableOpacity
-                              style={styles.assignBtn}
-                              onPress={() => {
-                                setPendingRotationIndex(sd.order_index ?? index);
-                                setWeekdayModalFromEdit(false);
-                                setSelectedSplitId(item.id);
-                                setShowWeekdayModal(true);
-                              }}
-                            >
-                              <Text style={styles.assignBtnText}>{day?.name || 'Rest'}</Text>
-                            </TouchableOpacity>
-                          </View>
-                        );
-                      })}
+                      {(() => {
+                        // Determine number of rotation slots to display.
+                        // Use existing splitDays order_index if present, otherwise fall back to a stored rotation length or 3.
+                        let len = 3;
+                        if (splitDays && splitDays.length > 0) {
+                          const maxIndex = Math.max(...splitDays.map((sd: any) => (sd.order_index ?? 0)));
+                          len = maxIndex >= 0 ? maxIndex + 1 : 3;
+                        } else if ((item as any).rotation_length) {
+                          const v = parseInt(String((item as any).rotation_length), 10);
+                          if (!isNaN(v) && v > 0) len = v;
+                        }
+
+                        return Array.from({ length: len }).map((_, idx) => {
+                          const sd = splitDays.find(sd => (sd.order_index ?? -1) === idx) || null;
+                          const day = sd ? days.find(d => d.id === sd.day_id) : null;
+                          return (
+                            <View key={`rot-${idx}`} style={styles.splitDayBox}>
+                              <Text style={{ width: 80 }}>{`Day ${idx + 1}:`}</Text>
+                              <TouchableOpacity
+                                style={styles.assignBtn}
+                                onPress={() => {
+                                  setPendingRotationIndex(idx);
+                                  setWeekdayModalFromEdit(false);
+                                  setSelectedSplitId(item.id);
+                                  setShowWeekdayModal(true);
+                                }}
+                              >
+                                <Text style={styles.assignBtnText}>{day?.name || 'Rest'}</Text>
+                              </TouchableOpacity>
+                            </View>
+                          );
+                        });
+                      })()}
                     </>
                   )}
 
