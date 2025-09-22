@@ -4,9 +4,10 @@ import { View, Text, TextInput, FlatList, TouchableOpacity, Alert, Keyboard, Mod
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import styles from '../styles/daysStyles';
 import splitStyles from '../styles/splitsStyles';
-import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
-import { Day, Exercise, ExerciseForm, DeleteTargetType } from '../lib/types';
+import { Day, ExerciseForm, DeleteTargetType } from '../lib/types';
+import useDays from '../hooks/useDays';
+import useExercises from '../hooks/useExercises';
 import ModalButtons from '../components/ModalButtons';
 import EditPencil from '../components/EditPencil';
 import RemoveButton from '../components/RemoveButton';
@@ -16,8 +17,7 @@ import AddExercise from '../components/AddExercise';
 export default function DaysTab() {
   const insets = useSafeAreaInsets();
   const profile = useProfileStore((state) => state.profile);
-  const [days, setDays] = useState<Day[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { days, loading, exerciseCounts, fetchDays, createDay, updateDay, deleteDay } = useDays();
   const [newDayName, setNewDayName] = useState('');
   const [adding, setAdding] = useState(false);
   const [editingDayId, setEditingDayId] = useState<string | null>(null);
@@ -25,9 +25,8 @@ export default function DaysTab() {
 
   // Exercises state
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
-  const [exercises, setExercises] = useState<ExerciseForm[]>([]);
-  const [exLoading, setExLoading] = useState(false);
-  const [exerciseCounts, setExerciseCounts] = useState<Record<string, number>>({});
+  const { exercises, loading: exLoading, fetchExercises, setExercises, createExercise, updateExercise, deleteExercise } = useExercises();
+  
   const [addingEx, setAddingEx] = useState(false);
   const [editingExId, setEditingExId] = useState<string | null>(null);
   const [editingEx, setEditingEx] = useState<ExerciseForm>({ name: '', sets: '', reps: '', notes: '' });
@@ -59,55 +58,10 @@ export default function DaysTab() {
   };
 
   // Fetch exercises for a day
-  const fetchExercises = async (dayId: string) => {
-    setExLoading(true);
-    const { data, error } = await supabase
-      .from('exercises')
-      .select('*')
-      .eq('day_id', dayId)
-      .order('created_at', { ascending: true });
-    if (!error && data) {
-      // Map DB exercise rows to ExerciseForm which uses string fields for inputs
-      const mapped = (data as Exercise[]).map(e => ({
-        id: e.id,
-        day_id: e.day_id,
-        name: e.name,
-        sets: String(e.sets),
-        reps: String(e.reps),
-        notes: e.notes || ''
-      }));
-      setExercises(mapped);
-    }
-    setExLoading(false);
-  };
+  // fetchExercises comes from the hook
 
   // Day CRUD
-  const fetchDays = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('days')
-      .select('*')
-      .eq('user_id', profile?.id)
-      .order('created_at', { ascending: true });
-    if (!error && data) {
-      setDays(data);
-  const dayIds = data.map((d: Day) => d.id);
-      if (dayIds.length > 0) {
-        const { data: exData } = await supabase
-          .from('exercises')
-          .select('id, day_id')
-          .in('day_id', dayIds as string[]);
-        const counts: Record<string, number> = {};
-        (exData || []).forEach((e: { day_id: string }) => {
-          counts[e.day_id] = (counts[e.day_id] || 0) + 1;
-        });
-        setExerciseCounts(counts);
-      } else {
-        setExerciseCounts({});
-      }
-    }
-    setLoading(false);
-  };
+  // fetchDays comes from the hook
 
   const handleAddDay = async () => {
     if (!newDayName.trim()) {
@@ -116,14 +70,8 @@ export default function DaysTab() {
     }
     setAdding(true);
     try {
-      const { data, error } = await supabase.from('days').insert({ name: newDayName.trim(), user_id: profile?.id }).select();
-      if (error) {
-        Alert.alert('Error', error.message);
-        return null;
-      }
-      const created = data && data.length > 0 ? data[0] : null;
+      const created = await createDay(newDayName.trim(), profile?.id);
       setNewDayName('');
-      await fetchDays();
       return created;
     } finally {
       setAdding(false);
@@ -142,17 +90,12 @@ export default function DaysTab() {
       return;
     }
     try {
-      const { error } = await supabase.from('days').update({ name: editingDayName.trim() }).eq('id', editingDayId);
-      if (error) {
-        Alert.alert('Error', error.message);
-      } else {
-        setEditingDayId(null);
-        setEditingDayName('');
-        setShowEditDayModal(false);
-        fetchDays();
-      }
-    } catch (err) {
-      Alert.alert('Error', 'Failed to update day');
+      await updateDay(editingDayId, editingDayName.trim(), profile?.id);
+      setEditingDayId(null);
+      setEditingDayName('');
+      setShowEditDayModal(false);
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to update day');
     }
   };
 
@@ -173,20 +116,13 @@ export default function DaysTab() {
     try {
       if (deleteTargetType === 'exercise') {
         if (!deleteTargetId) return;
-        const { error } = await supabase.from('exercises').delete().eq('id', deleteTargetId);
-        if (error) throw error;
-        if (selectedDayId) fetchExercises(selectedDayId);
-        // refresh counts
-        fetchDays();
+        await deleteExercise(deleteTargetId, selectedDayId ?? undefined);
+        // refresh counts via days hook
+        await fetchDays(profile?.id);
       } else if (deleteTargetType === 'day') {
         if (!deleteTargetId) return;
-        // delete exercises first, then day
-        const { error: err1 } = await supabase.from('exercises').delete().eq('day_id', deleteTargetId);
-        if (err1) throw err1;
-        const { error: err2 } = await supabase.from('days').delete().eq('id', deleteTargetId);
-        if (err2) throw err2;
+        await deleteDay(deleteTargetId, profile?.id);
         if (selectedDayId === deleteTargetId) setSelectedDayId(null);
-        fetchDays();
       } else if (deleteTargetType === 'preview') {
         if (previewDeleteIndex !== null) {
           setExercises(prev => prev.filter((_, i) => i !== previewDeleteIndex));
@@ -261,29 +197,22 @@ export default function DaysTab() {
       return;
     }
     try {
-      const { error } = await supabase.from('exercises').update({
-        name: editingEx.name.trim(),
-        sets: parseInt(editingEx.sets, 10),
-        reps: parseInt(editingEx.reps, 10),
-        notes: editingEx.notes,
-      }).eq('id', editingExId);
-      if (error) {
-        Alert.alert('Error', error.message);
-      } else if (selectedDayId) {
+      await updateExercise(editingExId, editingEx, selectedDayId ?? undefined);
+      if (selectedDayId) {
         setEditingExId(null);
         setEditingEx({ name: '', sets: '', reps: '', notes: '' });
         setShowEditExerciseModal(false);
-        fetchExercises(selectedDayId);
-        fetchDays();
+        await fetchExercises(selectedDayId);
+        await fetchDays(profile?.id);
       }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update exercise');
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Failed to update exercise');
     }
   };
 
   useEffect(() => {
     if (profile && profile.id) {
-      fetchDays();
+      fetchDays(profile.id);
     }
   }, [profile?.id]);
 
@@ -365,18 +294,12 @@ export default function DaysTab() {
                         if (!item.id) return;
                         setAddingEx(true);
                         try {
-                          const { error } = await supabase.from('exercises').insert({
-                            day_id: item.id,
-                            name: ex.name,
-                            sets: parseInt(String(ex.sets), 10),
-                            reps: parseInt(String(ex.reps), 10),
-                            notes: ex.notes,
-                          });
-                          if (error) {
-                            Alert.alert('Error', error.message);
-                          } else {
-                            fetchExercises(item.id);
-                            fetchDays();
+                          try {
+                            await createExercise(item.id, ex);
+                            await fetchExercises(item.id);
+                            await fetchDays(profile?.id);
+                          } catch (err: any) {
+                            Alert.alert('Error', err?.message || 'Failed to add exercise');
                           }
                         } finally {
                           setAddingEx(false);
@@ -501,10 +424,13 @@ export default function DaysTab() {
                       try {
                         if (dayId && exercises.length > 0) {
                           for (const ex of exercises) {
-                            const { error } = await supabase.from('exercises').insert({ day_id: dayId, name: ex.name, sets: parseInt(String(ex.sets), 10), reps: parseInt(String(ex.reps), 10), notes: ex.notes });
-                            if (error) console.warn('Failed to insert exercise', error.message);
+                            try {
+                              await createExercise(dayId, ex);
+                            } catch (err) {
+                              console.warn('Failed to insert exercise', err);
+                            }
                           }
-                          await fetchDays();
+                          await fetchDays(profile?.id);
                         }
                       } finally {
                         setNewDayName('');
