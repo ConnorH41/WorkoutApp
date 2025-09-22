@@ -177,16 +177,23 @@ export default function TodayTab() {
             />
           </View>
 
-          {/* If there's no workout for today still allow marking as rest day */}
-          {!todayWorkout && (
+          {/* If there's no workout for today and it's not marked rest, allow marking as rest day */}
+          {!todayWorkout && !isRestDay && (
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={() => setShowRestConfirm(true)}
               disabled={resting}
               style={[styles.secondaryButton, resting ? styles.secondaryButtonDisabled : null]}
             >
-              <Text style={[styles.secondaryButtonText, resting ? styles.secondaryButtonTextDisabled : null]}>{resting ? 'Logging...' : (isRestDay ? 'Unmark as Rest Day' : 'Mark as Rest Day')}</Text>
+              <Text style={[styles.secondaryButtonText, resting ? styles.secondaryButtonTextDisabled : null]}>{resting ? 'Logging...' : 'Mark as Rest Day'}</Text>
             </TouchableOpacity>
+          )}
+
+          {/* If it's a rest day show a friendly message instead of the mark button */}
+          {isRestDay && (
+            <View style={{ padding: 12, alignItems: 'center' }}>
+              <Text style={{ color: '#666', fontSize: 16, textAlign: 'center' }}>Today is a rest day — just chill and recover.</Text>
+            </View>
           )}
 
         </View>
@@ -294,10 +301,14 @@ export default function TodayTab() {
         onCancel={() => setShowCalendarModal(false)}
         onConfirm={(isoDate) => {
           setShowCalendarModal(false);
-          // normalize to midnight UTC-local date representation
-          const d = new Date(`${isoDate}T00:00:00`);
-          d.setHours(0, 0, 0, 0);
-          setCalendarDate(d);
+            // Parse YYYY-MM-DD into a local Date at midnight to avoid timezone shifts
+            const parts = isoDate.split('-').map(p => parseInt(p, 10));
+            let d: Date | null = null;
+            if (parts.length === 3 && parts.every(p => !Number.isNaN(p))) {
+              d = new Date(parts[0], parts[1] - 1, parts[2]);
+              d.setHours(0, 0, 0, 0);
+            }
+            setCalendarDate(d);
           // clear transient UI state so day-specific edits don't carry across
           setRemovedExerciseIds([]);
           setEditedNames({});

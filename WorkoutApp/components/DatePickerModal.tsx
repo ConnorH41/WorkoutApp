@@ -26,7 +26,10 @@ export default function DatePickerModal({ visible, initialDate, onCancel, onConf
       return;
     }
     setDate(d);
-    const iso = d.toISOString().slice(0, 10);
+    // Create a date-only string using local date components to avoid
+    // timezone/UTC shifts that occur with toISOString().
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     // On Android, confirm immediately when selecting from native picker
     if (Platform.OS === 'android') {
       onConfirm(iso);
@@ -65,7 +68,10 @@ export default function DatePickerModal({ visible, initialDate, onCancel, onConf
             <TouchableOpacity onPress={onCancel} style={{ flex: 1, marginRight: 8, padding: 12, backgroundColor: '#e0e0e0', borderRadius: 8, alignItems: 'center' }}>
               <Text style={{ color: '#000', fontWeight: '700' }}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => { if (date) onConfirm(date.toISOString().slice(0,10)); }} style={{ flex: 1, padding: 12, backgroundColor: '#007AFF', borderRadius: 8, alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => { if (date) {
+                const pad = (n: number) => String(n).padStart(2, '0');
+                onConfirm(`${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`);
+              } }} style={{ flex: 1, padding: 12, backgroundColor: '#007AFF', borderRadius: 8, alignItems: 'center' }}>
               <Text style={{ color: '#fff', fontWeight: '700' }}>Select</Text>
             </TouchableOpacity>
           </View>
