@@ -9,6 +9,8 @@ import { useProfileStore } from '../lib/profileStore';
 import ModalButtons from '../components/ModalButtons';
 import EditPencil from '../components/EditPencil';
 import RemoveButton from '../components/RemoveButton';
+import ConfirmModal from '../components/ConfirmModal';
+import AddExercise from '../components/AddExercise';
 
 export default function DaysTab() {
   const insets = useSafeAreaInsets();
@@ -34,11 +36,16 @@ export default function DaysTab() {
   const [showAddDayModal, setShowAddDayModal] = useState(false);
   const [newDayTab, setNewDayTab] = useState<number>(0);
   const [showEditDayModal, setShowEditDayModal] = useState(false);
-  const [showAddExerciseModal, setShowAddExerciseModal] = useState(false);
+  
   const [showEditExerciseModal, setShowEditExerciseModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteTargetType, setDeleteTargetType] = useState<'day' | 'exercise' | null>(null);
+  // Local modal preview edit state for Add Day exercises
+  const [newModalEditIndex, setNewModalEditIndex] = useState<number | null>(null);
+  const [newModalEditingEx, setNewModalEditingEx] = useState({ name: '', sets: '', reps: '', notes: '' });
+  const [showPreviewDeleteConfirm, setShowPreviewDeleteConfirm] = useState(false);
+  const [previewDeleteIndex, setPreviewDeleteIndex] = useState<number | null>(null);
 
   const showValidationToast = (msg: string) => {
     if (Platform.OS === 'android' && ToastAndroid && ToastAndroid.show) {
@@ -195,7 +202,6 @@ export default function DaysTab() {
         Alert.alert('Error', error.message);
       } else {
         setNewExercise({ name: '', sets: '', reps: '', notes: '' });
-        setShowAddExerciseModal(false);
         fetchExercises(selectedDayId);
         fetchDays();
       }
@@ -300,29 +306,44 @@ export default function DaysTab() {
                   <View>
                     {(exercises || []).map((ex) => (
                       <View key={ex.id} style={styles.exerciseBox}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                           <View style={{ flex: 1 }}>
                             <Text style={styles.exerciseName}>{ex.name}</Text>
                             <Text style={styles.exerciseDetails}>{ex.sets} sets × {ex.reps} reps</Text>
                             {ex.notes ? <Text style={styles.exerciseNotes}>{ex.notes}</Text> : null}
                           </View>
-                          <View style={styles.exerciseActions}>
+                          <View style={[styles.exerciseActions, { alignSelf: 'center' }]}> 
                             <RemoveButton onPress={() => handleDeleteExercise(ex.id)} label="Delete" accessibilityLabel={`Delete ${ex.name}`} textStyle={styles.deleteTextSmall} />
                             <EditPencil onPress={() => handleEditExercise(ex)} accessibilityLabel={`Edit ${ex.name}`} />
                           </View>
                         </View>
                       </View>
                     ))}
-                    <TouchableOpacity
-                      style={{ marginTop: 6 }}
-                      onPress={() => {
-                        setSelectedDayId(item.id);
-                        fetchExercises(item.id);
-                        setShowAddExerciseModal(true);
+                    <AddExercise
+                      mode="modal"
+                      adding={addingEx}
+                      onAdd={async (ex) => {
+                        if (!item.id) return;
+                        setAddingEx(true);
+                        try {
+                          const { error } = await supabase.from('exercises').insert({
+                            day_id: item.id,
+                            name: ex.name,
+                            sets: parseInt(String(ex.sets), 10),
+                            reps: parseInt(String(ex.reps), 10),
+                            notes: ex.notes,
+                          });
+                          if (error) {
+                            Alert.alert('Error', error.message);
+                          } else {
+                            fetchExercises(item.id);
+                            fetchDays();
+                          }
+                        } finally {
+                          setAddingEx(false);
+                        }
                       }}
-                    >
-                      <Text style={styles.addExerciseLink}>+ Add Exercise</Text>
-                    </TouchableOpacity>
+                    />
                   </View>
                 )}
               </View>
@@ -377,33 +398,51 @@ export default function DaysTab() {
                 <>
                   <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Exercises</Text>
                   {/* Exercise list preview while adding a day (not yet persisted) */}
-                  {(exercises || []).map((ex) => (
-                    <View key={ex.id || ex.name} style={{ marginBottom: 8, padding: 8, borderRadius: 8, backgroundColor: '#f7f7f7' }}>
-                      <Text style={{ fontWeight: '600' }}>{ex.name}</Text>
-                      <Text style={{ color: '#666' }}>{ex.sets} sets × {ex.reps} reps</Text>
-                      {ex.notes ? <Text style={{ color: '#666' }}>{ex.notes}</Text> : null}
+                  {(exercises || []).map((ex, idx) => (
+                    <View key={ex.id || ex.name || idx} style={{ marginBottom: 8, padding: 8, borderRadius: 8, backgroundColor: '#f7f7f7' }}>
+                      {newModalEditIndex === idx ? (
+                        <View>
+                          <TextInput value={newModalEditingEx.name} onChangeText={(v) => setNewModalEditingEx(prev => ({ ...prev, name: v }))} placeholder="Name" style={[styles.input, styles.textInput, { marginBottom: 6 }]} />
+                          <View style={{ flexDirection: 'row' }}>
+                            <TextInput value={newModalEditingEx.sets} onChangeText={(v) => setNewModalEditingEx(prev => ({ ...prev, sets: v }))} placeholder="Sets" style={[styles.input, styles.textInput, { flex: 1, marginRight: 6 }]} keyboardType="numeric" />
+                            <TextInput value={newModalEditingEx.reps} onChangeText={(v) => setNewModalEditingEx(prev => ({ ...prev, reps: v }))} placeholder="Reps" style={[styles.input, styles.textInput, { flex: 1 }]} keyboardType="numeric" />
+                          </View>
+                          <TextInput value={newModalEditingEx.notes} onChangeText={(v) => setNewModalEditingEx(prev => ({ ...prev, notes: v }))} placeholder="Notes" style={[styles.input, styles.textInput, { marginTop: 6 }]} />
+                          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
+                            <TouchableOpacity onPress={() => { setNewModalEditIndex(null); setNewModalEditingEx({ name: '', sets: '', reps: '', notes: '' }); }} style={{ marginRight: 8 }}>
+                              <Text style={{ color: '#666' }}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => {
+                              if (!newModalEditingEx.name.trim() || !newModalEditingEx.sets || !newModalEditingEx.reps) { showValidationToast('Exercise name, sets, and reps are required'); return; }
+                              setExercises(prev => prev.map((p, i) => i === idx ? { ...p, ...newModalEditingEx } : p));
+                              setNewModalEditIndex(null);
+                              setNewModalEditingEx({ name: '', sets: '', reps: '', notes: '' });
+                            }}>
+                              <Text style={{ color: '#007AFF', fontWeight: '700' }}>Save</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ) : (
+                        <View>
+                          <Text style={{ fontWeight: '600' }}>{ex.name}</Text>
+                          <Text style={{ color: '#666' }}>{ex.sets} sets × {ex.reps} reps</Text>
+                          {ex.notes ? <Text style={{ color: '#666' }}>{ex.notes}</Text> : null}
+                          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8, alignItems: 'center' }}>
+                            <RemoveButton onPress={() => { setPreviewDeleteIndex(idx); setShowPreviewDeleteConfirm(true); }} label="Delete" accessibilityLabel={`Delete ${ex.name}`} textStyle={{ color: '#ff3b30', fontWeight: '700' }} />
+                            <EditPencil onPress={() => { setNewModalEditIndex(idx); setNewModalEditingEx({ name: ex.name, sets: String(ex.sets), reps: String(ex.reps), notes: ex.notes || '' }); }} accessibilityLabel={`Edit ${ex.name}`} />
+                          </View>
+                        </View>
+                      )}
                     </View>
                   ))}
 
                   <View style={{ marginTop: 8 }}>
-                    <Text style={{ marginBottom: 4, fontWeight: '500' }}>Add Exercise:</Text>
-                    <TextInput placeholder="Name" style={[styles.input, styles.textInput, { marginBottom: 6 }]} value={newExercise.name} onChangeText={(v) => setNewExercise(prev => ({ ...prev, name: v }))} />
-                    <View style={{ flexDirection: 'row' }}>
-                      <TextInput placeholder="Sets" style={[styles.input, styles.textInput, { flex: 1, marginRight: 6 }]} value={newExercise.sets} onChangeText={(v) => setNewExercise(prev => ({ ...prev, sets: v }))} keyboardType="numeric" />
-                      <TextInput placeholder="Reps" style={[styles.input, styles.textInput, { flex: 1 }]} value={newExercise.reps} onChangeText={(v) => setNewExercise(prev => ({ ...prev, reps: v }))} keyboardType="numeric" />
-                    </View>
-                    <TextInput placeholder="Notes" style={[styles.input, styles.textInput, { marginTop: 6 }]} value={newExercise.notes} onChangeText={(v) => setNewExercise(prev => ({ ...prev, notes: v }))} />
-                    <TouchableOpacity onPress={async () => {
-                      // Add locally to exercises preview list
-                      if (!newExercise.name.trim() || !newExercise.sets || !newExercise.reps) {
-                        showValidationToast('Exercise name, sets, and reps are required');
-                        return;
-                      }
-                      setExercises(prev => [...prev, { ...newExercise }]);
-                      setNewExercise({ name: '', sets: '', reps: '', notes: '' });
-                    }} style={{ marginTop: 8 }}>
-                      <Text style={styles.addExerciseLink}>+ Add Exercise</Text>
-                    </TouchableOpacity>
+                    <AddExercise
+                      mode="inline"
+                      onAdd={(ex) => {
+                        setExercises(prev => [...prev, ex]);
+                      }}
+                    />
                   </View>
                 </>
               )}
@@ -457,6 +496,23 @@ export default function DaysTab() {
         </View>
       </Modal>
 
+      {/* Preview Delete Confirm for Add Day modal */}
+      <ConfirmModal
+        visible={showPreviewDeleteConfirm}
+        title="Delete Exercise?"
+        message="Are you sure you want to delete this exercise from the preview?"
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (previewDeleteIndex !== null) {
+            setExercises(prev => prev.filter((_, i) => i !== previewDeleteIndex));
+          }
+          setShowPreviewDeleteConfirm(false);
+          setPreviewDeleteIndex(null);
+        }}
+        onCancel={() => { setShowPreviewDeleteConfirm(false); setPreviewDeleteIndex(null); }}
+        confirmColor="#ff3b30"
+      />
+
       {/* Edit Day Modal */}
       <Modal
         visible={showEditDayModal}
@@ -498,90 +554,7 @@ export default function DaysTab() {
         </View>
       </Modal>
 
-      {/* Add Exercise Modal */}
-      <Modal
-        visible={showAddExerciseModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowAddExerciseModal(false)}
-      >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
-            <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Add Exercise</Text>
-              
-              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Exercise Name:</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <TextInput
-                  style={[styles.input, styles.textInput]}
-                  placeholder="e.g. Bench Press"
-                  value={newExercise.name}
-                  onChangeText={v => setNewExercise(e => ({ ...e, name: v }))}
-                  returnKeyType="done"
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                />
-              </View>
-
-              <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={{ marginBottom: 4, fontWeight: '500' }}>Sets:</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
-                    <TextInput
-                      style={[styles.input, styles.textInput]}
-                      placeholder="3"
-                      value={newExercise.sets}
-                      onChangeText={v => setNewExercise(e => ({ ...e, sets: v }))}
-                      keyboardType="numeric"
-                      returnKeyType="done"
-                      onSubmitEditing={() => Keyboard.dismiss()}
-                    />
-                  </View>
-                </View>
-                <View style={{ flex: 1, marginLeft: 8 }}>
-                  <Text style={{ marginBottom: 4, fontWeight: '500' }}>Reps:</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
-                    <TextInput
-                      style={[styles.input, styles.textInput]}
-                      placeholder="8-12"
-                      value={newExercise.reps}
-                      onChangeText={v => setNewExercise(e => ({ ...e, reps: v }))}
-                      keyboardType="numeric"
-                      returnKeyType="done"
-                      onSubmitEditing={() => Keyboard.dismiss()}
-                    />
-                  </View>
-                </View>
-              </View>
-
-              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Notes (optional):</Text>
-              <TextInput
-                style={[styles.input, styles.textInputMultiline, { marginBottom: 16 }]}
-                placeholder="e.g. Focus on form, increase weight next week"
-                value={newExercise.notes}
-                onChangeText={v => setNewExercise(e => ({ ...e, notes: v }))}
-                returnKeyType="done"
-                onSubmitEditing={() => Keyboard.dismiss()}
-                multiline
-                numberOfLines={3}
-              />
-
-              <View>
-                <ModalButtons
-                  leftLabel="Cancel"
-                  rightLabel={addingEx ? 'Adding...' : 'Add Exercise'}
-                  onLeftPress={() => { setNewExercise({ name: '', sets: '', reps: '', notes: '' }); setShowAddExerciseModal(false); }}
-                  onRightPress={handleAddExercise}
-                  leftColor="#e0e0e0"
-                  rightColor="#007AFF"
-                  leftTextColor="#333"
-                  rightTextColor="#fff"
-                  rightDisabled={addingEx}
-                />
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      
 
       {/* Edit Exercise Modal */}
       <Modal
