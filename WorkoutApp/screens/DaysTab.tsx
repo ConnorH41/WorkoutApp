@@ -295,7 +295,8 @@ export default function DaysTab() {
                         setAddingEx(true);
                         try {
                           try {
-                            await createExercise(item.id, ex);
+                            const form = { name: ex.name, sets: String(ex.sets), reps: String(ex.reps), notes: ex.notes } as ExerciseForm;
+                            await createExercise(item.id, form);
                             await fetchExercises(item.id);
                             await fetchDays(profile?.id);
                           } catch (err: any) {
