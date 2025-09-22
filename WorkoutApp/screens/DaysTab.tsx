@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, FlatList, TouchableOpacity, Alert, Keyboard, Modal, Platform, ToastAndroid, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import styles from '../styles/daysStyles';
+import splitStyles from '../styles/splitsStyles';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
 import ModalButtons from '../components/ModalButtons';
@@ -31,6 +32,7 @@ export default function DaysTab() {
 
   // Modal states
   const [showAddDayModal, setShowAddDayModal] = useState(false);
+  const [newDayTab, setNewDayTab] = useState<number>(0);
   const [showEditDayModal, setShowEditDayModal] = useState(false);
   const [showAddExerciseModal, setShowAddExerciseModal] = useState(false);
   const [showEditExerciseModal, setShowEditExerciseModal] = useState(false);
@@ -91,18 +93,19 @@ export default function DaysTab() {
   const handleAddDay = async () => {
     if (!newDayName.trim()) {
       showValidationToast('Day name is required');
-      return false;
+      return null;
     }
     setAdding(true);
     try {
-      const { error } = await supabase.from('days').insert({ name: newDayName.trim(), user_id: profile?.id });
+      const { data, error } = await supabase.from('days').insert({ name: newDayName.trim(), user_id: profile?.id }).select();
       if (error) {
         Alert.alert('Error', error.message);
-        return false;
+        return null;
       }
+      const created = data && data.length > 0 ? data[0] : null;
       setNewDayName('');
-      fetchDays();
-      return true;
+      await fetchDays();
+      return created;
     } finally {
       setAdding(false);
     }
@@ -337,33 +340,117 @@ export default function DaysTab() {
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
           <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
+            <View style={{ flexDirection: 'row', marginBottom: 20, backgroundColor: '#f0f0f0', borderRadius: 8, padding: 4 }}>
+              <TouchableOpacity
+                style={[splitStyles.tabButton, { backgroundColor: newDayTab === 0 ? '#007AFF' : 'transparent' }]}
+                onPress={() => setNewDayTab(0)}
+              >
+                <Text style={{ color: newDayTab === 0 ? '#fff' : '#333', fontWeight: 'bold', fontSize: 12 }}>1. General</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[splitStyles.tabButton, { backgroundColor: newDayTab === 1 ? '#007AFF' : 'transparent' }]}
+                onPress={() => setNewDayTab(1)}
+              >
+                <Text style={{ color: newDayTab === 1 ? '#fff' : '#333', fontWeight: 'bold', fontSize: 12 }}>2. Exercises</Text>
+              </TouchableOpacity>
+            </View>
             <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Add New Day</Text>
+              {newDayTab === 0 && (
+                <>
+                  <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Add New Day</Text>
 
-              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Day Name:</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <TextInput
-                  style={[styles.input, styles.textInput]}
-                  placeholder="e.g. Upper A, Push Day"
-                  value={newDayName}
-                  onChangeText={setNewDayName}
-                  returnKeyType="done"
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                />
-              </View>
+                  <Text style={{ marginBottom: 4, fontWeight: '500' }}>Day Name:</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                    <TextInput
+                      style={[styles.input, styles.textInput]}
+                      placeholder="e.g. Upper A, Push Day"
+                      value={newDayName}
+                      onChangeText={setNewDayName}
+                      returnKeyType="done"
+                      onSubmitEditing={() => Keyboard.dismiss()}
+                    />
+                  </View>
+                </>
+              )}
 
-              <View>
-                <ModalButtons
-                  leftLabel="Cancel"
-                  rightLabel={adding ? 'Adding...' : 'Add Day'}
-                  onLeftPress={() => { setNewDayName(''); setShowAddDayModal(false); }}
-                  onRightPress={async () => { const ok = await handleAddDay(); if (ok) setShowAddDayModal(false); }}
-                  leftColor="#e0e0e0"
-                  rightColor="#007AFF"
-                  leftTextColor="#333"
-                  rightTextColor="#fff"
-                  rightDisabled={adding}
-                />
+              {newDayTab === 1 && (
+                <>
+                  <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Exercises</Text>
+                  {/* Exercise list preview while adding a day (not yet persisted) */}
+                  {(exercises || []).map((ex) => (
+                    <View key={ex.id || ex.name} style={{ marginBottom: 8, padding: 8, borderRadius: 8, backgroundColor: '#f7f7f7' }}>
+                      <Text style={{ fontWeight: '600' }}>{ex.name}</Text>
+                      <Text style={{ color: '#666' }}>{ex.sets} sets × {ex.reps} reps</Text>
+                      {ex.notes ? <Text style={{ color: '#666' }}>{ex.notes}</Text> : null}
+                    </View>
+                  ))}
+
+                  <View style={{ marginTop: 8 }}>
+                    <Text style={{ marginBottom: 4, fontWeight: '500' }}>Add Exercise:</Text>
+                    <TextInput placeholder="Name" style={[styles.input, styles.textInput, { marginBottom: 6 }]} value={newExercise.name} onChangeText={(v) => setNewExercise(prev => ({ ...prev, name: v }))} />
+                    <View style={{ flexDirection: 'row' }}>
+                      <TextInput placeholder="Sets" style={[styles.input, styles.textInput, { flex: 1, marginRight: 6 }]} value={newExercise.sets} onChangeText={(v) => setNewExercise(prev => ({ ...prev, sets: v }))} keyboardType="numeric" />
+                      <TextInput placeholder="Reps" style={[styles.input, styles.textInput, { flex: 1 }]} value={newExercise.reps} onChangeText={(v) => setNewExercise(prev => ({ ...prev, reps: v }))} keyboardType="numeric" />
+                    </View>
+                    <TextInput placeholder="Notes" style={[styles.input, styles.textInput, { marginTop: 6 }]} value={newExercise.notes} onChangeText={(v) => setNewExercise(prev => ({ ...prev, notes: v }))} />
+                    <TouchableOpacity onPress={async () => {
+                      // Add locally to exercises preview list
+                      if (!newExercise.name.trim() || !newExercise.sets || !newExercise.reps) {
+                        showValidationToast('Exercise name, sets, and reps are required');
+                        return;
+                      }
+                      setExercises(prev => [...prev, { ...newExercise }]);
+                      setNewExercise({ name: '', sets: '', reps: '', notes: '' });
+                    }} style={{ marginTop: 8 }}>
+                      <Text style={styles.addExerciseLink}>+ Add Exercise</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+
+              <View style={{ marginTop: 12 }}>
+                {newDayTab < 1 ? (
+                  <ModalButtons
+                    leftLabel="Cancel"
+                    rightLabel="Next"
+                    onLeftPress={() => { setNewDayName(''); setExercises([]); setNewExercise({ name: '', sets: '', reps: '', notes: '' }); setShowAddDayModal(false); setNewDayTab(0); }}
+                    onRightPress={() => setNewDayTab(newDayTab + 1)}
+                    leftColor="#e0e0e0"
+                    rightColor="#007AFF"
+                    leftTextColor="#333"
+                    rightTextColor="#fff"
+                  />
+                ) : (
+                  <ModalButtons
+                    leftLabel="Cancel"
+                    rightLabel={adding ? 'Creating...' : 'Create'}
+                    onLeftPress={() => { setNewDayName(''); setExercises([]); setNewExercise({ name: '', sets: '', reps: '', notes: '' }); setShowAddDayModal(false); setNewDayTab(0); }}
+                    onRightPress={async () => {
+                      const created = await handleAddDay();
+                      if (!created || !created.id) return;
+                      const dayId = created.id;
+                      try {
+                        if (dayId && exercises.length > 0) {
+                          for (const ex of exercises) {
+                            const { error } = await supabase.from('exercises').insert({ day_id: dayId, name: ex.name, sets: parseInt(String(ex.sets), 10), reps: parseInt(String(ex.reps), 10), notes: ex.notes });
+                            if (error) console.warn('Failed to insert exercise', error.message);
+                          }
+                          await fetchDays();
+                        }
+                      } finally {
+                        setNewDayName('');
+                        setExercises([]);
+                        setShowAddDayModal(false);
+                        setNewDayTab(0);
+                      }
+                    }}
+                    leftColor="#e0e0e0"
+                    rightColor="#007AFF"
+                    leftTextColor="#333"
+                    rightTextColor="#fff"
+                    rightDisabled={adding}
+                  />
+                )}
               </View>
             </ScrollView>
           </View>
