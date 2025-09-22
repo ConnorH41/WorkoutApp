@@ -36,13 +36,17 @@ export default function DaysTab() {
   const [newDayTab, setNewDayTab] = useState<number>(0);
   const [showEditDayModal, setShowEditDayModal] = useState(false);
   
+  // For expanded day exercise editing (existing functionality)
   const [showEditExerciseModal, setShowEditExerciseModal] = useState(false);
+  
+  // Simplified exercise editing states for preview
+  const [showPreviewEditModal, setShowPreviewEditModal] = useState(false);
+  const [editingPreviewIdx, setEditingPreviewIdx] = useState<number | null>(null);
+  const [previewEditForm, setPreviewEditForm] = useState({ name: '', sets: '', reps: '', notes: '' });
+  
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteTargetType, setDeleteTargetType] = useState<'day' | 'exercise' | 'preview' | null>(null);
-  // Local modal preview edit state for Add Day exercises
-  const [newModalEditIndex, setNewModalEditIndex] = useState<number | null>(null);
-  const [newModalEditingEx, setNewModalEditingEx] = useState({ name: '', sets: '', reps: '', notes: '' });
   const [previewDeleteIndex, setPreviewDeleteIndex] = useState<number | null>(null);
 
   const showValidationToast = (msg: string) => {
@@ -188,12 +192,57 @@ export default function DaysTab() {
     }
   };
 
-  // Exercise handlers
+  // Exercise handlers - REBUILT FROM SCRATCH
 
   const handleEditExercise = (ex: any) => {
     setEditingExId(ex.id);
     setEditingEx({ name: ex.name, sets: String(ex.sets), reps: String(ex.reps), notes: ex.notes || '' });
     setShowEditExerciseModal(true);
+  };
+
+  // NEW: Simple preview exercise edit handler
+  const handleEditPreviewExercise = (index: number) => {
+    const ex = exercises[index];
+    setEditingPreviewIdx(index);
+    setPreviewEditForm({ 
+      name: ex.name, 
+      sets: String(ex.sets), 
+      reps: String(ex.reps), 
+      notes: ex.notes || '' 
+    });
+    setShowPreviewEditModal(true);
+  };
+
+  // NEW: Save preview exercise edit
+  const handleSavePreviewEdit = () => {
+    if (!previewEditForm.name.trim() || !previewEditForm.sets || !previewEditForm.reps) {
+      showValidationToast('Exercise name, sets, and reps are required');
+      return;
+    }
+    
+    if (editingPreviewIdx !== null) {
+      setExercises(prev => prev.map((ex, i) => 
+        i === editingPreviewIdx ? {
+          ...ex,
+          name: previewEditForm.name.trim(),
+          sets: previewEditForm.sets,
+          reps: previewEditForm.reps,
+          notes: previewEditForm.notes
+        } : ex
+      ));
+      
+      // Reset state
+      setEditingPreviewIdx(null);
+      setPreviewEditForm({ name: '', sets: '', reps: '', notes: '' });
+      setShowPreviewEditModal(false);
+    }
+  };
+
+  // NEW: Simple delete handler for preview exercises
+  const handleDeletePreviewExercise = (index: number) => {
+    setPreviewDeleteIndex(index);
+    setDeleteTargetType('preview');
+    setShowDeleteConfirm(true);
   };
 
   const handleSaveEditExercise = async () => {
@@ -380,41 +429,25 @@ export default function DaysTab() {
                   {/* Exercise list preview while adding a day (not yet persisted) */}
                   {(exercises || []).map((ex, idx) => (
                     <View key={ex.id || ex.name || idx} style={styles.exerciseBox}>
-                      {newModalEditIndex === idx ? (
-                        <View style={{ padding: 8 }}>
-                          <TextInput value={newModalEditingEx.name} onChangeText={(v) => setNewModalEditingEx(prev => ({ ...prev, name: v }))} placeholder="Name" style={[styles.input, styles.textInput, { marginBottom: 6 }]} />
-                          <View style={{ flexDirection: 'row' }}>
-                            <TextInput value={newModalEditingEx.sets} onChangeText={(v) => setNewModalEditingEx(prev => ({ ...prev, sets: v }))} placeholder="Sets" style={[styles.input, styles.textInput, { flex: 1, marginRight: 6 }]} keyboardType="numeric" />
-                            <TextInput value={newModalEditingEx.reps} onChangeText={(v) => setNewModalEditingEx(prev => ({ ...prev, reps: v }))} placeholder="Reps" style={[styles.input, styles.textInput, { flex: 1 }]} keyboardType="numeric" />
-                          </View>
-                          <TextInput value={newModalEditingEx.notes} onChangeText={(v) => setNewModalEditingEx(prev => ({ ...prev, notes: v }))} placeholder="Notes" style={[styles.input, styles.textInput, { marginTop: 6 }]} />
-                          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
-                            <TouchableOpacity onPress={() => { setNewModalEditIndex(null); setNewModalEditingEx({ name: '', sets: '', reps: '', notes: '' }); }} style={{ marginRight: 8 }}>
-                              <Text style={{ color: '#666' }}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => {
-                              if (!newModalEditingEx.name.trim() || !newModalEditingEx.sets || !newModalEditingEx.reps) { showValidationToast('Exercise name, sets, and reps are required'); return; }
-                              setExercises(prev => prev.map((p, i) => i === idx ? { ...p, ...newModalEditingEx } : p));
-                              setNewModalEditIndex(null);
-                              setNewModalEditingEx({ name: '', sets: '', reps: '', notes: '' });
-                            }}>
-                              <Text style={{ color: '#007AFF', fontWeight: '700' }}>Save</Text>
-                            </TouchableOpacity>
-                          </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.exerciseName}>{ex.name}</Text>
+                          <Text style={styles.exerciseDetails}>{ex.sets} sets × {ex.reps} reps</Text>
+                          {ex.notes ? <Text style={styles.exerciseNotes}>{ex.notes}</Text> : null}
                         </View>
-                      ) : (
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.exerciseName}>{ex.name}</Text>
-                            <Text style={styles.exerciseDetails}>{ex.sets} sets × {ex.reps} reps</Text>
-                            {ex.notes ? <Text style={styles.exerciseNotes}>{ex.notes}</Text> : null}
-                          </View>
-                          <View style={[styles.exerciseActions, { alignSelf: 'center' }]}> 
-                            <RemoveButton onPress={() => { setPreviewDeleteIndex(idx); setDeleteTargetType('preview'); setShowDeleteConfirm(true); }} label="Delete" accessibilityLabel={`Delete ${ex.name}`} textStyle={styles.deleteTextSmall} />
-                            <EditPencil onPress={() => { setNewModalEditIndex(idx); setNewModalEditingEx({ name: ex.name, sets: String(ex.sets), reps: String(ex.reps), notes: ex.notes || '' }); }} accessibilityLabel={`Edit ${ex.name}`} />
-                          </View>
+                        <View style={[styles.exerciseActions, { alignSelf: 'center' }]}> 
+                          <RemoveButton 
+                            onPress={() => handleDeletePreviewExercise(idx)} 
+                            label="Delete" 
+                            accessibilityLabel={`Delete ${ex.name}`} 
+                            textStyle={styles.deleteTextSmall} 
+                          />
+                          <EditPencil 
+                            onPress={() => handleEditPreviewExercise(idx)} 
+                            accessibilityLabel={`Edit ${ex.name}`} 
+                          />
                         </View>
-                      )}
+                      </View>
                     </View>
                   ))}
 
@@ -526,7 +559,7 @@ export default function DaysTab() {
 
       
 
-      {/* Edit Exercise Modal */}
+      {/* Edit Exercise Modal for Expanded Day */}
       <Modal
         visible={showEditExerciseModal}
         transparent
@@ -539,45 +572,39 @@ export default function DaysTab() {
               <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Edit Exercise</Text>
               
               <Text style={{ marginBottom: 4, fontWeight: '500' }}>Exercise Name:</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <TextInput
-                  style={[styles.input, styles.textInput]}
-                  placeholder="e.g. Bench Press"
-                  value={editingEx.name}
-                  onChangeText={v => setEditingEx(e => ({ ...e, name: v }))}
-                  returnKeyType="done"
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                />
-              </View>
+              <TextInput
+                style={[styles.input, styles.textInput, { marginBottom: 8 }]}
+                placeholder="e.g. Bench Press"
+                value={editingEx.name}
+                onChangeText={v => setEditingEx(e => ({ ...e, name: v }))}
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
+              />
 
               <View style={{ flexDirection: 'row', marginBottom: 12 }}>
                 <View style={{ flex: 1, marginRight: 8 }}>
                   <Text style={{ marginBottom: 4, fontWeight: '500' }}>Sets:</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
-                    <TextInput
-                      style={[styles.input, styles.textInput]}
-                      placeholder="3"
-                      value={editingEx.sets}
-                      onChangeText={v => setEditingEx(e => ({ ...e, sets: v }))}
-                      keyboardType="numeric"
-                      returnKeyType="done"
-                      onSubmitEditing={() => Keyboard.dismiss()}
-                    />
-                  </View>
+                  <TextInput
+                    style={[styles.input, styles.textInput]}
+                    placeholder="3"
+                    value={editingEx.sets}
+                    onChangeText={v => setEditingEx(e => ({ ...e, sets: v }))}
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                  />
                 </View>
                 <View style={{ flex: 1, marginLeft: 8 }}>
                   <Text style={{ marginBottom: 4, fontWeight: '500' }}>Reps:</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
-                    <TextInput
-                      style={[styles.input, styles.textInput]}
-                      placeholder="8-12"
-                      value={editingEx.reps}
-                      onChangeText={v => setEditingEx(e => ({ ...e, reps: v }))}
-                      keyboardType="numeric"
-                      returnKeyType="done"
-                      onSubmitEditing={() => Keyboard.dismiss()}
-                    />
-                  </View>
+                  <TextInput
+                    style={[styles.input, styles.textInput]}
+                    placeholder="8-12"
+                    value={editingEx.reps}
+                    onChangeText={v => setEditingEx(e => ({ ...e, reps: v }))}
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                  />
                 </View>
               </View>
 
@@ -593,18 +620,100 @@ export default function DaysTab() {
                 numberOfLines={3}
               />
 
-              <View>
-                <ModalButtons
-                  leftLabel="Cancel"
-                  rightLabel="Save"
-                  onLeftPress={() => { setEditingExId(null); setEditingEx({ name: '', sets: '', reps: '', notes: '' }); setShowEditExerciseModal(false); }}
-                  onRightPress={handleSaveEditExercise}
-                  leftColor="#e0e0e0"
-                  rightColor="#007AFF"
-                  leftTextColor="#333"
-                  rightTextColor="#fff"
-                />
+              <ModalButtons
+                leftLabel="Cancel"
+                rightLabel="Save"
+                onLeftPress={() => { 
+                  setEditingExId(null); 
+                  setEditingEx({ name: '', sets: '', reps: '', notes: '' }); 
+                  setShowEditExerciseModal(false); 
+                }}
+                onRightPress={handleSaveEditExercise}
+                leftColor="#e0e0e0"
+                rightColor="#007AFF"
+                leftTextColor="#333"
+                rightTextColor="#fff"
+              />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Preview Exercise Modal for Add Day */}
+      <Modal
+        visible={showPreviewEditModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPreviewEditModal(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Edit Exercise</Text>
+              
+              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Exercise Name:</Text>
+              <TextInput
+                style={[styles.input, styles.textInput, { marginBottom: 8 }]}
+                placeholder="e.g. Bench Press"
+                value={previewEditForm.name}
+                onChangeText={v => setPreviewEditForm(e => ({ ...e, name: v }))}
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
+              />
+
+              <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={{ marginBottom: 4, fontWeight: '500' }}>Sets:</Text>
+                  <TextInput
+                    style={[styles.input, styles.textInput]}
+                    placeholder="3"
+                    value={previewEditForm.sets}
+                    onChangeText={v => setPreviewEditForm(e => ({ ...e, sets: v }))}
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                  />
+                </View>
+                <View style={{ flex: 1, marginLeft: 8 }}>
+                  <Text style={{ marginBottom: 4, fontWeight: '500' }}>Reps:</Text>
+                  <TextInput
+                    style={[styles.input, styles.textInput]}
+                    placeholder="8-12"
+                    value={previewEditForm.reps}
+                    onChangeText={v => setPreviewEditForm(e => ({ ...e, reps: v }))}
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                  />
+                </View>
               </View>
+
+              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Notes (optional):</Text>
+              <TextInput
+                style={[styles.input, styles.textInputMultiline, { marginBottom: 16 }]}
+                placeholder="e.g. Focus on form, increase weight next week"
+                value={previewEditForm.notes}
+                onChangeText={v => setPreviewEditForm(e => ({ ...e, notes: v }))}
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
+                multiline
+                numberOfLines={3}
+              />
+
+              <ModalButtons
+                leftLabel="Cancel"
+                rightLabel="Save"
+                onLeftPress={() => { 
+                  setEditingPreviewIdx(null);
+                  setPreviewEditForm({ name: '', sets: '', reps: '', notes: '' }); 
+                  setShowPreviewEditModal(false); 
+                }}
+                onRightPress={handleSavePreviewEdit}
+                leftColor="#e0e0e0"
+                rightColor="#007AFF"
+                leftTextColor="#333"
+                rightTextColor="#fff"
+              />
             </ScrollView>
           </View>
         </View>
