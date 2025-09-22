@@ -27,7 +27,6 @@ export default function DaysTab() {
   const [exercises, setExercises] = useState<any[]>([]);
   const [exLoading, setExLoading] = useState(false);
   const [exerciseCounts, setExerciseCounts] = useState<Record<string, number>>({});
-  const [newExercise, setNewExercise] = useState({ name: '', sets: '', reps: '', notes: '' });
   const [addingEx, setAddingEx] = useState(false);
   const [editingExId, setEditingExId] = useState<string | null>(null);
   const [editingEx, setEditingEx] = useState({ name: '', sets: '', reps: '', notes: '' });
@@ -40,11 +39,10 @@ export default function DaysTab() {
   const [showEditExerciseModal, setShowEditExerciseModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const [deleteTargetType, setDeleteTargetType] = useState<'day' | 'exercise' | null>(null);
+  const [deleteTargetType, setDeleteTargetType] = useState<'day' | 'exercise' | 'preview' | null>(null);
   // Local modal preview edit state for Add Day exercises
   const [newModalEditIndex, setNewModalEditIndex] = useState<number | null>(null);
   const [newModalEditingEx, setNewModalEditingEx] = useState({ name: '', sets: '', reps: '', notes: '' });
-  const [showPreviewDeleteConfirm, setShowPreviewDeleteConfirm] = useState(false);
   const [previewDeleteIndex, setPreviewDeleteIndex] = useState<number | null>(null);
 
   const showValidationToast = (msg: string) => {
@@ -157,15 +155,17 @@ export default function DaysTab() {
   };
 
   const confirmDelete = async () => {
-    if (!deleteTargetId || !deleteTargetType) return;
+    if (!deleteTargetType) return;
     try {
       if (deleteTargetType === 'exercise') {
+        if (!deleteTargetId) return;
         const { error } = await supabase.from('exercises').delete().eq('id', deleteTargetId);
         if (error) throw error;
         if (selectedDayId) fetchExercises(selectedDayId);
         // refresh counts
         fetchDays();
       } else if (deleteTargetType === 'day') {
+        if (!deleteTargetId) return;
         // delete exercises first, then day
         const { error: err1 } = await supabase.from('exercises').delete().eq('day_id', deleteTargetId);
         if (err1) throw err1;
@@ -173,6 +173,10 @@ export default function DaysTab() {
         if (err2) throw err2;
         if (selectedDayId === deleteTargetId) setSelectedDayId(null);
         fetchDays();
+      } else if (deleteTargetType === 'preview') {
+        if (previewDeleteIndex !== null) {
+          setExercises(prev => prev.filter((_, i) => i !== previewDeleteIndex));
+        }
       }
     } catch (error: any) {
       Alert.alert('Error', error?.message || 'Failed to delete');
@@ -180,35 +184,11 @@ export default function DaysTab() {
       setShowDeleteConfirm(false);
       setDeleteTargetId(null);
       setDeleteTargetType(null);
+      setPreviewDeleteIndex(null);
     }
   };
 
   // Exercise handlers
-  const handleAddExercise = async () => {
-    if (!selectedDayId || !newExercise.name.trim() || !newExercise.sets || !newExercise.reps) {
-      showValidationToast('Exercise name, sets, and reps are required');
-      return;
-    }
-    setAddingEx(true);
-    try {
-      const { error } = await supabase.from('exercises').insert({
-        day_id: selectedDayId,
-        name: newExercise.name.trim(),
-        sets: parseInt(newExercise.sets, 10),
-        reps: parseInt(newExercise.reps, 10),
-        notes: newExercise.notes,
-      });
-      if (error) {
-        Alert.alert('Error', error.message);
-      } else {
-        setNewExercise({ name: '', sets: '', reps: '', notes: '' });
-        fetchExercises(selectedDayId);
-        fetchDays();
-      }
-    } finally {
-      setAddingEx(false);
-    }
-  };
 
   const handleEditExercise = (ex: any) => {
     setEditingExId(ex.id);
@@ -399,9 +379,9 @@ export default function DaysTab() {
                   <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Exercises</Text>
                   {/* Exercise list preview while adding a day (not yet persisted) */}
                   {(exercises || []).map((ex, idx) => (
-                    <View key={ex.id || ex.name || idx} style={{ marginBottom: 8, padding: 8, borderRadius: 8, backgroundColor: '#f7f7f7' }}>
+                    <View key={ex.id || ex.name || idx} style={styles.exerciseBox}>
                       {newModalEditIndex === idx ? (
-                        <View>
+                        <View style={{ padding: 8 }}>
                           <TextInput value={newModalEditingEx.name} onChangeText={(v) => setNewModalEditingEx(prev => ({ ...prev, name: v }))} placeholder="Name" style={[styles.input, styles.textInput, { marginBottom: 6 }]} />
                           <View style={{ flexDirection: 'row' }}>
                             <TextInput value={newModalEditingEx.sets} onChangeText={(v) => setNewModalEditingEx(prev => ({ ...prev, sets: v }))} placeholder="Sets" style={[styles.input, styles.textInput, { flex: 1, marginRight: 6 }]} keyboardType="numeric" />
@@ -423,12 +403,14 @@ export default function DaysTab() {
                           </View>
                         </View>
                       ) : (
-                        <View>
-                          <Text style={{ fontWeight: '600' }}>{ex.name}</Text>
-                          <Text style={{ color: '#666' }}>{ex.sets} sets × {ex.reps} reps</Text>
-                          {ex.notes ? <Text style={{ color: '#666' }}>{ex.notes}</Text> : null}
-                          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8, alignItems: 'center' }}>
-                            <RemoveButton onPress={() => { setPreviewDeleteIndex(idx); setShowPreviewDeleteConfirm(true); }} label="Delete" accessibilityLabel={`Delete ${ex.name}`} textStyle={{ color: '#ff3b30', fontWeight: '700' }} />
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.exerciseName}>{ex.name}</Text>
+                            <Text style={styles.exerciseDetails}>{ex.sets} sets × {ex.reps} reps</Text>
+                            {ex.notes ? <Text style={styles.exerciseNotes}>{ex.notes}</Text> : null}
+                          </View>
+                          <View style={[styles.exerciseActions, { alignSelf: 'center' }]}> 
+                            <RemoveButton onPress={() => { setPreviewDeleteIndex(idx); setDeleteTargetType('preview'); setShowDeleteConfirm(true); }} label="Delete" accessibilityLabel={`Delete ${ex.name}`} textStyle={styles.deleteTextSmall} />
                             <EditPencil onPress={() => { setNewModalEditIndex(idx); setNewModalEditingEx({ name: ex.name, sets: String(ex.sets), reps: String(ex.reps), notes: ex.notes || '' }); }} accessibilityLabel={`Edit ${ex.name}`} />
                           </View>
                         </View>
@@ -438,12 +420,15 @@ export default function DaysTab() {
 
                   <View style={{ marginTop: 8 }}>
                     <AddExercise
-                      mode="inline"
+                      mode="modal"
+                      addButtonText="Add Exercise"
                       onAdd={(ex) => {
                         setExercises(prev => [...prev, ex]);
                       }}
                     />
                   </View>
+
+                  
                 </>
               )}
 
@@ -452,7 +437,7 @@ export default function DaysTab() {
                   <ModalButtons
                     leftLabel="Cancel"
                     rightLabel="Next"
-                    onLeftPress={() => { setNewDayName(''); setExercises([]); setNewExercise({ name: '', sets: '', reps: '', notes: '' }); setShowAddDayModal(false); setNewDayTab(0); }}
+                    onLeftPress={() => { setNewDayName(''); setExercises([]); setShowAddDayModal(false); setNewDayTab(0); }}
                     onRightPress={() => setNewDayTab(newDayTab + 1)}
                     leftColor="#e0e0e0"
                     rightColor="#007AFF"
@@ -463,7 +448,7 @@ export default function DaysTab() {
                   <ModalButtons
                     leftLabel="Cancel"
                     rightLabel={adding ? 'Creating...' : 'Create'}
-                    onLeftPress={() => { setNewDayName(''); setExercises([]); setNewExercise({ name: '', sets: '', reps: '', notes: '' }); setShowAddDayModal(false); setNewDayTab(0); }}
+                    onLeftPress={() => { setNewDayName(''); setExercises([]); setShowAddDayModal(false); setNewDayTab(0); }}
                     onRightPress={async () => {
                       const created = await handleAddDay();
                       if (!created || !created.id) return;
@@ -496,22 +481,7 @@ export default function DaysTab() {
         </View>
       </Modal>
 
-      {/* Preview Delete Confirm for Add Day modal */}
-      <ConfirmModal
-        visible={showPreviewDeleteConfirm}
-        title="Delete Exercise?"
-        message="Are you sure you want to delete this exercise from the preview?"
-        confirmLabel="Delete"
-        onConfirm={() => {
-          if (previewDeleteIndex !== null) {
-            setExercises(prev => prev.filter((_, i) => i !== previewDeleteIndex));
-          }
-          setShowPreviewDeleteConfirm(false);
-          setPreviewDeleteIndex(null);
-        }}
-        onCancel={() => { setShowPreviewDeleteConfirm(false); setPreviewDeleteIndex(null); }}
-        confirmColor="#ff3b30"
-      />
+      
 
       {/* Edit Day Modal */}
       <Modal
@@ -654,7 +624,7 @@ export default function DaysTab() {
                 Delete {deleteTargetType === 'day' ? 'Day' : 'Exercise'}?
               </Text>
               <Text style={{ marginBottom: 16 }}>
-                Are you sure you want to permanently delete this {deleteTargetType}? This action cannot be undone.
+                Are you sure you want to permanently delete this {deleteTargetType === 'day' ? 'day' : 'exercise'}? This action cannot be undone.
               </Text>
               <View>
                 <ModalButtons
