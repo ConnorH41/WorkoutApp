@@ -237,7 +237,6 @@ export function useTodayWorkout() {
           const providedSplitDays = opts?.splitDays;
           if (providedRun && providedSplit) {
             const mappedId = computeMappedDayIdForDate(target, { activeRun: providedRun, splitTemplate: providedSplit, splitDays: providedSplitDays });
-            try { console.debug('[useTodayWorkout] mappedId (provided) for', target.toISOString().slice(0,10), '=>', mappedId); } catch (e) {}
             setSplitDayMapped(true);
             setSplitDayId(mappedId ?? null);
             if (mappedId) {
@@ -253,7 +252,6 @@ export function useTodayWorkout() {
             }
           } else if (activeSplitRun && splitTemplate) {
             const mappedId = computeMappedDayIdForDate(target);
-            try { console.debug('[useTodayWorkout] mappedId for', target.toISOString().slice(0,10), '=>', mappedId); } catch (e) {}
             setSplitDayMapped(true);
             setSplitDayId(mappedId ?? null);
             if (mappedId) {
