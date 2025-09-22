@@ -117,6 +117,10 @@ export default function TodayTab() {
   const base = ((exercises && exercises.length > 0) ? exercises : splitDayExercises) || [];
   const visibleExercises = base.filter((it) => !removedExerciseIds.includes(it.id));
 
+  // Header label and rest detection: some splits (rotation rest-only) show 'Rest' in the header
+  const headerDayLabel = (splitDayName || dayNameFromWorkout || 'Rest');
+  const headerIsRest = !!isRestDay || headerDayLabel === 'Rest';
+
     const Header = () => (
       <View style={{ paddingHorizontal: 16 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
@@ -169,7 +173,7 @@ export default function TodayTab() {
           <View style={{ marginTop: 12 }}>
             <WorkoutControls
               todayWorkout={todayWorkout}
-              isRestDay={!!isRestDay}
+              isRestDay={headerIsRest}
               completing={completing}
               resting={resting}
               onConfirmComplete={() => setShowCompleteConfirm(true)}
@@ -177,8 +181,8 @@ export default function TodayTab() {
             />
           </View>
 
-          {/* If there's no workout for today and it's not marked rest, allow marking as rest day */}
-          {!todayWorkout && !isRestDay && (
+          {/* If there's no workout for today and neither the run nor the header indicate a rest day, allow marking as rest day */}
+          {!todayWorkout && !headerIsRest && (
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={() => setShowRestConfirm(true)}
@@ -189,8 +193,8 @@ export default function TodayTab() {
             </TouchableOpacity>
           )}
 
-          {/* If it's a rest day show a friendly message instead of the mark button */}
-          {isRestDay && (
+          {/* If it's a rest day (either flagged or implied by header) show a friendly message instead of the mark button */}
+          {headerIsRest && (
             <View style={{ padding: 12, alignItems: 'center' }}>
               <Text style={{ color: '#666', fontSize: 16, textAlign: 'center' }}>Today is a rest day — just chill and recover.</Text>
             </View>

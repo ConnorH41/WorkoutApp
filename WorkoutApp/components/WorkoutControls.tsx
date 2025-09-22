@@ -19,9 +19,9 @@ export default function WorkoutControls({ todayWorkout, isRestDay, completing = 
         </TouchableOpacity>
       )}
 
-      {todayWorkout && (
-        <TouchableOpacity onPress={onConfirmRestToggle} disabled={resting} style={{ marginTop: 8, backgroundColor: isRestDay ? '#007AFF' : '#fff', borderWidth: isRestDay ? 0 : 1, borderColor: '#ccc', padding: 10, borderRadius: 8, alignItems: 'center' }}>
-          <Text style={{ color: isRestDay ? '#fff' : '#333', fontWeight: '700' }}>{resting ? 'Logging...' : (isRestDay ? 'Unmark as Rest Day' : 'Mark as Rest Day')}</Text>
+      {todayWorkout && !isRestDay && (
+        <TouchableOpacity onPress={onConfirmRestToggle} disabled={resting} style={{ marginTop: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: '#ccc', padding: 10, borderRadius: 8, alignItems: 'center' }}>
+          <Text style={{ color: '#333', fontWeight: '700' }}>{resting ? 'Logging...' : 'Mark as Rest Day'}</Text>
         </TouchableOpacity>
       )}
     </View>
