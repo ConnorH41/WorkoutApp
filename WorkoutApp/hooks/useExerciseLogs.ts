@@ -86,6 +86,16 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
       if (setRow.logId) {
         const { error } = await api.updateLog(setRow.logId, { completed: willComplete });
         if (error) throw error;
+        // If this exercise is a persisted workout_exercise instance, also update its completed flag
+        try {
+          const localExercises = opts?.getExercises ? opts.getExercises() : [];
+          const localEx = localExercises.find((e: any) => String(e.id) === String(exerciseId));
+          if (localEx && localEx.workout_id) {
+            await api.updateWorkoutExercise(localEx.id, { completed: willComplete, completed_at: willComplete ? new Date().toISOString() : null });
+          }
+        } catch (e) {
+          // ignore sync error
+        }
       } else if (willComplete) {
         const payload: any = {
           workout_id: workout.id,
@@ -104,6 +114,16 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
             arr[index] = { ...(arr[index] || {}), completed: true, logId: data[0].id } as any;
             return { ...prev, [exerciseId]: arr };
           });
+          // If this exercise corresponds to a persisted workout_exercise instance, mark it completed
+          try {
+            const localExercises = opts?.getExercises ? opts.getExercises() : [];
+            const localEx = localExercises.find((e: any) => String(e.id) === String(exerciseId));
+            if (localEx && localEx.workout_id) {
+              await api.updateWorkoutExercise(localEx.id, { completed: true, completed_at: new Date().toISOString() });
+            }
+          } catch (e) {
+            // ignore
+          }
         }
       } else {
         setLogs(prev => {
@@ -111,6 +131,16 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
           arr[index] = { ...(arr[index] || {}), completed: false } as any;
           return { ...prev, [exerciseId]: arr };
         });
+        // If un-completing and there's a persisted instance, clear its completed flag
+        try {
+          const localExercises = opts?.getExercises ? opts.getExercises() : [];
+          const localEx = localExercises.find((e: any) => String(e.id) === String(exerciseId));
+          if (localEx && localEx.workout_id) {
+            await api.updateWorkoutExercise(localEx.id, { completed: false, completed_at: null });
+          }
+        } catch (e) {
+          // ignore
+        }
       }
     } catch (e: any) {
       Alert.alert('Error', e.message || String(e));
