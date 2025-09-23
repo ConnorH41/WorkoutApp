@@ -272,45 +272,26 @@ export default function DaysTab() {
             {selectedDayId === item.id && (
               <View style={styles.exerciseSection}>
                 <Text style={styles.exerciseTitle}>Exercises</Text>
-                {exLoading ? <Text>Loading...</Text> : (
-                  <View>
-                    {(exercises || []).map((ex, i) => (
-                      <View key={ex.id ?? `${ex.name}-${i}`} style={styles.exerciseBox}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.exerciseName}>{ex.name}</Text>
-                            <Text style={styles.exerciseDetails}>{ex.sets} sets × {ex.reps} reps</Text>
-                            {ex.notes ? <Text style={styles.exerciseNotes}>{ex.notes}</Text> : null}
-                          </View>
-                          <View style={[styles.exerciseActions, { alignSelf: 'center' }]}> 
-                            <RemoveButton onPress={() => ex.id && handleDeleteExercise(ex.id)} label="Delete" accessibilityLabel={`Delete ${ex.name}`} textStyle={styles.deleteTextSmall} />
-                            <EditPencil onPress={() => handleEditExercise(ex)} accessibilityLabel={`Edit ${ex.name}`} />
-                          </View>
-                        </View>
-                      </View>
-                    ))}
-                    <AddExercise
-                      mode="modal"
-                      adding={addingEx}
-                      onAdd={async (ex) => {
-                        if (!item.id) return;
-                        setAddingEx(true);
-                        try {
-                          try {
-                            const form = { name: ex.name, sets: String(ex.sets), reps: String(ex.reps), notes: ex.notes } as ExerciseForm;
-                            await createExercise(item.id, form);
-                            await fetchExercises(item.id);
-                            await fetchDays(profile?.id);
-                          } catch (err: any) {
-                            Alert.alert('Error', err?.message || 'Failed to add exercise');
-                          }
-                        } finally {
-                          setAddingEx(false);
-                        }
-                      }}
-                    />
-                  </View>
-                )}
+                <ExercisesList
+                  exercises={exercises}
+                  onEdit={(ex) => handleEditExercise(ex)}
+                  onDelete={(id) => id && handleDeleteExercise(id)}
+                  onAdd={async (ex) => {
+                    if (!item.id) return;
+                    setAddingEx(true);
+                    try {
+                      const form = { name: ex.name, sets: String(ex.sets), reps: String(ex.reps), notes: ex.notes } as ExerciseForm;
+                      await createExercise(item.id, form);
+                      await fetchExercises(item.id);
+                      await fetchDays(profile?.id);
+                    } catch (err: any) {
+                      Alert.alert('Error', err?.message || 'Failed to add exercise');
+                    } finally {
+                      setAddingEx(false);
+                    }
+                  }}
+                  loading={exLoading}
+                />
               </View>
             )}
           </TouchableOpacity>

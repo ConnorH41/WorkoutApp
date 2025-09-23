@@ -4,6 +4,7 @@ import splitStyles from '../styles/splitsStyles';
 import styles from '../styles/daysStyles';
 import ModalButtons from './ModalButtons';
 import AddExercise from './AddExercise';
+import PreviewExerciseEditor from './PreviewExerciseEditor';
 import { ExerciseForm } from '../lib/types';
 
 type Props = {
@@ -45,25 +46,7 @@ export default function AddDayModal({ visible, onClose, tabIndex, setTabIndex, d
 
             {tabIndex === 1 && (
               <>
-                <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Exercises</Text>
-                {(exercises || []).map((ex, idx) => (
-                  <View key={ex.id || ex.name || idx} style={styles.exerciseBox}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.exerciseName}>{ex.name}</Text>
-                        <Text style={styles.exerciseDetails}>{ex.sets} sets × {ex.reps} reps</Text>
-                        {ex.notes ? <Text style={styles.exerciseNotes}>{ex.notes}</Text> : null}
-                      </View>
-                    </View>
-                  </View>
-                ))}
-
-                <View style={{ marginTop: 8 }}>
-                  <AddExercise mode="modal" addButtonText="Add Exercise" onAdd={(ex) => {
-                    const form: ExerciseForm = { name: ex.name, sets: String(ex.sets), reps: String(ex.reps), notes: ex.notes };
-                    setExercises(prev => [...prev, form]);
-                  }} />
-                </View>
+                <PreviewExerciseEditor exercises={exercises} setExercises={setExercises} />
               </>
             )}
 
