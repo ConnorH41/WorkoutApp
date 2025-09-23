@@ -117,8 +117,15 @@ export default function TodayTab() {
     </View>
   );
 
-  // Prepare the data array for the FlatList: prefer `exercises` if present, else `splitDayExercises`.
-  const base = ((exercises && exercises.length > 0) ? exercises : splitDayExercises) || [];
+  // Prepare the data array for the FlatList:
+  // - If there's a persisted workout for today, show its `exercises` only.
+  // - Otherwise (no workout), show scheduled `splitDayExercises` first, then any locally-added `exercises`.
+  let base: any[] = [];
+  if (todayWorkout) {
+    base = (exercises && exercises.length > 0) ? exercises : [];
+  } else {
+    base = [...(splitDayExercises || []), ...(exercises || [])];
+  }
   const visibleExercises = base.filter((it) => !removedExerciseIds.includes(it.id));
 
   // Header label and rest detection: some splits (rotation rest-only) show 'Rest' in the header
@@ -207,6 +214,24 @@ export default function TodayTab() {
               <Text style={{ color: '#666', fontSize: 16, textAlign: 'center' }}>Today is a rest day — just chill and recover.</Text>
             </View>
           )}
+
+          {/* Add transient exercise button - persists exercise with null day_id */}
+          <View style={{ marginTop: 12, alignItems: 'center' }}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => {
+                // create a blank local exercise card (not persisted)
+                try {
+                  addBlankExerciseToWorkout();
+                } catch (e) {
+                  // ignore
+                }
+              }}
+              style={[styles.secondaryButton, { backgroundColor: '#f0f0f0' }]}
+            >
+              <Text style={[styles.secondaryButtonText, { color: '#333' }]}>+ Add Exercise</Text>
+            </TouchableOpacity>
+          </View>
 
         </View>
       )}

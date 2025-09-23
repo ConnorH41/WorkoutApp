@@ -409,6 +409,25 @@ export function useTodayWorkout() {
     return newEx;
   };
 
+  // Create a persisted exercise with a null day_id so it appears in today's UI
+  // but does not attach to a day. Useful for on-the-fly logging.
+  const addTransientExercise = async (name = 'Exercise Name') => {
+    if (!profile || !profile.id) return null;
+    try {
+      const payload: any = { name: name, user_id: profile.id, day_id: null, sets: 1, reps: '' };
+      const { data, error } = await api.insertExercise(payload);
+      if (error) return null;
+      if (data && data.length > 0) {
+        const ex = data[0];
+        setExercises(prev => [...prev, ex]);
+        return ex;
+      }
+    } catch (e) {
+      return null;
+    }
+    return null;
+  };
+
   const deleteExercise = async (exerciseId: string) => {
     if (!profile || !profile.id) return false;
     try {
@@ -510,5 +529,6 @@ export function useTodayWorkout() {
     setTodayWorkout,
     setExercises,
     setSplitDayExercises,
+    addTransientExercise,
   };
 }
