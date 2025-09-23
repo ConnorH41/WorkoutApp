@@ -11,8 +11,13 @@ import useExercises from '../hooks/useExercises';
 import ModalButtons from '../components/ModalButtons';
 import EditPencil from '../components/EditPencil';
 import RemoveButton from '../components/RemoveButton';
-import ConfirmModal from '../components/ConfirmModal';
 import AddExercise from '../components/AddExercise';
+import DayRow from '../components/DayRow';
+import ExercisesList from '../components/ExercisesList';
+import AddDayModal from '../components/AddDayModal';
+import EditDayModal from '../components/EditDayModal';
+import DeleteConfirmModal from '../components/DeleteConfirmModal';
+import EditExerciseModal from '../components/EditExerciseModal';
 
 export default function DaysTab() {
   const insets = useSafeAreaInsets();
@@ -58,85 +63,6 @@ export default function DaysTab() {
   };
 
   // Fetch exercises for a day
-  // fetchExercises comes from the hook
-
-  // Day CRUD
-  // fetchDays comes from the hook
-
-  const handleAddDay = async () => {
-    if (!newDayName.trim()) {
-      showValidationToast('Day name is required');
-      return null;
-    }
-    setAdding(true);
-    try {
-      const created = await createDay(newDayName.trim(), profile?.id);
-      setNewDayName('');
-      return created;
-    } finally {
-      setAdding(false);
-    }
-  };
-
-  const handleEditDay = (id: string, name: string) => {
-    setEditingDayId(id);
-    setEditingDayName(name);
-    setShowEditDayModal(true);
-  };
-
-  const handleSaveEditDay = async () => {
-    if (!editingDayId || !editingDayName.trim()) {
-      showValidationToast('Day name is required');
-      return;
-    }
-    try {
-      await updateDay(editingDayId, editingDayName.trim(), profile?.id);
-      setEditingDayId(null);
-      setEditingDayName('');
-      setShowEditDayModal(false);
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to update day');
-    }
-  };
-
-  const handleDeleteDay = (id: string) => {
-    setDeleteTargetId(id);
-    setDeleteTargetType('day');
-    setShowDeleteConfirm(true);
-  };
-
-  const handleDeleteExercise = (id: string) => {
-    setDeleteTargetId(id);
-    setDeleteTargetType('exercise');
-    setShowDeleteConfirm(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!deleteTargetType) return;
-    try {
-      if (deleteTargetType === 'exercise') {
-        if (!deleteTargetId) return;
-        await deleteExercise(deleteTargetId, selectedDayId ?? undefined);
-        // refresh counts via days hook
-        await fetchDays(profile?.id);
-      } else if (deleteTargetType === 'day') {
-        if (!deleteTargetId) return;
-        await deleteDay(deleteTargetId, profile?.id);
-        if (selectedDayId === deleteTargetId) setSelectedDayId(null);
-      } else if (deleteTargetType === 'preview') {
-        if (previewDeleteIndex !== null) {
-          setExercises(prev => prev.filter((_, i) => i !== previewDeleteIndex));
-        }
-      }
-    } catch (error: any) {
-      Alert.alert('Error', error?.message || 'Failed to delete');
-    } finally {
-      setShowDeleteConfirm(false);
-      setDeleteTargetId(null);
-      setDeleteTargetType(null);
-      setPreviewDeleteIndex(null);
-    }
-  };
 
   // Exercise handlers - REBUILT FROM SCRATCH
 
@@ -215,6 +141,82 @@ export default function DaysTab() {
       fetchDays(profile.id);
     }
   }, [profile?.id]);
+
+  // Day and delete handlers
+  const handleEditDay = (id: string, name: string) => {
+    setEditingDayId(id);
+    setEditingDayName(name);
+    setShowEditDayModal(true);
+  };
+
+  const handleDeleteDay = (id: string) => {
+    setDeleteTargetId(id);
+    setDeleteTargetType('day');
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteExercise = (id: string) => {
+    setDeleteTargetId(id);
+    setDeleteTargetType('exercise');
+    setShowDeleteConfirm(true);
+  };
+
+  const handleAddDay = async (): Promise<Day | null> => {
+    if (!newDayName.trim()) {
+      showValidationToast('Day name is required');
+      return null;
+    }
+    setAdding(true);
+    try {
+      const created = await createDay(newDayName.trim(), profile?.id);
+      return created || null;
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to create day');
+      return null;
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleSaveEditDay = async () => {
+    if (!editingDayId || !editingDayName.trim()) {
+      showValidationToast('Day name is required');
+      return;
+    }
+    try {
+      await updateDay(editingDayId, editingDayName.trim(), profile?.id);
+      setShowEditDayModal(false);
+      setEditingDayId(null);
+      setEditingDayName('');
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to update day');
+    }
+  };
+
+  const confirmDelete = async () => {
+    setShowDeleteConfirm(false);
+    try {
+      if (deleteTargetType === 'day' && deleteTargetId) {
+        await deleteDay(deleteTargetId, profile?.id);
+        if (selectedDayId === deleteTargetId) {
+          setSelectedDayId(null);
+          setExercises([]);
+        }
+      } else if (deleteTargetType === 'exercise' && deleteTargetId) {
+        await deleteExercise(deleteTargetId, selectedDayId ?? undefined);
+        if (selectedDayId) await fetchExercises(selectedDayId);
+        await fetchDays(profile?.id);
+      } else if (deleteTargetType === 'preview' && previewDeleteIndex !== null) {
+        setExercises(prev => prev.filter((_, i) => i !== previewDeleteIndex));
+        setPreviewDeleteIndex(null);
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Delete failed');
+    } finally {
+      setDeleteTargetId(null);
+      setDeleteTargetType(null);
+    }
+  };
 
   const ListHeader = () => (
     <View style={{ paddingHorizontal: 16 }}>
@@ -315,381 +317,65 @@ export default function DaysTab() {
         )}
       />
 
-      {/* Add Day Modal */}
-      <Modal
+      <AddDayModal
         visible={showAddDayModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowAddDayModal(false)}
-      >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
-            <View style={{ flexDirection: 'row', marginBottom: 20, backgroundColor: '#f0f0f0', borderRadius: 8, padding: 4 }}>
-              <TouchableOpacity
-                style={[splitStyles.tabButton, { backgroundColor: newDayTab === 0 ? '#007AFF' : 'transparent' }]}
-                onPress={() => setNewDayTab(0)}
-              >
-                <Text style={{ color: newDayTab === 0 ? '#fff' : '#333', fontWeight: 'bold', fontSize: 12 }}>1. General</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[splitStyles.tabButton, { backgroundColor: newDayTab === 1 ? '#007AFF' : 'transparent' }]}
-                onPress={() => setNewDayTab(1)}
-              >
-                <Text style={{ color: newDayTab === 1 ? '#fff' : '#333', fontWeight: 'bold', fontSize: 12 }}>2. Exercises</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
-              {newDayTab === 0 && (
-                <>
-                  <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Add New Day</Text>
-
-                  <Text style={{ marginBottom: 4, fontWeight: '500' }}>Day Name:</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                    <TextInput
-                      style={[styles.input, styles.textInput]}
-                      placeholder="e.g. Upper A, Push Day"
-                      value={newDayName}
-                      onChangeText={setNewDayName}
-                      returnKeyType="done"
-                      onSubmitEditing={() => Keyboard.dismiss()}
-                    />
-                  </View>
-                </>
-              )}
-
-              {newDayTab === 1 && (
-                <>
-                  <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Exercises</Text>
-                  {/* Exercise list preview while adding a day (not yet persisted) */}
-                  {(exercises || []).map((ex, idx) => (
-                    <View key={ex.id || ex.name || idx} style={styles.exerciseBox}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.exerciseName}>{ex.name}</Text>
-                          <Text style={styles.exerciseDetails}>{ex.sets} sets × {ex.reps} reps</Text>
-                          {ex.notes ? <Text style={styles.exerciseNotes}>{ex.notes}</Text> : null}
-                        </View>
-                        <View style={[styles.exerciseActions, { alignSelf: 'center' }]}> 
-                          <RemoveButton 
-                            onPress={() => handleDeletePreviewExercise(idx)} 
-                            label="Delete" 
-                            accessibilityLabel={`Delete ${ex.name}`} 
-                            textStyle={styles.deleteTextSmall} 
-                          />
-                          <EditPencil 
-                            onPress={() => handleEditPreviewExercise(idx)} 
-                            accessibilityLabel={`Edit ${ex.name}`} 
-                          />
-                        </View>
-                      </View>
-                    </View>
-                  ))}
-
-                  <View style={{ marginTop: 8 }}>
-                    <AddExercise
-                      mode="modal"
-                      addButtonText="Add Exercise"
-                      onAdd={(ex) => {
-                        // Normalize to ExerciseForm (strings for sets/reps)
-                        const form: ExerciseForm = { name: ex.name, sets: String(ex.sets), reps: String(ex.reps), notes: ex.notes };
-                        setExercises(prev => [...prev, form]);
-                      }}
-                    />
-                  </View>
-
-                  
-                </>
-              )}
-
-              <View style={{ marginTop: 12 }}>
-                {newDayTab < 1 ? (
-                  <ModalButtons
-                    leftLabel="Cancel"
-                    rightLabel="Next"
-                    onLeftPress={() => { setNewDayName(''); setExercises([]); setShowAddDayModal(false); setNewDayTab(0); }}
-                    onRightPress={() => setNewDayTab(newDayTab + 1)}
-                    leftColor="#e0e0e0"
-                    rightColor="#007AFF"
-                    leftTextColor="#333"
-                    rightTextColor="#fff"
-                  />
-                ) : (
-                  <ModalButtons
-                    leftLabel="Cancel"
-                    rightLabel={adding ? 'Creating...' : 'Create'}
-                    onLeftPress={() => { setNewDayName(''); setExercises([]); setShowAddDayModal(false); setNewDayTab(0); }}
-                    onRightPress={async () => {
-                      const created = await handleAddDay();
-                      if (!created || !created.id) return;
-                      const dayId = created.id;
-                      try {
-                        if (dayId && exercises.length > 0) {
-                          for (const ex of exercises) {
-                            try {
-                              await createExercise(dayId, ex);
-                            } catch (err) {
-                              console.warn('Failed to insert exercise', err);
-                            }
-                          }
-                          await fetchDays(profile?.id);
-                        }
-                      } finally {
-                        setNewDayName('');
-                        setExercises([]);
-                        setShowAddDayModal(false);
-                        setNewDayTab(0);
-                      }
-                    }}
-                    leftColor="#e0e0e0"
-                    rightColor="#007AFF"
-                    leftTextColor="#333"
-                    rightTextColor="#fff"
-                    rightDisabled={adding}
-                  />
-                )}
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => { setShowAddDayModal(false); setNewDayTab(0); setNewDayName(''); setExercises([]); }}
+        tabIndex={newDayTab}
+        setTabIndex={setNewDayTab}
+        dayName={newDayName}
+        setDayName={setNewDayName}
+        exercises={exercises}
+        setExercises={setExercises}
+        creating={adding}
+        onCreate={async () => {
+          const created = await handleAddDay();
+          if (!created || !created.id) return;
+          const dayId = created.id;
+          try {
+            if (dayId && exercises.length > 0) {
+              for (const ex of exercises) {
+                try {
+                  await createExercise(dayId, ex);
+                } catch (err) {
+                  console.warn('Failed to insert exercise', err);
+                }
+              }
+              await fetchDays(profile?.id);
+            }
+          } finally {
+            setNewDayName('');
+            setExercises([]);
+            setShowAddDayModal(false);
+            setNewDayTab(0);
+          }
+        }}
+      />
 
       
 
-      {/* Edit Day Modal */}
-      <Modal
-        visible={showEditDayModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowEditDayModal(false)}
-      >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
-            <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Edit Day</Text>
-
-              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Day Name:</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <TextInput
-                  style={[styles.input, styles.textInput]}
-                  placeholder="e.g. Upper A, Push Day"
-                  value={editingDayName}
-                  onChangeText={setEditingDayName}
-                  returnKeyType="done"
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                />
-              </View>
-
-              <View>
-                <ModalButtons
-                  leftLabel="Cancel"
-                  rightLabel="Save"
-                  onLeftPress={() => { setEditingDayId(null); setEditingDayName(''); setShowEditDayModal(false); }}
-                  onRightPress={handleSaveEditDay}
-                  leftColor="#e0e0e0"
-                  rightColor="#007AFF"
-                  leftTextColor="#333"
-                  rightTextColor="#fff"
-                />
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      <EditDayModal visible={showEditDayModal} onClose={() => setShowEditDayModal(false)} name={editingDayName} setName={setEditingDayName} onSave={handleSaveEditDay} />
 
       
 
-      {/* Edit Exercise Modal for Expanded Day */}
-      <Modal
+      <EditExerciseModal
         visible={showEditExerciseModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowEditExerciseModal(false)}
-      >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
-            <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Edit Exercise</Text>
-              
-              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Exercise Name:</Text>
-              <TextInput
-                style={[styles.input, styles.textInput, { marginBottom: 8 }]}
-                placeholder="e.g. Bench Press"
-                value={editingEx.name}
-                onChangeText={v => setEditingEx(e => ({ ...e, name: v }))}
-                returnKeyType="done"
-                onSubmitEditing={() => Keyboard.dismiss()}
-              />
+        exercise={editingEx}
+        setExercise={(e) => setEditingEx(e)}
+        onClose={() => { setEditingExId(null); setEditingEx({ name: '', sets: '', reps: '', notes: '' }); setShowEditExerciseModal(false); }}
+        onSave={handleSaveEditExercise}
+        saving={false}
+      />
 
-              <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={{ marginBottom: 4, fontWeight: '500' }}>Sets:</Text>
-                  <TextInput
-                    style={[styles.input, styles.textInput]}
-                    placeholder="3"
-                    value={editingEx.sets}
-                    onChangeText={v => setEditingEx(e => ({ ...e, sets: v }))}
-                    keyboardType="numeric"
-                    returnKeyType="done"
-                    onSubmitEditing={() => Keyboard.dismiss()}
-                  />
-                </View>
-                <View style={{ flex: 1, marginLeft: 8 }}>
-                  <Text style={{ marginBottom: 4, fontWeight: '500' }}>Reps:</Text>
-                  <TextInput
-                    style={[styles.input, styles.textInput]}
-                    placeholder="8-12"
-                    value={editingEx.reps}
-                    onChangeText={v => setEditingEx(e => ({ ...e, reps: v }))}
-                    keyboardType="numeric"
-                    returnKeyType="done"
-                    onSubmitEditing={() => Keyboard.dismiss()}
-                  />
-                </View>
-              </View>
-
-              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Notes (optional):</Text>
-              <TextInput
-                style={[styles.input, styles.textInputMultiline, { marginBottom: 16 }]}
-                placeholder="e.g. Focus on form, increase weight next week"
-                value={editingEx.notes}
-                onChangeText={v => setEditingEx(e => ({ ...e, notes: v }))}
-                returnKeyType="done"
-                onSubmitEditing={() => Keyboard.dismiss()}
-                multiline
-                numberOfLines={3}
-              />
-
-              <ModalButtons
-                leftLabel="Cancel"
-                rightLabel="Save"
-                onLeftPress={() => { 
-                  setEditingExId(null); 
-                  setEditingEx({ name: '', sets: '', reps: '', notes: '' }); 
-                  setShowEditExerciseModal(false); 
-                }}
-                onRightPress={handleSaveEditExercise}
-                leftColor="#e0e0e0"
-                rightColor="#007AFF"
-                leftTextColor="#333"
-                rightTextColor="#fff"
-              />
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Edit Preview Exercise Modal for Add Day */}
-      <Modal
+      <EditExerciseModal
         visible={showPreviewEditModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowPreviewEditModal(false)}
-      >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
-            <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Edit Exercise</Text>
-              
-              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Exercise Name:</Text>
-              <TextInput
-                style={[styles.input, styles.textInput, { marginBottom: 8 }]}
-                placeholder="e.g. Bench Press"
-                value={previewEditForm.name}
-                onChangeText={v => setPreviewEditForm(e => ({ ...e, name: v }))}
-                returnKeyType="done"
-                onSubmitEditing={() => Keyboard.dismiss()}
-              />
+        exercise={previewEditForm}
+        setExercise={(e) => setPreviewEditForm(e)}
+        onClose={() => { setEditingPreviewIdx(null); setPreviewEditForm({ name: '', sets: '', reps: '', notes: '' }); setShowPreviewEditModal(false); }}
+        onSave={handleSavePreviewEdit}
+        saving={false}
+      />
 
-              <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={{ marginBottom: 4, fontWeight: '500' }}>Sets:</Text>
-                  <TextInput
-                    style={[styles.input, styles.textInput]}
-                    placeholder="3"
-                    value={previewEditForm.sets}
-                    onChangeText={v => setPreviewEditForm(e => ({ ...e, sets: v }))}
-                    keyboardType="numeric"
-                    returnKeyType="done"
-                    onSubmitEditing={() => Keyboard.dismiss()}
-                  />
-                </View>
-                <View style={{ flex: 1, marginLeft: 8 }}>
-                  <Text style={{ marginBottom: 4, fontWeight: '500' }}>Reps:</Text>
-                  <TextInput
-                    style={[styles.input, styles.textInput]}
-                    placeholder="8-12"
-                    value={previewEditForm.reps}
-                    onChangeText={v => setPreviewEditForm(e => ({ ...e, reps: v }))}
-                    keyboardType="numeric"
-                    returnKeyType="done"
-                    onSubmitEditing={() => Keyboard.dismiss()}
-                  />
-                </View>
-              </View>
-
-              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Notes (optional):</Text>
-              <TextInput
-                style={[styles.input, styles.textInputMultiline, { marginBottom: 16 }]}
-                placeholder="e.g. Focus on form, increase weight next week"
-                value={previewEditForm.notes}
-                onChangeText={v => setPreviewEditForm(e => ({ ...e, notes: v }))}
-                returnKeyType="done"
-                onSubmitEditing={() => Keyboard.dismiss()}
-                multiline
-                numberOfLines={3}
-              />
-
-              <ModalButtons
-                leftLabel="Cancel"
-                rightLabel="Save"
-                onLeftPress={() => { 
-                  setEditingPreviewIdx(null);
-                  setPreviewEditForm({ name: '', sets: '', reps: '', notes: '' }); 
-                  setShowPreviewEditModal(false); 
-                }}
-                onRightPress={handleSavePreviewEdit}
-                leftColor="#e0e0e0"
-                rightColor="#007AFF"
-                leftTextColor="#333"
-                rightTextColor="#fff"
-              />
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Delete Confirmation Modal */}
-      <Modal
-        visible={showDeleteConfirm}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowDeleteConfirm(false)}
-      >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420 }}>
-            <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>
-                Delete {deleteTargetType === 'day' ? 'Day' : 'Exercise'}?
-              </Text>
-              <Text style={{ marginBottom: 16 }}>
-                Are you sure you want to permanently delete this {deleteTargetType === 'day' ? 'day' : 'exercise'}? This action cannot be undone.
-              </Text>
-              <View>
-                <ModalButtons
-                  leftLabel="Cancel"
-                  rightLabel="Delete"
-                  onLeftPress={() => { setShowDeleteConfirm(false); setDeleteTargetId(null); setDeleteTargetType(null); }}
-                  onRightPress={confirmDelete}
-                  leftColor="#e0e0e0"
-                  rightColor="#ff3b30"
-                  leftTextColor="#333"
-                  rightTextColor="#fff"
-                />
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      <DeleteConfirmModal visible={showDeleteConfirm} onCancel={() => { setShowDeleteConfirm(false); setDeleteTargetId(null); setDeleteTargetType(null); }} onConfirm={confirmDelete} targetType={deleteTargetType} />
     </View>
   );
 }
