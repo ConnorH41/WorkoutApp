@@ -268,9 +268,27 @@ export function useTodayWorkout() {
           else setDayNameFromWorkout(null);
         } else setDayNameFromWorkout(null);
 
-        if (workout.day_id) {
-          const { data: exercisesData } = await api.getExercisesByDayId(workout.day_id);
-          if (exercisesData) setExercises(exercisesData);
+        // Load persisted per-workout instances (workout_exercises) for this workout.
+        try {
+          const { data: instances, error: instErr } = await api.getWorkoutExercisesByWorkoutId(workout.id);
+          if (!instErr && instances) {
+            setExercises(instances);
+          } else {
+            // Fallback: if no instances, fall back to exercises by day_id when available
+            if (workout.day_id) {
+              const { data: exercisesData } = await api.getExercisesByDayId(workout.day_id);
+              if (exercisesData) setExercises(exercisesData);
+            } else {
+              setExercises([]);
+            }
+          }
+        } catch (e) {
+          if (workout.day_id) {
+            const { data: exercisesData } = await api.getExercisesByDayId(workout.day_id);
+            if (exercisesData) setExercises(exercisesData);
+          } else {
+            setExercises([]);
+          }
         }
       } else {
         setTodayWorkout(null);
@@ -355,9 +373,17 @@ export function useTodayWorkout() {
       if (data && data.length > 0) {
         const w = data[0];
         setTodayWorkout(w);
-        if (w.day_id) {
-          const { data: exData } = await api.getExercisesByDayId(w.day_id);
-          setExercises(exData || []);
+        // load any persisted workout_exercises for the new workout (likely empty)
+        try {
+          const { data: instances } = await api.getWorkoutExercisesByWorkoutId(w.id);
+          setExercises(instances || []);
+        } catch (e) {
+          if (w.day_id) {
+            const { data: exData } = await api.getExercisesByDayId(w.day_id);
+            setExercises(exData || []);
+          } else {
+            setExercises([]);
+          }
         }
         return w;
       }
