@@ -35,6 +35,60 @@ export function useTodayWorkout() {
     }
   }, [profile?.id]);
 
+  // Realtime listener: watch split_runs for changes for this user and refresh
+  useEffect(() => {
+    if (!profile || !profile.id || !supabase?.channel) return;
+    // Try to use new Realtime API (channel) if available, else fallback to on()
+    let channel: any = null;
+    try {
+      // channel name scoped to user
+      channel = supabase.channel(`public:split_runs:user:${profile.id}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'split_runs', filter: `user_id=eq.${profile.id}` }, (payload: any) => {
+          // When a split_run changes, refresh active run and today's workout
+          (async () => {
+            const info = await fetchActiveSplitRun();
+            if (info && info.run && info.split) {
+              await fetchTodayWorkout(undefined, { activeRun: info.run, splitTemplate: info.split, splitDays: info.splitDays });
+            } else {
+              await fetchTodayWorkout();
+            }
+          })();
+        })
+        .subscribe();
+    } catch (e) {
+      // Fallback for older SDKs: use from().on() via any-cast to avoid type complaints
+      try {
+        const clientAny: any = supabase as any;
+        const sub = clientAny
+          .from('split_runs')
+          .on('*', (payload: any) => {
+            if (!payload || !payload.record) return;
+            // only react to events for this user
+            if (String(payload.record.user_id) !== String(profile.id)) return;
+            (async () => {
+              const info = await fetchActiveSplitRun();
+              if (info && info.run && info.split) {
+                await fetchTodayWorkout(undefined, { activeRun: info.run, splitTemplate: info.split, splitDays: info.splitDays });
+              } else {
+                await fetchTodayWorkout();
+              }
+            })();
+          })
+          .subscribe();
+        channel = sub;
+      } catch (e2) {
+        channel = null;
+      }
+    }
+
+    return () => {
+      try {
+        if (channel && channel.unsubscribe) channel.unsubscribe();
+        if (channel && channel.remove) channel.remove();
+      } catch {}
+    };
+  }, [profile?.id]);
+
   // Parse YYYY-MM-DD into a date at local midnight
   const parseDateOnly = (s: string | null) => {
     if (!s) return null;

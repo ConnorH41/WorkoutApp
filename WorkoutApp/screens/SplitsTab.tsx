@@ -246,9 +246,37 @@ export default function SplitsTab() {
   const handleConfirmSetCurrentSplit = async () => {
     if (!pendingSplit) return;
     try {
-        // Require a start date to schedule
+        // If no start date provided, treat this as clearing/resetting the timeframe.
         if (!calendarDate) {
-          showValidationToast('Please select a start date to schedule this split.');
+          // Clear local stored timeframe and deactivate any existing active run for this split
+          try {
+            const existingRun = activeRuns.find(r => r.split_id === pendingSplit.id && r.active);
+            if (profile?.id) {
+              if (existingRun && existingRun.id) {
+                await supabase.from('split_runs').update({
+                  start_date: null,
+                  end_date: null,
+                  num_weeks: null,
+                  num_rotations: null,
+                  active: false,
+                }).eq('id', existingRun.id);
+              }
+              await safeStorage.removeItem('currentSplitId');
+              await safeStorage.removeItem('splitStartDate');
+              await safeStorage.removeItem('splitEndDate');
+              await safeStorage.removeItem('splitNumWeeks');
+              await safeStorage.removeItem('splitNumRotations');
+              await fetchActiveRun();
+              await fetchSplits();
+            }
+          } catch (err) {
+            // swallow and show a simple toast
+            showValidationToast('Failed to update split timeframe');
+          }
+          setShowSetModal(false);
+          setPendingSplit(null);
+          setShowStartPicker(false);
+          setShowEndPicker(false);
           return;
         }
       // Prevent overlaps: compute intended start/end (ISO dates) and ensure no active run overlaps
@@ -363,6 +391,8 @@ export default function SplitsTab() {
       setShowEndPicker(false);
     }
   };
+
+  
 
   // Start the current split (set start date)
   const handleStartSplit = async () => {
@@ -1186,8 +1216,12 @@ export default function SplitsTab() {
                             rightColor="#007AFF"
                             leftTextColor="#333"
                             rightTextColor="#fff"
-                            rightDisabled={!calendarDate || (pendingSplit?.mode === 'week' && endBeforeStart)}
+                            // Allow scheduling with empty start date so the user can clear/reset timeframe.
+                            // Only disable when the end date is before the start in weekly mode.
+                            rightDisabled={(pendingSplit?.mode === 'week' && endBeforeStart)}
                           />
+                          {/* Show Clear button when there is an active run for this split */}
+                          
                         </View>
                       </ScrollView>
                     </View>
