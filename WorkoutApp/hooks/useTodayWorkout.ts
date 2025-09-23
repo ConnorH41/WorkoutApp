@@ -425,6 +425,9 @@ export function useTodayWorkout() {
     const id = `tmp-${Date.now()}`;
     const tmpEx: any = { id, name: 'Exercise Name', user_id: profile.id, day_id: todayWorkout?.day_id || null, sets: 1, reps: '' };
 
+    // Optimistically add the tmp item immediately.
+    setExercises(prev => [...prev, tmpEx]);
+
     (async () => {
       try {
         // Ensure a workout exists for today
@@ -439,8 +442,7 @@ export function useTodayWorkout() {
         }
 
         if (!w) {
-          // couldn't create workout; just add tmp locally
-          setExercises(prev => [...prev, tmpEx]);
+          // couldn't create workout; leave tmp item in place
           return;
         }
 
@@ -455,19 +457,20 @@ export function useTodayWorkout() {
         const { data, error } = await api.insertWorkoutExercise(payload);
         if (!error && data && data.length > 0) {
           const instance = data[0];
-          setExercises(prev => [...prev, instance]);
+          // Replace the tmp item with the persisted instance
+          setExercises(prev => prev.map(e => (String(e.id) === String(id) ? instance : e)));
           return;
         }
 
-        // fallback: persist failed
-        setExercises(prev => [...prev, tmpEx]);
+        // fallback: persist failed — leave tmp item as-is
+        return;
       } catch (e) {
-        setExercises(prev => [...prev, tmpEx]);
+        // leave tmp item as-is on error
+        return;
       }
     })();
 
     // Immediately return a tmp item so the caller can use it synchronously
-    setExercises(prev => [...prev, tmpEx]);
     return tmpEx;
   };
 

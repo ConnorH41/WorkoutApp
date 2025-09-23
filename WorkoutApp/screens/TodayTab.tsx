@@ -121,14 +121,10 @@ export default function TodayTab() {
   );
 
   // Prepare the data array for the FlatList:
-  // - If there's a persisted workout for today, show its `exercises` only.
-  // - Otherwise (no workout), show scheduled `splitDayExercises` first, then any locally-added `exercises`.
-  let base: any[] = [];
-  if (todayWorkout) {
-    base = (exercises && exercises.length > 0) ? exercises : [];
-  } else {
-    base = [...(splitDayExercises || []), ...(exercises || [])];
-  }
+  // Always show scheduled `splitDayExercises` first, then any persisted or locally-added `exercises`.
+  // Filter out any exercises that duplicate scheduled items (by id) to avoid duplicate keys.
+  const scheduledIds = new Set((splitDayExercises || []).map(s => s.id));
+  const base: any[] = [...(splitDayExercises || []), ...(exercises || []).filter(e => !scheduledIds.has(e.id))];
   const visibleExercises = base.filter((it) => !removedExerciseIds.includes(it.id));
 
   // Header label and rest detection: some splits (rotation rest-only) show 'Rest' in the header
