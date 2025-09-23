@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TextInput, FlatList, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity, Platform } from 'react-native';
 import DatePickerModal from '../components/DatePickerModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,6 +33,7 @@ export default function TodayTab() {
     addBlankExerciseToWorkout,
     addBlankExerciseToSplit,
     deleteExercise,
+  updateWorkoutExerciseInstance,
     markComplete,
     markRestDay,
     unmarkRestDay,
@@ -45,9 +46,11 @@ export default function TodayTab() {
     activeSplitRun,
     splitTemplate,
   } = useTodayWorkout();
+  
 
   const [editedNames, setEditedNames] = useState<Record<string, string>>({});
   const [editingByExercise, setEditingByExercise] = useState<Record<string, boolean>>({});
+  const notesDebounceTimers = useRef<Record<string, any>>({});
 
   const logsHook = useExerciseLogs({
     createWorkoutFromScheduledDay,
@@ -244,13 +247,35 @@ export default function TodayTab() {
           editing={!!editingByExercise[item.id]}
           readonlyMode={headerIsRest}
           notes={logsHook.notesByExercise[item.id] || ''}
-          onToggleEdit={() => setEditingByExercise(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+          onToggleEdit={() => {
+            // If we are toggling off editing, persist the name if changed
+            const currently = !!editingByExercise[item.id];
+            if (currently) {
+              const edited = editedNames[item.id];
+              if (edited != null && String(edited).trim() !== String(item.name).trim()) {
+                // persist name change for persisted instances
+                if (item && item.workout_id) {
+                  updateWorkoutExerciseInstance(item.id, { name: String(edited).trim() }).catch(() => {});
+                }
+              }
+            }
+            setEditingByExercise(prev => ({ ...prev, [item.id]: !prev[item.id] }));
+          }}
           onChangeName={(v) => setEditedNames(prev => ({ ...prev, [item.id]: v }))}
+          onChangeNotes={(v) => {
+            logsHook.handleNotesChange(item.id, v);
+            try { if (notesDebounceTimers.current[item.id]) clearTimeout(notesDebounceTimers.current[item.id]); } catch {}
+            notesDebounceTimers.current[item.id] = setTimeout(async () => {
+              if (item && item.workout_id) {
+                try { await updateWorkoutExerciseInstance(item.id, { notes: v }); } catch (e) {}
+              }
+            }, 800);
+          }}
           onChangeSet={(idx, field, v) => logsHook.handleSetChange(item.id, idx, field as any, v)}
           onToggleCompleted={(idx) => logsHook.toggleSetCompleted(item.id, idx)}
-          onAddSet={() => logsHook.addSetRow(item.id)}
+          onAddSet={async () => { logsHook.addSetRow(item.id); if (item && item.workout_id) { try { await updateWorkoutExerciseInstance(item.id, { sets: (Number(item.sets) || 1) + 1 }); } catch {} } }}
           onRemoveSet={(idx) => { setDeleteSetTarget({ exerciseId: item.id, index: idx }); setShowDeleteSetConfirm(true); }}
-          onChangeNotes={(v) => logsHook.handleNotesChange(item.id, v)}
+          
           onRemoveExercise={() => { setDeleteExerciseTarget(item.id); setShowDeleteExerciseConfirm(true); }}
           IconFeather={IconFeather}
         />

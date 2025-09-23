@@ -81,3 +81,11 @@ export async function getWorkoutExercisesByUserDate(userId: string, isoDate: str
   const end = `${isoDate}T23:59:59Z`;
   return await supabase.from('workout_exercises').select('*').eq('user_id', userId).gte('created_at', start).lte('created_at', end).order('created_at', { ascending: true });
 }
+
+export async function deleteWorkoutExercise(id: string) {
+  return await supabase.from('workout_exercises').delete().eq('id', id);
+}
+
+export async function updateWorkoutExercise(id: string, payload: any) {
+  return await supabase.from('workout_exercises').update(payload).eq('id', id).select().limit(1);
+}

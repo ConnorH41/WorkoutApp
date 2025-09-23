@@ -502,6 +502,17 @@ export function useTodayWorkout() {
   const deleteExercise = async (exerciseId: string) => {
     if (!profile || !profile.id) return false;
     try {
+      // If this looks like a workout_exercises instance (UUID and present in DB table), delete from that table
+      // Heuristic: workout_exercises rows typically have an 'workout_id' field when loaded; check local state first
+      const local = exercises.find(e => String(e.id) === String(exerciseId));
+      if (local && local.workout_id) {
+        const { error } = await api.deleteWorkoutExercise(exerciseId);
+        if (error) return false;
+        setExercises(prev => prev.filter(e => e.id !== exerciseId));
+        return true;
+      }
+
+      // Otherwise fall back to deleting from the exercises (templates) table
       const { error } = await api.deleteExercise(exerciseId);
       if (error) return false;
       setExercises(prev => prev.filter(e => e.id !== exerciseId));
@@ -510,6 +521,22 @@ export function useTodayWorkout() {
     } catch (e) {
       return false;
     }
+  };
+
+  const updateWorkoutExerciseInstance = async (id: string, payload: any) => {
+    if (!profile || !profile.id) return null;
+    try {
+      const { data, error } = await api.updateWorkoutExercise(id, payload);
+      if (error) return null;
+      if (data && data.length > 0) {
+        const inst = data[0];
+        setExercises(prev => prev.map(e => (String(e.id) === String(id) ? inst : e)));
+        return inst;
+      }
+    } catch (e) {
+      return null;
+    }
+    return null;
   };
 
   const markComplete = async () => {
@@ -601,5 +628,6 @@ export function useTodayWorkout() {
     setExercises,
     setSplitDayExercises,
     addTransientExercise,
+    updateWorkoutExerciseInstance,
   };
 }
