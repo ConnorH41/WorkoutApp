@@ -394,10 +394,55 @@ export function useTodayWorkout() {
 
   const addBlankExerciseToWorkout = () => {
     if (!profile || !profile.id) return null;
+    // Try to persist as a workout_exercise instance. If that fails (offline), fall back
+    // to a local tmp exercise so the UI still shows immediately.
     const id = `tmp-${Date.now()}`;
-    const newEx: any = { id, name: 'Exercise Name', user_id: profile.id, day_id: todayWorkout?.day_id || null, sets: 1, reps: '' };
-    setExercises(prev => [...prev, newEx]);
-    return newEx;
+    const tmpEx: any = { id, name: 'Exercise Name', user_id: profile.id, day_id: todayWorkout?.day_id || null, sets: 1, reps: '' };
+
+    (async () => {
+      try {
+        // Ensure a workout exists for today
+        let w = todayWorkout;
+        if (!w) {
+          const today = formatDateOnly(new Date());
+          const { data: wdata } = await api.insertWorkout({ user_id: profile.id, date: today });
+          if (wdata && wdata.length > 0) {
+            w = wdata[0];
+            setTodayWorkout(w);
+          }
+        }
+
+        if (!w) {
+          // couldn't create workout; just add tmp locally
+          setExercises(prev => [...prev, tmpEx]);
+          return;
+        }
+
+        const payload: any = {
+          user_id: profile.id,
+          workout_id: w.id,
+          exercise_id: null,
+          name: 'Exercise Name',
+          sets: 1,
+          reps: '',
+        };
+        const { data, error } = await api.insertWorkoutExercise(payload);
+        if (!error && data && data.length > 0) {
+          const instance = data[0];
+          setExercises(prev => [...prev, instance]);
+          return;
+        }
+
+        // fallback: persist failed
+        setExercises(prev => [...prev, tmpEx]);
+      } catch (e) {
+        setExercises(prev => [...prev, tmpEx]);
+      }
+    })();
+
+    // Immediately return a tmp item so the caller can use it synchronously
+    setExercises(prev => [...prev, tmpEx]);
+    return tmpEx;
   };
 
   const addBlankExerciseToSplit = () => {

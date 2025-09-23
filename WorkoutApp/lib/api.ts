@@ -65,3 +65,19 @@ export async function getSplitById(id: string) {
 export async function getSplitDaysBySplitId(splitId: string) {
   return await supabase.from('split_days').select('*').eq('split_id', splitId).order('order_index', { ascending: true });
 }
+
+// --- Workout exercise instances (per-workout snapshots) ---
+export async function insertWorkoutExercise(payload: any) {
+  return await supabase.from('workout_exercises').insert([payload]).select().limit(1);
+}
+
+export async function getWorkoutExercisesByWorkoutId(workoutId: string) {
+  return await supabase.from('workout_exercises').select('*').eq('workout_id', workoutId).order('created_at', { ascending: true });
+}
+
+export async function getWorkoutExercisesByUserDate(userId: string, isoDate: string) {
+  // Use a UTC range for the given ISO date to avoid timezone issues
+  const start = `${isoDate}T00:00:00Z`;
+  const end = `${isoDate}T23:59:59Z`;
+  return await supabase.from('workout_exercises').select('*').eq('user_id', userId).gte('created_at', start).lte('created_at', end).order('created_at', { ascending: true });
+}
