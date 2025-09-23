@@ -5,6 +5,7 @@ import * as api from '../lib/api';
 type UseExerciseLogsOpts = {
   createWorkoutFromScheduledDay?: () => Promise<any | null>;
   createExercise?: (originalExercise: any, newName: string) => Promise<any | null>;
+  createTransientExercise?: (name?: string) => Promise<any | null>;
   getTodayWorkout?: () => any | null;
   getExercises?: () => any[];
   getSplitDayExercises?: () => any[];
@@ -82,6 +83,44 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
         const created = await opts.createExercise(originalExercise, displayedName.trim());
         if (created && created.id) targetExerciseId = created.id;
       }
+      // If the exercise id is a temporary local id (tmp-...), create a persistent exercise first
+      if (String(targetExerciseId).startsWith('tmp-')) {
+        const newName = (displayedName && String(displayedName).trim()) || (originalExercise && originalExercise.name) || 'Exercise Name';
+        let created = null;
+        if (opts?.createExercise) {
+          try { created = await opts.createExercise(originalExercise || null, newName); } catch (e) { created = null; }
+        }
+        // Fallback: try transient/persistent via createTransientExercise if provided
+        if ((!created || !created.id) && opts?.createTransientExercise) {
+          try { created = await opts.createTransientExercise(newName); } catch (e) { created = null; }
+        }
+        if ((!created || !created.id)) {
+          try {
+            const wk = workout || (opts?.getTodayWorkout ? opts.getTodayWorkout() : null);
+            const payload: any = { name: newName, user_id: wk?.user_id || undefined, day_id: null, sets: originalExercise?.sets || 1, reps: originalExercise?.reps || null };
+            const { data, error } = await api.insertExercise(payload);
+            if (!error && data && data.length > 0) created = data[0];
+          } catch (e) {
+            // ignore
+          }
+        }
+        // Last-resort: try inserting directly via API using workout.user_id if available
+        if ((!created || !created.id)) {
+          try {
+            const wk = workout || (opts?.getTodayWorkout ? opts.getTodayWorkout() : null);
+            const payload: any = { name: newName, user_id: wk?.user_id || undefined, day_id: null, sets: originalExercise?.sets || 1, reps: originalExercise?.reps || null };
+            const { data, error } = await api.insertExercise(payload);
+            if (!error && data && data.length > 0) created = data[0];
+          } catch (e) {
+            // ignore
+          }
+        }
+        if (created && created.id) targetExerciseId = created.id;
+        else {
+          Alert.alert('Error', 'Could not create exercise to attach logs.');
+          return;
+        }
+      }
 
       if (setRow.logId) {
         const { error } = await api.updateLog(setRow.logId, { completed: willComplete });
@@ -112,7 +151,7 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
           notes: notesByExercise[exerciseId] || '',
           completed: true,
         };
-        const { data, error } = await api.insertSingleLog(payload);
+  const { data, error } = await api.insertSingleLog(payload);
         if (error) throw error;
         if (data && data.length > 0) {
           setLogs(prev => {
@@ -170,6 +209,22 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
       if (displayedName && originalExercise && displayedName.trim() !== originalExercise.name && opts?.createExercise) {
         const created = await opts.createExercise(originalExercise, displayedName.trim());
         if (created && created.id) targetExerciseId = created.id;
+      }
+      // If exerciseId is a temporary local id, create a persisted exercise first
+      if (String(targetExerciseId).startsWith('tmp-')) {
+        const newName = (displayedName && String(displayedName).trim()) || (originalExercise && originalExercise.name) || 'Exercise Name';
+        let created = null;
+        if (opts?.createExercise) {
+          try { created = await opts.createExercise(originalExercise || null, newName); } catch (e) { created = null; }
+        }
+        if ((!created || !created.id) && opts?.createTransientExercise) {
+          try { created = await opts.createTransientExercise(newName); } catch (e) { created = null; }
+        }
+        if (created && created.id) targetExerciseId = created.id;
+        else {
+          Alert.alert('Error', 'Could not create exercise to attach logs.');
+          return;
+        }
       }
 
       const setRows = logs[exerciseId] || [];

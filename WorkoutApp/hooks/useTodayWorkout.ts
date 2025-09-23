@@ -509,6 +509,11 @@ export function useTodayWorkout() {
       // Heuristic: workout_exercises rows typically have an 'workout_id' field when loaded; check local state first
       const local = exercises.find(e => String(e.id) === String(exerciseId));
       if (local && local.workout_id) {
+        // If this is a temporary local id, don't call the backend delete which expects a real UUID
+        if (String(exerciseId).startsWith('tmp-')) {
+          setExercises(prev => prev.filter(e => e.id !== exerciseId));
+          return true;
+        }
         const { error } = await api.deleteWorkoutExercise(exerciseId);
         if (error) return false;
         setExercises(prev => prev.filter(e => e.id !== exerciseId));
@@ -528,6 +533,7 @@ export function useTodayWorkout() {
 
   const updateWorkoutExerciseInstance = async (id: string, payload: any) => {
     if (!profile || !profile.id) return null;
+    if (String(id).startsWith('tmp-')) return null;
     try {
       const { data, error } = await api.updateWorkoutExercise(id, payload);
       if (error) return null;

@@ -31,6 +31,7 @@ export default function TodayTab() {
     createWorkoutFromScheduledDay,
     createExercise,
     addBlankExerciseToWorkout,
+  addTransientExercise,
     addBlankExerciseToSplit,
     deleteExercise,
   updateWorkoutExerciseInstance,
@@ -55,6 +56,7 @@ export default function TodayTab() {
   const logsHook = useExerciseLogs({
     createWorkoutFromScheduledDay,
     createExercise,
+    createTransientExercise: addTransientExercise,
     getTodayWorkout: () => todayWorkout,
     getExercises: () => exercises,
     getSplitDayExercises: () => splitDayExercises,
