@@ -86,6 +86,12 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
       if (setRow.logId) {
         const { error } = await api.updateLog(setRow.logId, { completed: willComplete });
         if (error) throw error;
+        // update local state so UI toggles immediately
+        setLogs(prev => {
+          const arr = prev[exerciseId] ? [...prev[exerciseId]] : [];
+          arr[index] = { ...(arr[index] || {}), completed: willComplete } as any;
+          return { ...prev, [exerciseId]: arr };
+        });
         // If this exercise is a persisted workout_exercise instance, also update its completed flag
         try {
           const localExercises = opts?.getExercises ? opts.getExercises() : [];
