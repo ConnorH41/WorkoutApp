@@ -23,6 +23,8 @@ export default function DaysTab() {
   const insets = useSafeAreaInsets();
   const profile = useProfileStore((state) => state.profile);
   const { days, loading, exerciseCounts, fetchDays, createDay, updateDay, deleteDay } = useDays();
+  // Local optimistic counts to show immediate UI updates for creates/deletes
+  const [localCounts, setLocalCounts] = useState<Record<string, number>>({});
   const [newDayName, setNewDayName] = useState('');
   const [adding, setAdding] = useState(false);
   const [editingDayId, setEditingDayId] = useState<string | null>(null);
@@ -203,9 +205,21 @@ export default function DaysTab() {
           setExercises([]);
         }
       } else if (deleteTargetType === 'exercise' && deleteTargetId) {
-        await deleteExercise(deleteTargetId, selectedDayId ?? undefined);
-        if (selectedDayId) await fetchExercises(selectedDayId);
-        await fetchDays(profile?.id);
+        // optimistic remove
+        const removedId = deleteTargetId;
+        const prevExercises = exercises;
+        setExercises(prev => prev.filter(e => e.id !== removedId));
+        setLocalCounts(prev => ({ ...prev, [selectedDayId as string]: Math.max(0, (prev[selectedDayId as string] ?? exerciseCounts[selectedDayId as string] ?? 1) - 1) }));
+        try {
+          await deleteExercise(removedId, selectedDayId ?? undefined);
+          if (selectedDayId) await fetchExercises(selectedDayId);
+          await fetchDays(profile?.id);
+        } catch (err: any) {
+          // rollback
+          setExercises(prevExercises);
+          setLocalCounts(prev => ({ ...prev, [selectedDayId as string]: (exerciseCounts[selectedDayId as string] ?? 0) }));
+          throw err;
+        }
       } else if (deleteTargetType === 'preview' && previewDeleteIndex !== null) {
         setExercises(prev => prev.filter((_, i) => i !== previewDeleteIndex));
         setPreviewDeleteIndex(null);
@@ -261,7 +275,7 @@ export default function DaysTab() {
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View style={styles.exerciseCountBadge}>
                   <Text style={styles.badgeText}>
-                    { (exerciseCounts[item.id] ?? 0) } { (exerciseCounts[item.id] ?? 0) === 1 ? 'Exercise' : 'Exercises' }
+                    { (localCounts[item.id] ?? exerciseCounts[item.id] ?? 0) } { (localCounts[item.id] ?? exerciseCounts[item.id] ?? 0) === 1 ? 'Exercise' : 'Exercises' }
                   </Text>
                 </View>
               </View>
@@ -278,13 +292,19 @@ export default function DaysTab() {
                   onDelete={(id) => id && handleDeleteExercise(id)}
                   onAdd={async (ex) => {
                     if (!item.id) return;
-                    setAddingEx(true);
+                    // optimistic insert
+                    const optimistic: ExerciseForm = { id: `tmp-${Date.now()}`, name: ex.name, sets: String(ex.sets), reps: String(ex.reps), notes: ex.notes };
+                    setExercises(prev => [...prev, optimistic]);
+                    setLocalCounts(prev => ({ ...prev, [item.id]: (prev[item.id] ?? exerciseCounts[item.id] ?? 0) + 1 }));
                     try {
-                      const form = { name: ex.name, sets: String(ex.sets), reps: String(ex.reps), notes: ex.notes } as ExerciseForm;
-                      await createExercise(item.id, form);
+                      await createExercise(item.id, optimistic);
+                      // refresh authoritative data
                       await fetchExercises(item.id);
                       await fetchDays(profile?.id);
                     } catch (err: any) {
+                      // rollback optimistic
+                      setExercises(prev => prev.filter(e => e.id !== optimistic.id));
+                      setLocalCounts(prev => ({ ...prev, [item.id]: Math.max(0, (prev[item.id] ?? exerciseCounts[item.id] ?? 1) - 1) }));
                       Alert.alert('Error', err?.message || 'Failed to add exercise');
                     } finally {
                       setAddingEx(false);
