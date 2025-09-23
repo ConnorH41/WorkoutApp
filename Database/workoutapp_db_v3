@@ -1,3 +1,6 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
 CREATE TABLE public.bodyweight (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid,
@@ -35,6 +38,8 @@ CREATE TABLE public.logs (
   weight numeric,
   notes text,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  completed boolean NOT NULL DEFAULT false,
+  completed_at timestamp with time zone,
   CONSTRAINT logs_pkey PRIMARY KEY (id),
   CONSTRAINT logs_workout_id_fkey FOREIGN KEY (workout_id) REFERENCES public.workouts(id),
   CONSTRAINT logs_exercise_id_fkey FOREIGN KEY (exercise_id) REFERENCES public.exercises(id)
@@ -81,6 +86,24 @@ CREATE TABLE public.splits (
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
   CONSTRAINT splits_pkey PRIMARY KEY (id),
   CONSTRAINT splits_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.workout_exercises (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  workout_id uuid NOT NULL,
+  exercise_id uuid,
+  name text NOT NULL,
+  sets integer NOT NULL DEFAULT 1,
+  reps text,
+  notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  completed boolean NOT NULL DEFAULT false,
+  completed_at timestamp with time zone,
+  CONSTRAINT workout_exercises_pkey PRIMARY KEY (id),
+  CONSTRAINT workout_exercises_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT workout_exercises_workout_id_fkey FOREIGN KEY (workout_id) REFERENCES public.workouts(id),
+  CONSTRAINT workout_exercises_exercise_id_fkey FOREIGN KEY (exercise_id) REFERENCES public.exercises(id)
 );
 CREATE TABLE public.workouts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
