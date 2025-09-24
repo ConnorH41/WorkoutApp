@@ -7,15 +7,16 @@ type Props = {
   completing?: boolean;
   resting?: boolean;
   onConfirmComplete: () => void;
+  onUnmarkComplete?: () => void;
   onConfirmRestToggle: () => void;
 };
 
-export default function WorkoutControls({ todayWorkout, isRestDay, completing = false, resting = false, onConfirmComplete, onConfirmRestToggle }: Props) {
+export default function WorkoutControls({ todayWorkout, isRestDay, completing = false, resting = false, onConfirmComplete, onUnmarkComplete, onConfirmRestToggle }: Props) {
   return (
     <View>
       {todayWorkout && !isRestDay && (
-        <TouchableOpacity onPress={onConfirmComplete} disabled={completing} style={{ backgroundColor: '#007AFF', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 12 }}>
-          <Text style={{ color: '#fff', fontWeight: '700' }}>{completing ? 'Completing...' : 'Mark Workout Complete'}</Text>
+        <TouchableOpacity onPress={todayWorkout && todayWorkout.completed ? (onUnmarkComplete || onConfirmComplete) : onConfirmComplete} disabled={completing} style={{ backgroundColor: '#007AFF', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 12 }}>
+          <Text style={{ color: '#fff', fontWeight: '700' }}>{completing ? 'Completing...' : (todayWorkout && todayWorkout.completed ? 'Unmark Workout as Complete' : 'Mark Workout Complete')}</Text>
         </TouchableOpacity>
       )}
 

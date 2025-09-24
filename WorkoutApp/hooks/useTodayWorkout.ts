@@ -563,6 +563,22 @@ export function useTodayWorkout() {
     }
   };
 
+  const unmarkComplete = async () => {
+    if (!todayWorkout || !todayWorkout.id) return false;
+    setCompleting(true);
+    try {
+      const { data, error } = await api.updateWorkout(todayWorkout.id, { completed: false });
+      setCompleting(false);
+      if (error) return false;
+      if (data && data.length > 0) setTodayWorkout(data[0]);
+      setIsRestDay(false);
+      return true;
+    } catch (e) {
+      setCompleting(false);
+      return false;
+    }
+  };
+
   const markRestDay = async () => {
     if (!profile || !profile.id) return false;
     setResting(true);
@@ -625,6 +641,7 @@ export function useTodayWorkout() {
     addBlankExerciseToSplit,
     deleteExercise,
     markComplete,
+  unmarkComplete,
     markRestDay,
     unmarkRestDay,
     creatingWorkout,

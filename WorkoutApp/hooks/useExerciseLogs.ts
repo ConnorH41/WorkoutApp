@@ -61,11 +61,12 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
   const toggleSetCompleted = async (exerciseId: string, index: number) => {
     const setRow = (logs[exerciseId] || [])[index];
     if (!setRow) return;
-    if (!setRow.reps || !setRow.weight || isNaN(Number(setRow.reps)) || isNaN(Number(setRow.weight))) {
+    const willComplete = !setRow.completed;
+    // Only validate numeric reps/weight when marking a set complete (not when un-marking)
+    if (willComplete && (!setRow.reps || !setRow.weight || isNaN(Number(setRow.reps)) || isNaN(Number(setRow.weight)))) {
       Alert.alert('Invalid fields', 'Please enter numeric reps and weight for this set before marking it complete.');
       return;
     }
-    const willComplete = !setRow.completed;
     try {
       let workout = opts?.getTodayWorkout ? opts.getTodayWorkout() : null;
       if (!workout && opts?.createWorkoutFromScheduledDay) {

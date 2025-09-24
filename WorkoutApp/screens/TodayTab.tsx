@@ -35,7 +35,8 @@ export default function TodayTab() {
     addBlankExerciseToSplit,
     deleteExercise,
   updateWorkoutExerciseInstance,
-    markComplete,
+  markComplete,
+  unmarkComplete,
     markRestDay,
     unmarkRestDay,
     creatingWorkout,
@@ -202,6 +203,7 @@ export default function TodayTab() {
               completing={completing}
               resting={resting}
               onConfirmComplete={() => setShowCompleteConfirm(true)}
+              onUnmarkComplete={() => setShowCompleteConfirm(true)}
               onConfirmRestToggle={() => setShowRestConfirm(true)}
             />
           </View>
@@ -220,8 +222,15 @@ export default function TodayTab() {
 
           {/* If it's a rest day (either flagged or implied by header) show a friendly message instead of the mark button */}
           {headerIsRest && (
-            <View style={{ padding: 12, alignItems: 'center' }}>
-              <Text style={{ color: '#666', fontSize: 16, textAlign: 'center' }}>Today is a rest day — just chill and recover.</Text>
+            <View style={{ padding: 12 }}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setShowRestConfirm(true)}
+                disabled={resting}
+                style={[styles.secondaryButton, resting ? styles.secondaryButtonDisabled : null]}
+              >
+                <Text style={[styles.secondaryButtonText, resting ? styles.secondaryButtonTextDisabled : null]}>{resting ? 'Logging...' : 'Unmark as Rest Day'}</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -378,9 +387,87 @@ export default function TodayTab() {
 
       <ConfirmModal
         visible={showCompleteConfirm}
-        title="Mark Workout Complete?"
-        message="This will mark today's workout as complete. Continue?"
-        onConfirm={async () => { setShowCompleteConfirm(false); await markComplete(); }}
+        title={todayWorkout && todayWorkout.completed ? 'Unmark Workout as Complete?' : 'Mark Workout Complete?'}
+        message={todayWorkout && todayWorkout.completed ? "This will unmark today's workout as complete. Continue?" : "This will mark today's workout as complete. Continue?"}
+        onConfirm={async () => {
+          setShowCompleteConfirm(false);
+          // If the workout is currently completed, un-complete sets and unmark the workout
+          if (todayWorkout && todayWorkout.completed) {
+            const uncompleteAllSetsThenUnmark = async () => {
+              try {
+                const items = visibleExercises || [];
+                for (const it of items) {
+                  const exId = it.id;
+                  const setRows = logsHook.logs[exId] || [];
+                  for (let i = 0; i < setRows.length; i++) {
+                    const row = setRows[i];
+                    if (!row || !row.completed) continue;
+                    try {
+                      // toggleSetCompleted will un-persist the completed flag if possible
+                      // eslint-disable-next-line no-await-in-loop
+                      await logsHook.toggleSetCompleted(exId, i);
+                    } catch (e) {
+                      // fallback: update local state to uncheck
+                      logsHook.setLogs(prev => {
+                        const copy = { ...prev } as any;
+                        const arr = copy[exId] ? [...copy[exId]] : [];
+                        while (arr.length <= i) arr.push({ setNumber: arr.length + 1, reps: '', weight: '', completed: false, logId: null });
+                        arr[i] = { ...(arr[i] || {}), completed: false } as any;
+                        copy[exId] = arr;
+                        return copy;
+                      });
+                    }
+                  }
+                }
+              } catch (e) {
+                // ignore
+              }
+              try { await unmarkComplete(); } catch (e) {}
+            };
+            await uncompleteAllSetsThenUnmark();
+          } else {
+            // Otherwise, complete sets then mark workout complete
+            const completeAllSetsThenMark = async () => {
+              try {
+                const items = visibleExercises || [];
+                for (const it of items) {
+                  const exId = it.id;
+                  const setRows = logsHook.logs[exId] || [];
+                  for (let i = 0; i < setRows.length; i++) {
+                    const row = setRows[i];
+                    if (row && row.completed) continue;
+                    const repsOk = row && row.reps !== '' && !Number.isNaN(Number(row.reps));
+                    const weightOk = row && row.weight !== '' && !Number.isNaN(Number(row.weight));
+                    if (repsOk && weightOk) {
+                      try {
+                        // toggleSetCompleted will persist and update local state
+                        // eslint-disable-next-line no-await-in-loop
+                        await logsHook.toggleSetCompleted(exId, i);
+                      } catch (e) {
+                        // ignore per-set errors and continue
+                      }
+                    } else {
+                      // Mark locally as completed so UI shows checks even if not persisted
+                      logsHook.setLogs(prev => {
+                        const copy = { ...prev } as any;
+                        const arr = copy[exId] ? [...copy[exId]] : [];
+                        while (arr.length <= i) arr.push({ setNumber: arr.length + 1, reps: '', weight: '', completed: false, logId: null });
+                        arr[i] = { ...(arr[i] || {}), completed: true } as any;
+                        copy[exId] = arr;
+                        return copy;
+                      });
+                    }
+                  }
+                }
+              } catch (e) {
+                // ignore
+              }
+              // Finally, mark workout complete (persist flag)
+              try { await markComplete(); } catch (e) {}
+            };
+            await completeAllSetsThenMark();
+          }
+        }}
         onCancel={() => setShowCompleteConfirm(false)}
       />
 
