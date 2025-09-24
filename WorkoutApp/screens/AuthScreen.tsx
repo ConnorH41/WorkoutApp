@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, Text, Linking, Platform } from 'react-native';
+import { View, TextInput, TouchableOpacity, Text, Linking } from 'react-native';
 import { supabase } from '../lib/supabase';
 import styles from '../styles/authStyles';
 import { FontAwesome } from '@expo/vector-icons';
@@ -26,7 +26,7 @@ export default function AuthScreen({ onAuthSuccess }: { onAuthSuccess: () => voi
     else onAuthSuccess();
   };
 
-  const handleOAuthSignIn = async (provider: 'google' | 'apple') => {
+  const handleOAuthSignIn = async (provider: 'google') => {
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({ provider });
@@ -93,21 +93,9 @@ export default function AuthScreen({ onAuthSuccess }: { onAuthSuccess: () => voi
                 <Text style={{ fontWeight: '600' }}>Continue With Google</Text>
               </TouchableOpacity>
 
-              {Platform.OS === 'ios' && (
-                <TouchableOpacity
-                  onPress={() => handleOAuthSignIn('apple')}
-                  disabled={loading}
-                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, backgroundColor: '#000', borderRadius: 8, width: '100%', justifyContent: 'center' }}
-                >
-                  <FontAwesome name="apple" size={20} color="#fff" style={{ marginRight: 10 }} />
-                  <Text style={{ color: '#fff', fontWeight: '600' }}>Continue With Apple</Text>
-                </TouchableOpacity>
-              )}
+              {/* Apple sign-in removed */}
             </View>
-
-            {Platform.OS !== 'ios' && (
-              <Text style={{ fontSize: 12, color: '#999', marginTop: 10 }}>Apple Sign In requires iOS native support (see docs)</Text>
-            )}
+            
           </View>
         </View>
       </View>
