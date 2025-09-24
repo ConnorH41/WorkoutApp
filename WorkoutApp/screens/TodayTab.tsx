@@ -107,21 +107,7 @@ export default function TodayTab() {
     }
   };
 
-  useEffect(() => {
-  }, []);
-
-  const getExerciseName = (id: string | null) => {
-    if (!id) return '';
-    const ex = (exercises || []).find(e => e.id === id) || (splitDayExercises || []).find(e => e.id === id);
-    return ex ? ex.name : '';
-  };
-
-  if (workoutLoading) return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" />
-    </View>
-  );
-
+      
   // Prepare the data array for the FlatList:
   // Always show scheduled `splitDayExercises` first, then any persisted or locally-added `exercises`.
   // Filter out any exercises that duplicate scheduled items (by id) to avoid duplicate keys.
@@ -176,6 +162,12 @@ export default function TodayTab() {
 
   // Footer removed: day-name display moved to header to avoid duplication.
 
+  const getExerciseName = (id: string | null) => {
+    if (!id) return '';
+    const ex = (exercises || []).find(e => e.id === id) || (splitDayExercises || []).find(e => e.id === id);
+    return ex ? ex.name : '';
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}> 
   <FlatList
@@ -186,6 +178,23 @@ export default function TodayTab() {
       ListHeaderComponent={Header}
       ListFooterComponent={() => (
         <View>
+          {/* + Add Exercise text link placed above the workout controls and left-aligned */}
+          <View style={{ marginTop: 12, paddingHorizontal: 16 }}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => {
+                try {
+                  addBlankExerciseToWorkout();
+                } catch (e) {
+                  // ignore
+                }
+              }}
+              style={{ alignSelf: 'flex-start' }}
+            >
+              <Text style={{ color: '#007AFF', fontWeight: '700' }}>{'+ Add Exercise'}</Text>
+            </TouchableOpacity>
+          </View>
+
           <View style={{ marginTop: 12 }}>
             <WorkoutControls
               todayWorkout={todayWorkout}
@@ -215,24 +224,6 @@ export default function TodayTab() {
               <Text style={{ color: '#666', fontSize: 16, textAlign: 'center' }}>Today is a rest day — just chill and recover.</Text>
             </View>
           )}
-
-          {/* Add transient exercise button - persists exercise with null day_id */}
-          <View style={{ marginTop: 12, alignItems: 'center' }}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => {
-                // create a blank local exercise card (not persisted)
-                try {
-                  addBlankExerciseToWorkout();
-                } catch (e) {
-                  // ignore
-                }
-              }}
-              style={[styles.secondaryButton, { backgroundColor: '#f0f0f0' }]}
-            >
-              <Text style={[styles.secondaryButtonText, { color: '#333' }]}>+ Add Exercise</Text>
-            </TouchableOpacity>
-          </View>
 
         </View>
       )}
