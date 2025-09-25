@@ -285,7 +285,6 @@ export default function DaysTab() {
             </View>
             {selectedDayId === item.id && (
               <View style={styles.exerciseSection}>
-                <Text style={styles.exerciseTitle}>Exercises</Text>
                 <ExercisesList
                   exercises={exercises}
                   onEdit={(ex) => handleEditExercise(ex)}
