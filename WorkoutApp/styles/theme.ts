@@ -1,10 +1,15 @@
 export const colors = {
   primary: '#007AFF',
   danger: '#ff3b30',
-  background: '#fff',
+  background: '#ffffff',
+  backgroundMuted: '#fafafa',
   muted: '#f2f2f2',
-  text: '#333',
+  surface: '#ffffff',
+  card: '#fafafa',
+  text: '#222222',
+  textMuted: '#666666',
   link: '#007AFF',
+  success: '#34C759',
 };
 
 export const spacing = {
