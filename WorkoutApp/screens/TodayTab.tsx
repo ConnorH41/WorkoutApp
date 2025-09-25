@@ -208,16 +208,29 @@ export default function TodayTab() {
             />
           </View>
 
-          {/* If there's no workout for today and neither the run nor the header indicate a rest day, allow marking as rest day */}
+          {/* If there's no workout for today and neither the run nor the header indicate a rest day,
+              allow marking either as a completed workout or marking as a rest day. Both buttons
+              should be visible under the same conditions. */}
           {!todayWorkout && !headerIsRest && (
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => setShowRestConfirm(true)}
-              disabled={resting}
-              style={[styles.secondaryButton, resting ? styles.secondaryButtonDisabled : null]}
-            >
-              <Text style={[styles.secondaryButtonText, resting ? styles.secondaryButtonTextDisabled : null]}>{resting ? 'Logging...' : 'Mark as Rest Day'}</Text>
-            </TouchableOpacity>
+            <View style={{ paddingHorizontal: 16 }}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setShowCompleteConfirm(true)}
+                disabled={completing}
+                style={[styles.secondaryButton, completing ? styles.secondaryButtonDisabled : null, { marginBottom: 8 }]}
+              >
+                <Text style={[styles.secondaryButtonText, completing ? styles.secondaryButtonTextDisabled : null]}>{completing ? 'Completing...' : 'Mark Workout Complete'}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setShowRestConfirm(true)}
+                disabled={resting}
+                style={[styles.secondaryButton, resting ? styles.secondaryButtonDisabled : null]}
+              >
+                <Text style={[styles.secondaryButtonText, resting ? styles.secondaryButtonTextDisabled : null]}>{resting ? 'Logging...' : 'Mark as Rest Day'}</Text>
+              </TouchableOpacity>
+            </View>
           )}
 
           {/* If it's a rest day (either flagged or implied by header) show a friendly message instead of the mark button */}
@@ -426,6 +439,16 @@ export default function TodayTab() {
             };
             await uncompleteAllSetsThenUnmark();
           } else {
+            // If there's no persisted workout object for today yet, create one so
+            // marking complete persists and the 'Unmark' path becomes available.
+            if (!todayWorkout) {
+              try {
+                await createWorkoutFromScheduledDay();
+              } catch (e) {
+                // ignore creation errors - we'll still attempt to markComplete which may no-op
+              }
+            }
+
             // Otherwise, complete sets then mark workout complete
             const completeAllSetsThenMark = async () => {
               try {
