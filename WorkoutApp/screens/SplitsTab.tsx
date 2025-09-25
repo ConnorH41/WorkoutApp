@@ -1583,13 +1583,24 @@ export default function SplitsTab() {
                     ref={editSplitRotationRef}
                     style={[styles.input, { width: 140 }]}
                     keyboardType="numeric"
-                    value={String(editSplitRotationLength || 3)}
+                    value={editSplitRotationInput}
                     onChangeText={v => {
+                      // keep the free-form input so the user can clear the field.
+                      setEditSplitRotationInput(v);
                       const n = parseInt(v, 10);
-                      if (!isNaN(n) && n > 0) setEditSplitRotationLength(n);
+                      if (!isNaN(n) && n > 0) {
+                        setEditSplitRotationLength(n);
+                      }
                     }}
                     onFocus={() => setEditRotationFocused(true)}
-                    onBlur={() => setEditRotationFocused(false)}
+                    onBlur={() => {
+                      setEditRotationFocused(false);
+                      const n = parseInt(editSplitRotationInput, 10);
+                      if (isNaN(n) || n <= 0) {
+                        // restore display to the last valid length
+                        setEditSplitRotationInput(String(editSplitRotationLength));
+                      }
+                    }}
                   />
                 </View>
               )}
