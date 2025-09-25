@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, TextInput, FlatList, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity, Platform } from 'react-native';
 import DatePickerModal from '../components/DatePickerModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -99,6 +99,8 @@ export default function TodayTab() {
     loadPersistedLogs();
   }, [todayWorkout?.id]);
 
+  // ...existing code...
+
   // Ensure default set rows exist for all exercises
   useEffect(() => {
     (exercises || []).forEach(ex => logsHook.ensureSetsForExercise(ex));
@@ -146,6 +148,23 @@ export default function TodayTab() {
   const scheduledIds = new Set((splitDayExercises || []).map(s => s.id));
   const base: any[] = [...(splitDayExercises || []), ...(exercises || []).filter(e => !scheduledIds.has(e.id))];
   const visibleExercises = base.filter((it) => !removedExerciseIds.includes(it.id));
+
+  // Determine whether all visible sets are checked/completed locally — treat
+  // that as an effective completed state for UI labeling and confirm flows.
+  const allSetsCompleted = useMemo(() => {
+    try {
+      if (!visibleExercises || visibleExercises.length === 0) return false;
+      return visibleExercises.every(it => {
+        const rows = logsHook.logs[String(it.id)] || [];
+        if (!rows || rows.length === 0) return false;
+        return rows.every((r: any) => !!r && !!r.completed);
+      });
+    } catch (e) {
+      return false;
+    }
+  }, [visibleExercises, logsHook.logs]);
+
+  const effectiveCompleted = !!((todayWorkout && todayWorkout.completed) || allSetsCompleted);
 
   // Header label and rest detection: some splits (rotation rest-only) show 'Rest' in the header
   const headerDayLabel = (splitDayName || dayNameFromWorkout || 'Rest');
@@ -250,7 +269,7 @@ export default function TodayTab() {
                 disabled={completing}
                 style={[styles.secondaryButton, completing ? styles.secondaryButtonDisabled : null, { marginBottom: 8 }]}
               >
-                <Text style={[styles.secondaryButtonText, completing ? styles.secondaryButtonTextDisabled : null]}>{completing ? 'Completing...' : 'Mark Workout Complete'}</Text>
+                <Text style={[styles.secondaryButtonText, completing ? styles.secondaryButtonTextDisabled : null]}>{completing ? 'Completing...' : (effectiveCompleted ? 'Unmark Workout as Complete' : 'Mark Workout Complete')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -284,11 +303,11 @@ export default function TodayTab() {
         <ExerciseCard
           key={item.id}
           item={item}
-          sets={logsHook.logs[item.id] || [{ setNumber: 1, reps: '', weight: '', completed: false }]}
+          sets={logsHook.logs[String(item.id)] || [{ setNumber: 1, reps: '', weight: '', completed: false }]}
           name={editedNames[item.id] ?? item.name}
           editing={!!editingByExercise[item.id]}
           readonlyMode={headerIsRest}
-          notes={logsHook.notesByExercise[item.id] || ''}
+          notes={logsHook.notesByExercise[String(item.id)] || ''}
           onToggleEdit={() => {
             // If we are toggling off editing, persist the name if changed
             const currently = !!editingByExercise[item.id];
@@ -431,18 +450,19 @@ export default function TodayTab() {
 
       <ConfirmModal
         visible={showCompleteConfirm}
-        title={todayWorkout && todayWorkout.completed ? 'Unmark Workout as Complete?' : 'Mark Workout Complete?'}
-        message={todayWorkout && todayWorkout.completed ? "This will unmark today's workout as complete. Continue?" : "This will mark today's workout as complete. Continue?"}
+        title={effectiveCompleted ? 'Unmark Workout as Complete?' : 'Mark Workout Complete?'}
+        message={effectiveCompleted ? "This will unmark today's workout as complete. Continue?" : "This will mark today's workout as complete. Continue?"}
         onConfirm={async () => {
           setShowCompleteConfirm(false);
-          // If the workout is currently completed, un-complete sets and unmark the workout
-          if (todayWorkout && todayWorkout.completed) {
+          // If the workout is effectively completed (persisted or all sets checked),
+          // un-complete sets and unmark the workout if it was persisted as completed.
+          if (effectiveCompleted) {
             const uncompleteAllSetsThenUnmark = async () => {
               try {
                 const items = visibleExercises || [];
                 for (const it of items) {
                   const exId = it.id;
-                  const setRows = logsHook.logs[exId] || [];
+                  const setRows = logsHook.logs[String(exId)] || [];
                   for (let i = 0; i < setRows.length; i++) {
                     const row = setRows[i];
                     if (!row || !row.completed) continue;
@@ -466,7 +486,10 @@ export default function TodayTab() {
               } catch (e) {
                 // ignore
               }
-              try { await unmarkComplete(); } catch (e) {}
+              // Only call unmarkComplete if the workout was persisted and marked complete
+              if (todayWorkout && todayWorkout.completed) {
+                try { await unmarkComplete(); } catch (e) {}
+              }
             };
             await uncompleteAllSetsThenUnmark();
           } else {
@@ -486,7 +509,7 @@ export default function TodayTab() {
                 const items = visibleExercises || [];
                 for (const it of items) {
                   const exId = it.id;
-                  const setRows = logsHook.logs[exId] || [];
+                  const setRows = logsHook.logs[String(exId)] || [];
 
                   // If there are no sets, skip
                   if (setRows.length === 0) continue;
