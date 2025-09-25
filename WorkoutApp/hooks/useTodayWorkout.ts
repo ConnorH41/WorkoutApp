@@ -249,6 +249,51 @@ export function useTodayWorkout() {
     }
   };
 
+  // Allow overriding today's scheduled day: persist a workout record for today
+  // with the chosen day_id (or null to clear). This lets the calendar reflect
+  // that the user swapped the scheduled day without changing the split.
+  const setScheduledDayForToday = async (dayId: string | null) => {
+    if (!profile || !profile.id) return false;
+    try {
+      const today = formatDateOnly(new Date());
+      if (todayWorkout && todayWorkout.id) {
+        // update existing workout
+        const { data, error } = await api.updateWorkout(todayWorkout.id, { day_id: dayId });
+        if (error) return false;
+        if (data && data.length > 0) setTodayWorkout(data[0]);
+      } else {
+        // create a workout record for today with the chosen day_id
+        const payload: any = { user_id: profile.id, date: today, day_id: dayId };
+        const { data, error } = await api.insertWorkout(payload);
+        if (error) return false;
+        if (data && data.length > 0) setTodayWorkout(data[0]);
+      }
+
+      // Update the split-day UI state so the header/exercise preview reflect the choice
+      setSplitDayId(dayId);
+      setSplitDayMapped(true);
+      if (dayId) {
+        try {
+          const { data: dayData } = await api.getDayById(dayId);
+          const day = dayData && dayData.length > 0 ? dayData[0] : null;
+          setSplitDayName(day ? day.name : null);
+          const { data: exData } = await api.getExercisesByDayId(dayId);
+          setSplitDayExercises(exData || []);
+        } catch (e) {
+          setSplitDayName(null);
+          setSplitDayExercises([]);
+        }
+      } else {
+        setSplitDayName(null);
+        setSplitDayExercises([]);
+      }
+
+      return true;
+    } catch (e) {
+      return false;
+    }
+  };
+
   const fetchTodayWorkout = async (dateStr?: string, opts?: { activeRun?: any; splitTemplate?: any; splitDays?: any[] }) => {
     setWorkoutLoading(true);
     const today = (dateStr && String(dateStr).slice(0, 10)) || formatDateOnly(new Date());
@@ -630,10 +675,12 @@ export function useTodayWorkout() {
     activeSplitRun,
     splitTemplate,
     splitDayExercises,
+    splitDays,
     splitDayName,
     dayNameFromWorkout,
     fetchTodayWorkout,
   fetchActiveSplitRun,
+    setScheduledDayForToday,
     ensureSetsForExercise,
     createWorkoutFromScheduledDay,
     createExercise,

@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, TextInput, FlatList, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, TextInput, FlatList, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity, Platform, ScrollView } from 'react-native';
 import DatePickerModal from '../components/DatePickerModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import styles from '../styles/todayStyles';
@@ -47,9 +47,9 @@ export default function TodayTab() {
     splitDayMapped,
     activeSplitRun,
     splitTemplate,
+    splitDays,
+    setScheduledDayForToday,
   } = useTodayWorkout();
-  
-
   const [editedNames, setEditedNames] = useState<Record<string, string>>({});
   const [editingByExercise, setEditingByExercise] = useState<Record<string, boolean>>({});
   const notesDebounceTimers = useRef<Record<string, any>>({});
@@ -120,6 +120,10 @@ export default function TodayTab() {
   const [isKg, setIsKg] = useState(true);
   const [bodyweightSubmitting, setBodyweightSubmitting] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showChangeDayModal, setShowChangeDayModal] = useState(false);
+  const [changeDaySubmitting, setChangeDaySubmitting] = useState(false);
+  const [splitDayNames, setSplitDayNames] = useState<Record<string, string>>({});
+  const [splitDayNamesLoading, setSplitDayNamesLoading] = useState(false);
   const [calendarDate, setCalendarDate] = useState<Date | null>(new Date());
 
   const onSaveBodyweight = async () => {
@@ -202,6 +206,36 @@ export default function TodayTab() {
             accessibilityLabel="Open calendar"
           >
             {IconFeather ? <IconFeather name="calendar" size={18} color="#fff" /> : <Text style={styles.bodyweightIcon}>📅</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={async () => {
+              // Load display names for day_id references before opening modal
+              try {
+                setSplitDayNamesLoading(true);
+                const ids = Array.from(new Set((splitDays || []).map((s: any) => s.day_id).filter(Boolean)));
+                const map: Record<string, string> = {};
+                await Promise.all(ids.map(async (id) => {
+                  try {
+                    const { data } = await api.getDayById(id);
+                    if (data && data.length > 0) map[id] = data[0].name || id;
+                    else map[id] = id;
+                  } catch (e) {
+                    map[id] = id;
+                  }
+                }));
+                setSplitDayNames(map);
+              } catch (e) {
+                // ignore
+              } finally {
+                setSplitDayNamesLoading(false);
+                setShowChangeDayModal(true);
+              }
+            }}
+            style={[styles.bodyweightBtn, { backgroundColor: '#5cb85c', marginLeft: 8 }]}
+            activeOpacity={0.9}
+            accessibilityLabel="Change scheduled day"
+          >
+            <Text style={{ color: '#fff', fontWeight: '700' }}>{splitDayNamesLoading ? 'Loading...' : 'Change Day'}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setShowSettingsModal(true)} style={[styles.bodyweightBtn, { backgroundColor: '#444', marginLeft: 8 }]} activeOpacity={0.9} accessibilityLabel="Open settings">
             {IconFeather ? <IconFeather name="settings" size={18} color="#fff" /> : <Text style={styles.bodyweightIcon}>⚙️</Text>}
@@ -447,6 +481,53 @@ export default function TodayTab() {
           })();
         }}
       />
+
+      <Modal visible={showChangeDayModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 12 }}>Change Today's Scheduled Day</Text>
+            <Text style={{ marginBottom: 8, color: '#666' }}>Select a different scheduled day to apply for today. This will persist into your calendar but won't alter your split configuration.</Text>
+            <ScrollView style={{ maxHeight: 300, marginBottom: 12 }}>
+              <TouchableOpacity
+                onPress={async () => {
+                  setChangeDaySubmitting(true);
+                  try {
+                    await setScheduledDayForToday(null);
+                    setShowChangeDayModal(false);
+                  } catch (e) {}
+                  setChangeDaySubmitting(false);
+                }}
+                style={{ paddingVertical: 10 }}
+              >
+                <Text style={{ color: '#007AFF' }}>{changeDaySubmitting ? 'Saving...' : 'Clear scheduled day'}</Text>
+              </TouchableOpacity>
+
+              {(() => {
+                const ids = Array.from(new Set((splitDays || []).map((s: any) => s.day_id).filter(Boolean)));
+                return ids.map((dayId: string) => (
+                  <TouchableOpacity
+                    key={dayId}
+                    onPress={async () => {
+                      setChangeDaySubmitting(true);
+                      try {
+                        await setScheduledDayForToday(dayId ?? null);
+                        setShowChangeDayModal(false);
+                      } catch (e) {}
+                      setChangeDaySubmitting(false);
+                    }}
+                    style={{ paddingVertical: 10 }}
+                  >
+                    <Text style={{ fontSize: 16 }}>{splitDayNames[dayId] || dayId}</Text>
+                  </TouchableOpacity>
+                ));
+              })()}
+            </ScrollView>
+            <TouchableOpacity onPress={() => setShowChangeDayModal(false)} style={{ paddingVertical: 10, alignItems: 'center' }}>
+              <Text style={{ color: '#007AFF', fontWeight: '700' }}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <ConfirmModal
         visible={showCompleteConfirm}
