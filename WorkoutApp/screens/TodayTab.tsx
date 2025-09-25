@@ -119,6 +119,7 @@ export default function TodayTab() {
   const [bodyweight, setBodyweight] = useState('');
   const [isKg, setIsKg] = useState(true);
   const [bodyweightSubmitting, setBodyweightSubmitting] = useState(false);
+  const [bodyweightRecordId, setBodyweightRecordId] = useState<string | null>(null);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [showChangeDayModal, setShowChangeDayModal] = useState(false);
   const [changeDaySubmitting, setChangeDaySubmitting] = useState(false);
@@ -135,15 +136,47 @@ export default function TodayTab() {
     }
     setBodyweightSubmitting(true);
     try {
-      await api.insertBodyweight({ user_id: profile.id, weight: parsed });
+      if (bodyweightRecordId) {
+        await api.updateBodyweight(bodyweightRecordId, { weight: parsed });
+      } else {
+        await api.insertBodyweight({ user_id: profile.id, weight: parsed });
+      }
       setShowBodyweightModal(false);
       setBodyweight('');
+      setBodyweightRecordId(null);
     } catch (e: any) {
       Alert.alert('Error', e.message || String(e));
     } finally {
       setBodyweightSubmitting(false);
     }
   };
+
+  // When the bodyweight modal opens, load existing bodyweight for the selected date (calendarDate or today)
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!showBodyweightModal) return;
+      if (!profile || !profile.id) return;
+      try {
+        const isoDate = (calendarDate || new Date()).toISOString().slice(0, 10);
+        const { data, error } = await api.getBodyweightByUserDate(profile.id, isoDate);
+        if (!mounted) return;
+        if (!error && data && data.length > 0) {
+          const row = data[0];
+          setBodyweight(String(row.weight ?? ''));
+          setBodyweightRecordId(row.id || null);
+          // If the stored units are known we could set isKg accordingly; assume kg for now
+        } else {
+          setBodyweight('');
+          setBodyweightRecordId(null);
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [showBodyweightModal, calendarDate, profile]);
 
       
   // Prepare the data array for the FlatList:

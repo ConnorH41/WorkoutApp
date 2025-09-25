@@ -4,6 +4,16 @@ export async function insertBodyweight(payload: { user_id: string; weight: numbe
   return await supabase.from('bodyweight').insert(payload instanceof Array ? payload : [payload]);
 }
 
+export async function getBodyweightByUserDate(userId: string, isoDate: string) {
+  const start = `${isoDate}T00:00:00Z`;
+  const end = `${isoDate}T23:59:59Z`;
+  return await supabase.from('bodyweight').select('*').eq('user_id', userId).gte('created_at', start).lte('created_at', end).order('created_at', { ascending: false }).limit(1);
+}
+
+export async function updateBodyweight(id: string, payload: { weight?: number }) {
+  return await supabase.from('bodyweight').update(payload).eq('id', id).select().limit(1);
+}
+
 export async function getDayByName(name: string) {
   return await supabase.from('days').select('*').eq('name', name).limit(1);
 }
