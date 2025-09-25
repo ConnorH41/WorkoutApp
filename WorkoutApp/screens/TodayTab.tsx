@@ -136,10 +136,11 @@ export default function TodayTab() {
     }
     setBodyweightSubmitting(true);
     try {
+      const unit: 'kg' | 'lbs' = isKg ? 'kg' : 'lbs';
       if (bodyweightRecordId) {
-        await api.updateBodyweight(bodyweightRecordId, { weight: parsed });
+        await api.updateBodyweight(bodyweightRecordId, { weight: parsed, unit });
       } else {
-        await api.insertBodyweight({ user_id: profile.id, weight: parsed });
+        await api.insertBodyweight({ user_id: profile.id, weight: parsed, unit });
       }
       setShowBodyweightModal(false);
       setBodyweight('');
@@ -164,6 +165,9 @@ export default function TodayTab() {
         if (!error && data && data.length > 0) {
           const row = data[0];
           setBodyweight(String(row.weight ?? ''));
+          // set units based on stored value if present
+          if (row.unit === 'lbs') setIsKg(false);
+          else setIsKg(true);
           setBodyweightRecordId(row.id || null);
           // If the stored units are known we could set isKg accordingly; assume kg for now
         } else {
