@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { colors } from '../styles/theme';
 
 type Props = {
   leftLabel: string;
@@ -21,10 +22,10 @@ export default function ModalButtons({
   onRightPress,
   leftDisabled,
   rightDisabled,
-  leftColor = '#e0e0e0',
-  rightColor = '#007AFF',
-  leftTextColor = '#000',
-  rightTextColor = '#fff',
+  leftColor = colors.muted,
+  rightColor = colors.primary,
+  leftTextColor = colors.text,
+  rightTextColor = colors.background,
 }: Props) {
   return (
     <View style={styles.container}>

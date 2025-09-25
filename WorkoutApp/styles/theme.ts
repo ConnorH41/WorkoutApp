@@ -10,6 +10,7 @@ export const colors = {
   textMuted: '#666666',
   link: '#007AFF',
   success: '#34C759',
+  border: '#dddddd',
 };
 
 export const spacing = {

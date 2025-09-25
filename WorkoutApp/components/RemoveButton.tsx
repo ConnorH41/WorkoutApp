@@ -1,5 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { colors } from '../styles/theme';
 
 type Props = {
   onPress: () => void;
@@ -29,7 +30,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   text: {
-    color: '#ff3b30',
+    color: colors.danger,
     fontWeight: '600',
     fontSize: 12,
   },
