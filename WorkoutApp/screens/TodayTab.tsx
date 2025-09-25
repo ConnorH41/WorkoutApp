@@ -456,14 +456,32 @@ export default function TodayTab() {
                 for (const it of items) {
                   const exId = it.id;
                   const setRows = logsHook.logs[exId] || [];
+
+                  // If there are no sets, skip
+                  if (setRows.length === 0) continue;
+
+                  // If every set has numeric reps and weight, persist them in bulk
+                  const allFilled = setRows.every(r => r && r.reps !== '' && r.weight !== '' && !Number.isNaN(Number(r.reps)) && !Number.isNaN(Number(r.weight)));
+                  if (allFilled) {
+                    try {
+                      // saveSetsForExercise will create logs for all sets and clear local rows
+                      // eslint-disable-next-line no-await-in-loop
+                      await logsHook.saveSetsForExercise(exId);
+                      continue;
+                    } catch (e) {
+                      // fallthrough to per-set handling if bulk save fails
+                    }
+                  }
+
+                  // Otherwise, persist any individual sets that are fully filled; for others, mark locally
                   for (let i = 0; i < setRows.length; i++) {
                     const row = setRows[i];
-                    if (row && row.completed) continue;
+                    if (!row || row.completed) continue;
                     const repsOk = row && row.reps !== '' && !Number.isNaN(Number(row.reps));
                     const weightOk = row && row.weight !== '' && !Number.isNaN(Number(row.weight));
                     if (repsOk && weightOk) {
                       try {
-                        // toggleSetCompleted will persist and update local state
+                        // Persist this set as a completed log
                         // eslint-disable-next-line no-await-in-loop
                         await logsHook.toggleSetCompleted(exId, i);
                       } catch (e) {
