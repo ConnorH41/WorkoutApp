@@ -25,7 +25,7 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.border,
     padding: 8,
     borderRadius: 4,
     flex: 1,
@@ -34,12 +34,12 @@ const styles = StyleSheet.create({
   },
   exerciseBox: {
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: colors.border,
     borderRadius: 8,
     padding: 12,
     paddingBottom: 40,
     marginBottom: 16,
-    backgroundColor: '#fafafa',
+    backgroundColor: colors.card,
   },
   exerciseTitle: {
     fontSize: 16,
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
     borderRadius: 8,
     padding: 16,
     shadowColor: '#000',
@@ -66,10 +66,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 6,
     marginLeft: 8,
-    backgroundColor: '#eee',
+    backgroundColor: colors.muted,
   },
   modalButtonText: {
-    color: '#333',
+    color: colors.text,
     fontWeight: '600',
   },
   addButton: {
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   addButtonText: {
-    color: '#fff',
+    color: colors.background,
     fontWeight: 'bold',
     fontSize: 16,
   },
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     height: 40,
     paddingHorizontal: 12,
     borderRadius: 4,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: colors.muted,
     marginRight: 8,
     alignItems: 'center',
     justifyContent: 'center',
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   unitToggleTextActive: {
-    color: '#fff',
+    color: colors.background,
   },
   goalBadge: {
     position: 'absolute',
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   goalBadgeText: {
-    color: '#fff',
+    color: colors.background,
     fontWeight: '700',
     fontSize: 12,
   },
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   },
   bodyweightIcon: {
     fontSize: 20,
-    color: '#fff',
+    color: colors.background,
   },
   removeBtn: {
     marginLeft: 8,
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#f2f2f2',
+    backgroundColor: colors.muted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
@@ -289,12 +289,12 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   checkboxText: {
-    color: '#fff',
+    color: colors.background,
     fontWeight: '700',
   },
   inputDisabled: {
     backgroundColor: colors.muted,
-    color: '#999',
+    color: colors.textMuted,
   },
   primaryButton: {
     backgroundColor: colors.primary,
@@ -306,20 +306,20 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   primaryButtonDisabled: {
-    backgroundColor: '#90C3FF',
+    backgroundColor: colors.muted,
   },
   primaryButtonText: {
-    color: '#fff',
+    color: colors.background,
     fontWeight: '700',
     fontSize: 16,
   },
   primaryButtonTextDisabled: {
-    color: '#f0f9ff',
+    color: colors.textMuted,
   },
   secondaryButton: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.border,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 8,
@@ -331,12 +331,12 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   secondaryButtonText: {
-    color: '#333',
+    color: colors.text,
     fontWeight: '700',
     fontSize: 15,
   },
   secondaryButtonTextDisabled: {
-    color: '#666',
+    color: colors.textMuted,
   },
 });
 

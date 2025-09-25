@@ -3,6 +3,7 @@ import { Modal, View, Text, TextInput, ScrollView, Keyboard } from 'react-native
 import ModalButtons from './ModalButtons';
 import styles from '../styles/daysStyles';
 import { ExerciseForm } from '../lib/types';
+import { colors } from '../styles/theme';
 
 type Props = {
   visible: boolean;
@@ -17,7 +18,7 @@ export default function EditExerciseModal({ visible, exercise, setExercise, onCl
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-        <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
+        <View style={{ backgroundColor: colors.background, padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
           <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Edit Exercise</Text>
             <Text style={{ marginBottom: 4, fontWeight: '500' }}>Exercise Name:</Text>
@@ -34,7 +35,7 @@ export default function EditExerciseModal({ visible, exercise, setExercise, onCl
             </View>
             <Text style={{ marginBottom: 4, fontWeight: '500' }}>Notes (optional):</Text>
             <TextInput style={[styles.input, styles.textInputMultiline, { marginBottom: 16 }]} placeholder="e.g. Focus on form, increase weight next week" value={exercise.notes} onChangeText={v => setExercise(prev => ({ ...prev, notes: v }))} returnKeyType="done" onSubmitEditing={() => Keyboard.dismiss()} multiline numberOfLines={3} />
-            <ModalButtons leftLabel="Cancel" rightLabel={saving ? 'Saving...' : 'Save'} onLeftPress={onClose} onRightPress={onSave} leftColor="#e0e0e0" rightColor="#007AFF" leftTextColor="#333" rightTextColor="#fff" />
+            <ModalButtons leftLabel="Cancel" rightLabel={saving ? 'Saving...' : 'Save'} onLeftPress={onClose} onRightPress={onSave} leftColor={colors.muted} rightColor={colors.primary} leftTextColor={colors.text} rightTextColor={colors.background} />
           </ScrollView>
         </View>
       </View>

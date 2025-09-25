@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, Keyboard } from 'react-native';
 import ModalButtons from './ModalButtons';
+import { colors } from '../styles/theme';
 
 type Props = {
   visible: boolean;
@@ -17,11 +18,11 @@ export default function BodyweightModal({ visible, bodyweight, isKg, submitting 
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 }}>
-        <View style={{ backgroundColor: '#fff', borderRadius: 8, padding: 16, elevation: 5 }}>
+        <View style={{ backgroundColor: colors.background, borderRadius: 8, padding: 16, elevation: 5 }}>
           <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>Enter Today's Bodyweight</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
             <TextInput
-              style={{ flex: 1, borderWidth: 1, borderColor: '#ccc', padding: 8, borderRadius: 4 }}
+              style={{ flex: 1, borderWidth: 1, borderColor: colors.border, padding: 8, borderRadius: 4 }}
               placeholder={isKg ? 'Weight (kg)' : 'Weight (lbs)'}
               value={bodyweight}
               onChangeText={onChangeWeight}
@@ -30,11 +31,11 @@ export default function BodyweightModal({ visible, bodyweight, isKg, submitting 
               onSubmitEditing={() => Keyboard.dismiss()}
             />
             <View style={{ marginLeft: 8, minWidth: 96, flexDirection: 'row', alignItems: 'center' }}>
-              <TouchableOpacity onPress={() => onToggleKg(true)} style={{ paddingHorizontal: 10, paddingVertical: 8, backgroundColor: isKg ? '#007AFF' : '#f0f0f0', borderRadius: 4, marginRight: 8 }}>
-                <Text style={{ color: isKg ? '#fff' : '#333' }}>kg</Text>
+              <TouchableOpacity onPress={() => onToggleKg(true)} style={{ paddingHorizontal: 10, paddingVertical: 8, backgroundColor: isKg ? colors.primary : colors.muted, borderRadius: 4, marginRight: 8 }}>
+                <Text style={{ color: isKg ? colors.background : colors.text }}>kg</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => onToggleKg(false)} style={{ paddingHorizontal: 10, paddingVertical: 8, backgroundColor: !isKg ? '#007AFF' : '#f0f0f0', borderRadius: 4 }}>
-                <Text style={{ color: !isKg ? '#fff' : '#333' }}>lbs</Text>
+              <TouchableOpacity onPress={() => onToggleKg(false)} style={{ paddingHorizontal: 10, paddingVertical: 8, backgroundColor: !isKg ? colors.primary : colors.muted, borderRadius: 4 }}>
+                <Text style={{ color: !isKg ? colors.background : colors.text }}>lbs</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -44,10 +45,10 @@ export default function BodyweightModal({ visible, bodyweight, isKg, submitting 
             rightLabel={submitting ? 'Logging...' : 'Save'}
             onLeftPress={onClose}
             onRightPress={onSave}
-            leftColor="#e0e0e0"
-            rightColor="#007AFF"
-            leftTextColor="#000"
-            rightTextColor="#fff"
+            leftColor={colors.muted}
+            rightColor={colors.primary}
+            leftTextColor={colors.text}
+            rightTextColor={colors.background}
             rightDisabled={submitting}
           />
         </View>

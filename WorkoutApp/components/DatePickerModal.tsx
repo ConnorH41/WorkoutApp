@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, Platform } from 'react-native';
+import { colors } from '../styles/theme';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import styles from '../styles/todayStyles';
 
@@ -45,7 +46,7 @@ export default function DatePickerModal({ visible, initialDate, onCancel, onConf
           {Platform.OS === 'android' && (
             <TouchableOpacity
               onPress={() => setShowInlinePicker(true)}
-              style={{ padding: 12, backgroundColor: '#eee', borderRadius: 8, marginBottom: 12, alignItems: 'center' }}
+              style={{ padding: 12, backgroundColor: colors.muted, borderRadius: 8, marginBottom: 12, alignItems: 'center' }}
             >
               <Text>{date ? date.toDateString() : 'Choose date'}</Text>
             </TouchableOpacity>
@@ -65,14 +66,14 @@ export default function DatePickerModal({ visible, initialDate, onCancel, onConf
           )}
 
           <View style={{ flexDirection: 'row', marginTop: 12 }}>
-            <TouchableOpacity onPress={onCancel} style={{ flex: 1, marginRight: 8, padding: 12, backgroundColor: '#e0e0e0', borderRadius: 8, alignItems: 'center' }}>
-              <Text style={{ color: '#000', fontWeight: '700' }}>Cancel</Text>
+            <TouchableOpacity onPress={onCancel} style={{ flex: 1, marginRight: 8, padding: 12, backgroundColor: colors.muted, borderRadius: 8, alignItems: 'center' }}>
+              <Text style={{ color: colors.text, fontWeight: '700' }}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => { if (date) {
                 const pad = (n: number) => String(n).padStart(2, '0');
                 onConfirm(`${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`);
               } }} style={{ flex: 1, padding: 12, backgroundColor: '#007AFF', borderRadius: 8, alignItems: 'center' }}>
-              <Text style={{ color: '#fff', fontWeight: '700' }}>Select</Text>
+              <Text style={{ color: colors.background, fontWeight: '700' }}>Select</Text>
             </TouchableOpacity>
           </View>
         </View>

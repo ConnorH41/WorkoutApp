@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, ScrollView, Keyboard, Platform, ToastAndroid, Alert } from 'react-native';
+import { colors } from '../styles/theme';
 import styles from '../styles/daysStyles';
 import ModalButtons from './ModalButtons';
 
@@ -75,7 +76,7 @@ export default function AddExercise({ mode = 'modal', onAdd, adding = false, add
 
       <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
+          <View style={{ backgroundColor: colors.background, padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
             <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
               <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>{addButtonText || 'Add Exercise'}</Text>
 
@@ -140,10 +141,10 @@ export default function AddExercise({ mode = 'modal', onAdd, adding = false, add
                   rightLabel={adding ? 'Adding...' : (addButtonText || 'Add Exercise')}
                   onLeftPress={() => { reset(); setVisible(false); }}
                   onRightPress={handleAdd}
-                  leftColor="#e0e0e0"
-                  rightColor="#007AFF"
-                  leftTextColor="#333"
-                  rightTextColor="#fff"
+                  leftColor={colors.muted}
+                  rightColor={colors.primary}
+                  leftTextColor={colors.text}
+                  rightTextColor={colors.background}
                   rightDisabled={adding}
                 />
               </View>
