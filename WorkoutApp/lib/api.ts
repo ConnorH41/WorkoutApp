@@ -48,6 +48,15 @@ export async function updateLog(id: string, payload: any) {
   return await supabase.from('logs').update(payload).eq('id', id);
 }
 
+export async function getLogsByWorkoutId(workoutId: string) {
+  return await supabase
+    .from('logs')
+    .select('*')
+    .eq('workout_id', workoutId)
+    .order('exercise_id', { ascending: true })
+    .order('set_number', { ascending: true });
+}
+
 export async function getActiveSplitRun(userId: string) {
   return await supabase
     .from('split_runs')

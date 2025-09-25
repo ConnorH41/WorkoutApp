@@ -68,6 +68,37 @@ export default function TodayTab() {
     },
   });
 
+  // Load persisted logs for today's workout when it becomes available so
+  // reps/weight/completed state is restored on reload/login.
+  useEffect(() => {
+    const loadPersistedLogs = async () => {
+      try {
+        if (!todayWorkout || !todayWorkout.id) return;
+        const { data, error } = await api.getLogsByWorkoutId(todayWorkout.id);
+        if (error || !data) return;
+        // Transform into logsHook shape: group by exercise id and fill arrays
+        const grouped: any = {};
+        const notes: any = {};
+        for (const row of data) {
+          const exId = String(row.exercise_id || row.workout_exercise_id || row.exercise_id || '');
+          if (!grouped[exId]) grouped[exId] = [];
+          grouped[exId].push({ setNumber: row.set_number, reps: String(row.reps ?? ''), weight: String(row.weight ?? ''), completed: !!row.completed, logId: row.id });
+          if (row.notes) notes[exId] = String(row.notes);
+        }
+        // Ensure each group's sets are sorted by setNumber and indexed from 0..n-1
+        Object.keys(grouped).forEach(k => {
+          grouped[k] = grouped[k].sort((a: any, b: any) => (a.setNumber || 0) - (b.setNumber || 0));
+        });
+        // Update logsHook state
+        logsHook.setLogs(grouped);
+        logsHook.setNotesByExercise(notes);
+      } catch (e) {
+        // ignore
+      }
+    };
+    loadPersistedLogs();
+  }, [todayWorkout?.id]);
+
   // Ensure default set rows exist for all exercises
   useEffect(() => {
     (exercises || []).forEach(ex => logsHook.ensureSetsForExercise(ex));
