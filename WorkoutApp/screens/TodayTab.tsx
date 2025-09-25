@@ -196,46 +196,13 @@ export default function TodayTab() {
           );
         })()}
         <View style={{ flexDirection: 'row', marginLeft: 'auto' }}>
-          <TouchableOpacity onPress={() => setShowBodyweightModal(true)} style={styles.bodyweightBtn} activeOpacity={0.9} accessibilityLabel="Open bodyweight modal">
-            {IconFeather ? <IconFeather name="user" size={18} color="#fff" /> : <Text style={styles.bodyweightIcon}>🏋️‍♂️</Text>}
-          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setShowCalendarModal(true)}
-            style={[styles.bodyweightBtn, { backgroundColor: '#2a9df4', marginLeft: 8 }]}
+            style={[styles.bodyweightBtn, { backgroundColor: '#2a9df4' }]}
             activeOpacity={0.9}
             accessibilityLabel="Open calendar"
           >
             {IconFeather ? <IconFeather name="calendar" size={18} color="#fff" /> : <Text style={styles.bodyweightIcon}>📅</Text>}
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={async () => {
-              // Load display names for day_id references before opening modal
-              try {
-                setSplitDayNamesLoading(true);
-                const ids = Array.from(new Set((splitDays || []).map((s: any) => s.day_id).filter(Boolean)));
-                const map: Record<string, string> = {};
-                await Promise.all(ids.map(async (id) => {
-                  try {
-                    const { data } = await api.getDayById(id);
-                    if (data && data.length > 0) map[id] = data[0].name || id;
-                    else map[id] = id;
-                  } catch (e) {
-                    map[id] = id;
-                  }
-                }));
-                setSplitDayNames(map);
-              } catch (e) {
-                // ignore
-              } finally {
-                setSplitDayNamesLoading(false);
-                setShowChangeDayModal(true);
-              }
-            }}
-            style={[styles.bodyweightBtn, { backgroundColor: '#5cb85c', marginLeft: 8 }]}
-            activeOpacity={0.9}
-            accessibilityLabel="Change scheduled day"
-          >
-            <Text style={{ color: '#fff', fontWeight: '700' }}>{splitDayNamesLoading ? 'Loading...' : 'Change Day'}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setShowSettingsModal(true)} style={[styles.bodyweightBtn, { backgroundColor: '#444', marginLeft: 8 }]} activeOpacity={0.9} accessibilityLabel="Open settings">
             {IconFeather ? <IconFeather name="settings" size={18} color="#fff" /> : <Text style={styles.bodyweightIcon}>⚙️</Text>}
@@ -431,6 +398,41 @@ export default function TodayTab() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 12 }}>Settings</Text>
+            <TouchableOpacity onPress={() => { setShowSettingsModal(false); setShowBodyweightModal(true); }} style={{ backgroundColor: '#007AFF', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 8 }}>
+              <Text style={{ color: '#fff', fontWeight: '700' }}>Log Bodyweight</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={async () => {
+                // Load display names for day_id references before opening modal
+                try {
+                    setSplitDayNamesLoading(true);
+                    const ids = Array.from(new Set((splitDays || []).map((s: any) => s.day_id).filter(Boolean)));
+                    const map: Record<string, string> = {};
+                    await Promise.all(ids.map(async (id) => {
+                      try {
+                        const { data } = await api.getDayById(id);
+                        if (data && data.length > 0) map[id] = data[0].name || id;
+                        else map[id] = id;
+                      } catch (e) {
+                        map[id] = id;
+                      }
+                    }));
+                    setSplitDayNames(map);
+                  } catch (e) {
+                    // ignore
+                  } finally {
+                    setSplitDayNamesLoading(false);
+                    // close settings so the change-day modal is visible on top
+                    setShowSettingsModal(false);
+                    setShowChangeDayModal(true);
+                  }
+              }}
+              style={{ backgroundColor: '#5cb85c', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 8 }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '700' }}>{splitDayNamesLoading ? 'Loading...' : 'Change Scheduled Day'}</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               onPress={async () => {
                 try {
@@ -444,6 +446,7 @@ export default function TodayTab() {
             >
               <Text style={{ color: '#fff', fontWeight: '700' }}>Logout</Text>
             </TouchableOpacity>
+
             <TouchableOpacity onPress={() => setShowSettingsModal(false)} style={{ padding: 12, alignItems: 'center' }}>
               <Text style={{ color: '#007AFF', fontWeight: '700' }}>Close</Text>
             </TouchableOpacity>
