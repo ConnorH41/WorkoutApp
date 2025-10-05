@@ -298,47 +298,66 @@ export default function TodayTab() {
             )}
           </View>
         )}
-        renderItem={({ item }) => (
-          <ExerciseCard
-            key={item.id}
-            item={item}
-            sets={logsHook.logs[String(item.id)] || [{ setNumber: 1, reps: '', weight: '', completed: false }]}
-            name={editedNames[item.id] ?? item.name}
-            editing={!!editingByExercise[item.id]}
-            readonlyMode={headerIsRest}
-            notes={logsHook.notesByExercise[String(item.id)] || ''}
-            onToggleEdit={() => {
-              // If we are toggling off editing, persist the name if changed
-              const currently = !!editingByExercise[item.id];
-              if (currently) {
-                const edited = editedNames[item.id];
-                if (edited != null && String(edited).trim() !== String(item.name).trim()) {
-                  // persist name change for persisted instances
-                  if (item && item.workout_id) {
-                    updateWorkoutExerciseInstance(item.id, { name: String(edited).trim() }).catch(() => {});
+        renderItem={({ item }) => {
+          // Ensure the sets array matches the number specified for the exercise
+          let sets = logsHook.logs[String(item.id)] || [];
+          const expectedSets = Number(item.sets) || 1;
+          if (sets.length < expectedSets) {
+            sets = [
+              ...sets,
+              ...Array(expectedSets - sets.length).fill(0).map((_, i) => ({
+                setNumber: sets.length + i + 1,
+                reps: '',
+                weight: '',
+                completed: false,
+                logId: null,
+              }))
+            ];
+          } else if (sets.length > expectedSets) {
+            sets = sets.slice(0, expectedSets);
+          }
+          return (
+            <ExerciseCard
+              key={item.id}
+              item={item}
+              sets={sets}
+              name={editedNames[item.id] ?? item.name}
+              editing={!!editingByExercise[item.id]}
+              readonlyMode={headerIsRest}
+              notes={logsHook.notesByExercise[String(item.id)] || ''}
+              onToggleEdit={() => {
+                // If we are toggling off editing, persist the name if changed
+                const currently = !!editingByExercise[item.id];
+                if (currently) {
+                  const edited = editedNames[item.id];
+                  if (edited != null && String(edited).trim() !== String(item.name).trim()) {
+                    // persist name change for persisted instances
+                    if (item && item.workout_id) {
+                      updateWorkoutExerciseInstance(item.id, { name: String(edited).trim() }).catch(() => {});
+                    }
                   }
                 }
-              }
-              setEditingByExercise(prev => ({ ...prev, [item.id]: !prev[item.id] }));
-            }}
-            onChangeName={(v) => setEditedNames(prev => ({ ...prev, [item.id]: v }))}
-            onChangeNotes={(v) => {
-              logsHook.handleNotesChange(item.id, v);
-              try { if (notesDebounceTimers.current[item.id]) clearTimeout(notesDebounceTimers.current[item.id]); } catch {}
-              notesDebounceTimers.current[item.id] = setTimeout(async () => {
-                if (item && item.workout_id) {
-                  try { await updateWorkoutExerciseInstance(item.id, { notes: v }); } catch (e) {}
-                }
-              }, 800);
-            }}
-            onChangeSet={(idx, field, v) => logsHook.handleSetChange(item.id, idx, field as any, v)}
-            onToggleCompleted={(idx) => logsHook.toggleSetCompleted(item.id, idx)}
-            onAddSet={async () => { logsHook.addSetRow(item.id); if (item && item.workout_id) { try { await updateWorkoutExerciseInstance(item.id, { sets: (Number(item.sets) || 1) + 1 }); } catch {} } }}
-            onRemoveSet={(idx) => { setDeleteSetTarget({ exerciseId: item.id, index: idx }); setShowDeleteSetConfirm(true); }}
-            onRemoveExercise={() => { setDeleteExerciseTarget(item.id); setShowDeleteExerciseConfirm(true); }}
-            IconFeather={IconFeather}
-          />
-        )}
+                setEditingByExercise(prev => ({ ...prev, [item.id]: !prev[item.id] }));
+              }}
+              onChangeName={(v) => setEditedNames(prev => ({ ...prev, [item.id]: v }))}
+              onChangeNotes={(v) => {
+                logsHook.handleNotesChange(item.id, v);
+                try { if (notesDebounceTimers.current[item.id]) clearTimeout(notesDebounceTimers.current[item.id]); } catch {}
+                notesDebounceTimers.current[item.id] = setTimeout(async () => {
+                  if (item && item.workout_id) {
+                    try { await updateWorkoutExerciseInstance(item.id, { notes: v }); } catch (e) {}
+                  }
+                }, 800);
+              }}
+              onChangeSet={(idx, field, v) => logsHook.handleSetChange(item.id, idx, field as any, v)}
+              onToggleCompleted={(idx) => logsHook.toggleSetCompleted(item.id, idx)}
+              onAddSet={async () => { logsHook.addSetRow(item.id); if (item && item.workout_id) { try { await updateWorkoutExerciseInstance(item.id, { sets: (Number(item.sets) || 1) + 1 }); } catch {} } }}
+              onRemoveSet={(idx) => { setDeleteSetTarget({ exerciseId: item.id, index: idx }); setShowDeleteSetConfirm(true); }}
+              onRemoveExercise={() => { setDeleteExerciseTarget(item.id); setShowDeleteExerciseConfirm(true); }}
+              IconFeather={IconFeather}
+            />
+          );
+        }}
       />
       {/* Calendar modal for selecting date (single instance) */}
       <DatePickerModal
