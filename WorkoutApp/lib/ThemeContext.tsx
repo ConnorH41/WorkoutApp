@@ -1,11 +1,10 @@
 import React, { createContext, useContext, useState, useMemo } from 'react';
-import { colors, darkColors, spacing, borderRadius, fonts, shadows } from '../styles/theme';
+import { colors, spacing, borderRadius, fonts, shadows } from '../styles/theme';
+
 
 export type ThemeType = typeof colors;
 
 interface ThemeContextValue {
-  darkMode: boolean;
-  setDarkMode: (val: boolean) => void;
   theme: ThemeType;
   spacing: typeof spacing;
   borderRadius: typeof borderRadius;
@@ -16,11 +15,9 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [darkMode, setDarkMode] = useState(false);
-  const theme = useMemo(() => (darkMode ? darkColors : colors), [darkMode]);
-
+  const theme = colors;
   return (
-    <ThemeContext.Provider value={{ darkMode, setDarkMode, theme, spacing, borderRadius, fonts, shadows }}>
+    <ThemeContext.Provider value={{ theme, spacing, borderRadius, fonts, shadows }}>
       {children}
     </ThemeContext.Provider>
   );
