@@ -1,10 +1,11 @@
 import { StyleSheet } from 'react-native';
+import { colors, fonts, spacing, borderRadius, shadows } from './theme';
 
 export default StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
+    backgroundColor: colors.background,
+    padding: spacing.lg,
   },
   header: {
     flexDirection: 'row',
@@ -13,25 +14,22 @@ export default StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: fonts.size.xxxl,
+    fontWeight: fonts.weight.bold,
+    lineHeight: fonts.size.xxxl * fonts.lineHeight.tight,
+    color: colors.text,
   },
   addButton: {
-    backgroundColor: '#800000', // Maroon from theme
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    shadowColor: '#800000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    ...shadows.md,
   },
   addButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-    letterSpacing: 1,
+    color: colors.surface,
+    fontWeight: fonts.weight.bold,
+    fontSize: fonts.size.md,
   },
   row: {
     flexDirection: 'row',
@@ -48,16 +46,19 @@ export default StyleSheet.create({
   },
   splitBox: {
     borderWidth: 1,
-    borderColor: '#eee',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 18,
-    backgroundColor: '#fafafa',
+    borderColor: colors.border,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    marginBottom: spacing.lg,
+    backgroundColor: colors.card,
+    ...shadows.sm,
   },
   splitName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    fontSize: fonts.size.lg,
+    fontWeight: fonts.weight.bold,
+    lineHeight: fonts.size.lg * fonts.lineHeight.tight,
+    color: colors.text,
+    marginBottom: spacing.sm,
   },
   modeBadge: {
     backgroundColor: '#e6f0ff',
@@ -74,9 +75,9 @@ export default StyleSheet.create({
     marginLeft: 10,
   },
   badgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: fonts.size.xs,
+    fontWeight: fonts.weight.semibold,
+    color: colors.text,
   },
   splitActions: {
     flexDirection: 'row',
@@ -95,9 +96,11 @@ export default StyleSheet.create({
     borderTopColor: '#ddd',
   },
   splitDaysTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
+    fontSize: fonts.size.md,
+    fontWeight: fonts.weight.bold,
+    lineHeight: fonts.size.md * fonts.lineHeight.normal,
+    color: colors.text,
+    marginBottom: spacing.md,
   },
   splitDayBox: {
     flexDirection: 'row',
@@ -112,8 +115,9 @@ export default StyleSheet.create({
     marginBottom: 6,
   },
   addDayBtnText: {
-    color: '#333',
-    fontWeight: 'bold',
+    color: colors.text,
+    fontWeight: fonts.weight.bold,
+    fontSize: fonts.size.sm,
   },
   assignBtn: {
     backgroundColor: '#eee',
@@ -123,8 +127,9 @@ export default StyleSheet.create({
     marginHorizontal: 6,
   },
   assignBtnText: {
-    color: '#007AFF',
-    fontWeight: 'bold',
+    color: colors.primary,
+    fontWeight: fonts.weight.bold,
+    fontSize: fonts.size.sm,
   },
   modeButton: {
     paddingVertical: 8,
@@ -160,8 +165,8 @@ export default StyleSheet.create({
     justifyContent: 'center',
   },
   actionBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: fonts.size.sm,
+    fontWeight: fonts.weight.bold,
   },
   primaryBtn: {
     backgroundColor: '#007AFF',
@@ -184,9 +189,9 @@ export default StyleSheet.create({
     marginRight: 8,
   },
   durationText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#007AFF',
+    fontSize: fonts.size.sm,
+    fontWeight: fonts.weight.bold,
+    color: colors.primary,
   },
   splitFooter: {
     flexDirection: 'row',
@@ -200,12 +205,13 @@ export default StyleSheet.create({
     height: 36,
   },
   linkText: {
-    color: '#007AFF',
-    fontWeight: '700',
+    color: colors.primary,
+    fontWeight: fonts.weight.bold,
+    fontSize: fonts.size.sm,
   },
   removeTextStyle: {
-    color: '#ff3b30',
-    fontWeight: '600',
-    fontSize: 12,
+    color: colors.danger,
+    fontWeight: fonts.weight.semibold,
+    fontSize: fonts.size.xs,
   },
 });

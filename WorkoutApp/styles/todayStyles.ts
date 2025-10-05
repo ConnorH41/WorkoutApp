@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { colors } from './theme';
+import { colors, fonts, spacing, borderRadius, shadows } from './theme';
 
 const styles = StyleSheet.create({
   container: {
@@ -8,15 +8,19 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 16,
+    fontSize: fonts.size.xxxl,
+    fontWeight: fonts.weight.bold,
+    lineHeight: fonts.size.xxxl * fonts.lineHeight.tight,
+    color: colors.text,
+    marginBottom: spacing.lg,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 16,
-    marginBottom: 8,
+    fontSize: fonts.size.lg,
+    fontWeight: fonts.weight.bold,
+    lineHeight: fonts.size.lg * fonts.lineHeight.tight,
+    color: colors.text,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
   },
   row: {
     flexDirection: 'row',
@@ -42,8 +46,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   exerciseTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: fonts.size.md,
+    fontWeight: fonts.weight.bold,
+    lineHeight: fonts.size.md * fonts.lineHeight.normal,
+    color: colors.text,
     marginBottom: 0,
   },
   modalOverlay: {
@@ -79,22 +85,22 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   addButtonText: {
-    color: colors.background,
-    fontWeight: 'bold',
-    fontSize: 16,
+    color: colors.surface,
+    fontWeight: fonts.weight.bold,
+    fontSize: fonts.size.md,
   },
   textInput: {
     height: 40,
-    fontSize: 16,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    fontSize: fonts.size.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
     textAlignVertical: 'center',
   },
   textInputMultiline: {
     minHeight: 60,
-    fontSize: 16,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    fontSize: fonts.size.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
     textAlignVertical: 'top',
   },
   unitSwitchContainer: {
@@ -105,9 +111,9 @@ const styles = StyleSheet.create({
     height: 40,
   },
   unitLabel: {
-    fontSize: 12,
-    color: colors.text,
-    marginBottom: 4,
+    fontSize: fonts.size.xs,
+    color: colors.textMuted,
+    marginBottom: spacing.xs,
     textAlign: 'center',
   },
   unitToggleBtn: {
@@ -125,7 +131,8 @@ const styles = StyleSheet.create({
   },
   unitToggleText: {
     color: colors.text,
-    fontWeight: '600',
+    fontWeight: fonts.weight.semibold,
+    fontSize: fonts.size.sm,
   },
   unitToggleTextActive: {
     color: colors.background,
@@ -140,9 +147,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   goalBadgeText: {
-    color: colors.background,
-    fontWeight: '700',
-    fontSize: 12,
+    color: colors.surface,
+    fontWeight: fonts.weight.bold,
+    fontSize: fonts.size.xs,
   },
   bodyweightBtn: {
     marginLeft: 'auto',
@@ -170,8 +177,8 @@ const styles = StyleSheet.create({
   },
   removeBtnText: {
     color: colors.danger,
-    fontWeight: '700',
-    fontSize: 18,
+    fontWeight: fonts.weight.bold,
+    fontSize: fonts.size.lg,
   },
   setRow: {
     flexDirection: 'row',
@@ -181,8 +188,10 @@ const styles = StyleSheet.create({
   },
   setLabel: {
     width: 64,
-    fontWeight: '600',
-    marginRight: 8,
+    fontSize: fonts.size.sm,
+    fontWeight: fonts.weight.semibold,
+    color: colors.textMuted,
+    marginRight: spacing.sm,
     height: 40,
     lineHeight: 40,
   },
@@ -205,7 +214,8 @@ const styles = StyleSheet.create({
   },
   addSetText: {
     color: colors.primary,
-    fontWeight: '700',
+    fontWeight: fonts.weight.bold,
+    fontSize: fonts.size.sm,
   },
   addExerciseBtn: {
     marginTop: 0,
@@ -217,7 +227,8 @@ const styles = StyleSheet.create({
   },
   addExerciseText: {
     color: colors.primary,
-    fontWeight: '700',
+    fontWeight: fonts.weight.bold,
+    fontSize: fonts.size.md,
   },
   notesInput: {
     marginTop: 8,
@@ -227,9 +238,10 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   exerciseTitleInput: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 6,
+    fontSize: fonts.size.md,
+    fontWeight: fonts.weight.bold,
+    color: colors.text,
+    marginBottom: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: 'transparent',
     paddingVertical: 2,
@@ -262,8 +274,8 @@ const styles = StyleSheet.create({
   },
   removeExerciseText: {
     color: colors.danger,
-    fontWeight: '600',
-    fontSize: 12,
+    fontWeight: fonts.weight.semibold,
+    fontSize: fonts.size.xs,
   },
   removeExerciseAbsolute: {
     position: 'absolute',
@@ -289,8 +301,8 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   checkboxText: {
-    color: colors.background,
-    fontWeight: '700',
+    color: colors.surface,
+    fontWeight: fonts.weight.bold,
   },
   inputDisabled: {
     backgroundColor: colors.muted,
@@ -309,9 +321,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.muted,
   },
   primaryButtonText: {
-    color: colors.background,
-    fontWeight: '700',
-    fontSize: 16,
+    color: colors.surface,
+    fontWeight: fonts.weight.bold,
+    fontSize: fonts.size.md,
   },
   primaryButtonTextDisabled: {
     color: colors.textMuted,
@@ -332,8 +344,8 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     color: colors.text,
-    fontWeight: '700',
-    fontSize: 15,
+    fontWeight: fonts.weight.bold,
+    fontSize: fonts.size.md,
   },
   secondaryButtonTextDisabled: {
     color: colors.textMuted,

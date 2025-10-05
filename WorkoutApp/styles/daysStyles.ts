@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { colors } from './theme';
+import { colors, fonts, spacing, borderRadius, shadows } from './theme';
 
 const styles = StyleSheet.create({
   container: {
@@ -14,8 +14,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: fonts.size.xxxl,
+    fontWeight: fonts.weight.bold,
+    lineHeight: fonts.size.xxxl * fonts.lineHeight.tight,
+    color: colors.text,
   },
   addButton: {
     backgroundColor: colors.primary,
@@ -24,9 +26,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   addButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
+    color: colors.surface,
+    fontWeight: fonts.weight.bold,
+    fontSize: fonts.size.md,
   },
   row: {
     flexDirection: 'row',
@@ -50,9 +52,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fafafa',
   },
   dayName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    fontSize: fonts.size.lg,
+    fontWeight: fonts.weight.bold,
+    lineHeight: fonts.size.lg * fonts.lineHeight.tight,
+    color: colors.text,
+    marginBottom: spacing.xs,
   },
   exerciseCountBadge: {
     backgroundColor: '#e6f0ff',
@@ -62,9 +66,9 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   badgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: fonts.size.xs,
+    fontWeight: fonts.weight.semibold,
+    color: colors.text,
   },
   dayActions: {
     flexDirection: 'row',
@@ -82,8 +86,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   actionBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: fonts.size.sm,
+    fontWeight: fonts.weight.bold,
   },
   primaryBtn: {
     backgroundColor: colors.primary,
@@ -105,9 +109,11 @@ const styles = StyleSheet.create({
     borderTopColor: '#ddd',
   },
   exerciseTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    fontSize: fonts.size.md,
+    fontWeight: fonts.weight.bold,
+    lineHeight: fonts.size.md * fonts.lineHeight.normal,
+    color: colors.text,
+    marginBottom: spacing.sm,
   },
   exerciseBox: {
     borderWidth: 1,
@@ -118,19 +124,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   exerciseName: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: fonts.size.md,
+    fontWeight: fonts.weight.bold,
+    lineHeight: fonts.size.md * fonts.lineHeight.normal,
+    color: colors.text,
     marginBottom: 2,
   },
   exerciseDetails: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
+    fontSize: fonts.size.sm,
+    color: colors.textMuted,
+    lineHeight: fonts.size.sm * fonts.lineHeight.normal,
+    marginBottom: spacing.xs,
   },
   exerciseNotes: {
-    fontSize: 13,
-    color: '#555',
-    marginBottom: 4,
+    fontSize: fonts.size.sm,
+    color: colors.textMuted,
+    lineHeight: fonts.size.sm * fonts.lineHeight.normal,
+    marginBottom: spacing.xs,
     fontStyle: 'italic',
   },
   exerciseActions: {
@@ -144,16 +154,19 @@ const styles = StyleSheet.create({
   },
   deleteText: {
     color: colors.danger,
-    fontWeight: '600',
+    fontWeight: fonts.weight.semibold,
+    fontSize: fonts.size.sm,
   },
   deleteTextSmall: {
     color: colors.danger,
-    fontWeight: '600',
-    marginRight: 8,
+    fontWeight: fonts.weight.semibold,
+    fontSize: fonts.size.xs,
+    marginRight: spacing.sm,
   },
   addExerciseLink: {
     color: colors.primary,
-    fontWeight: '700',
+    fontWeight: fonts.weight.bold,
+    fontSize: fonts.size.md,
   },
   modalButton: {
     paddingVertical: 12,
@@ -162,16 +175,16 @@ const styles = StyleSheet.create({
   },
   textInput: {
     height: 40,
-    fontSize: 16,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    fontSize: fonts.size.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
     textAlignVertical: 'center',
   },
   textInputMultiline: {
     minHeight: 60,
-    fontSize: 16,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    fontSize: fonts.size.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
     textAlignVertical: 'top',
   },
 });
