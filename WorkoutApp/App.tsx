@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import MainNavigator from './MainNavigator';
 import { ThemeProvider } from './lib/ThemeContext';
@@ -60,11 +61,13 @@ export default function App() {
 
   // Main app UI goes here
   return (
-    <ThemeProvider>
-      <SafeAreaProvider>
-        <MainNavigator />
-      </SafeAreaProvider>
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <SafeAreaProvider>
+          <MainNavigator />
+        </SafeAreaProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
 
