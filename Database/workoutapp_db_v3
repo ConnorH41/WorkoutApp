@@ -1,16 +1,45 @@
--- WARNING: This schema is for context only and is not meant to be run.
--- Table order and constraints may not be valid for execution.
+-- Enum type for weight units
+CREATE TYPE weight_unit AS ENUM ('kg', 'lb');
 
-CREATE TABLE public.bodyweight (
+-- Table: profiles (depends on auth.users)
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  username text UNIQUE,
+  full_name text,
+  avatar_url text,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+
+-- Table: splits
+CREATE TABLE public.splits (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid,
-  weight numeric NOT NULL,
-  logged_at date NOT NULL DEFAULT CURRENT_DATE,
+  name text NOT NULL,
+  mode text NOT NULL CHECK (mode = ANY (ARRAY['week'::text, 'rotation'::text])),
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-  unit USER-DEFINED NOT NULL DEFAULT 'kg'::weight_unit,
-  CONSTRAINT bodyweight_pkey PRIMARY KEY (id),
-  CONSTRAINT bodyweight_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+  CONSTRAINT splits_pkey PRIMARY KEY (id),
+  CONSTRAINT splits_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
+
+-- Table: split_runs (depends on splits)
+CREATE TABLE public.split_runs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  split_id uuid,
+  user_id uuid,
+  start_date date,
+  end_date date,
+  num_weeks numeric,
+  num_rotations integer,
+  active boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT split_runs_pkey PRIMARY KEY (id),
+  CONSTRAINT split_runs_split_id_fkey FOREIGN KEY (split_id) REFERENCES public.splits(id),
+  CONSTRAINT split_runs_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+
+-- Table: days
 CREATE TABLE public.days (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid,
@@ -19,6 +48,8 @@ CREATE TABLE public.days (
   CONSTRAINT days_pkey PRIMARY KEY (id),
   CONSTRAINT days_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
+
+-- Table: exercises (depends on days)
 CREATE TABLE public.exercises (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   day_id uuid,
@@ -30,6 +61,23 @@ CREATE TABLE public.exercises (
   CONSTRAINT exercises_pkey PRIMARY KEY (id),
   CONSTRAINT exercises_day_id_fkey FOREIGN KEY (day_id) REFERENCES public.days(id)
 );
+
+-- Table: workouts (depends on days, split_runs)
+CREATE TABLE public.workouts (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  day_id uuid,
+  date date NOT NULL DEFAULT CURRENT_DATE,
+  completed boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  split_run_id uuid,
+  CONSTRAINT workouts_pkey PRIMARY KEY (id),
+  CONSTRAINT workouts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT workouts_day_id_fkey FOREIGN KEY (day_id) REFERENCES public.days(id),
+  CONSTRAINT workouts_split_run_id_fkey FOREIGN KEY (split_run_id) REFERENCES public.split_runs(id)
+);
+
+-- Table: logs (depends on workouts, exercises)
 CREATE TABLE public.logs (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   workout_id uuid,
@@ -45,15 +93,20 @@ CREATE TABLE public.logs (
   CONSTRAINT logs_workout_id_fkey FOREIGN KEY (workout_id) REFERENCES public.workouts(id),
   CONSTRAINT logs_exercise_id_fkey FOREIGN KEY (exercise_id) REFERENCES public.exercises(id)
 );
-CREATE TABLE public.profiles (
-  id uuid NOT NULL,
-  username text UNIQUE,
-  full_name text,
-  avatar_url text,
+
+-- Table: bodyweight
+CREATE TABLE public.bodyweight (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  weight numeric NOT NULL,
+  logged_at date NOT NULL DEFAULT CURRENT_DATE,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-  CONSTRAINT profiles_pkey PRIMARY KEY (id),
-  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+  unit weight_unit NOT NULL DEFAULT 'kg',
+  CONSTRAINT bodyweight_pkey PRIMARY KEY (id),
+  CONSTRAINT bodyweight_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
+
+-- Table: split_days (depends on splits, days)
 CREATE TABLE public.split_days (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   split_id uuid,
@@ -65,29 +118,8 @@ CREATE TABLE public.split_days (
   CONSTRAINT split_days_split_id_fkey FOREIGN KEY (split_id) REFERENCES public.splits(id),
   CONSTRAINT split_days_day_id_fkey FOREIGN KEY (day_id) REFERENCES public.days(id)
 );
-CREATE TABLE public.split_runs (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  split_id uuid,
-  user_id uuid,
-  start_date date,
-  end_date date,
-  num_weeks numeric,
-  num_rotations integer,
-  active boolean DEFAULT false,
-  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-  CONSTRAINT split_runs_pkey PRIMARY KEY (id),
-  CONSTRAINT split_runs_split_id_fkey FOREIGN KEY (split_id) REFERENCES public.splits(id),
-  CONSTRAINT split_runs_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.splits (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  user_id uuid,
-  name text NOT NULL,
-  mode text NOT NULL CHECK (mode = ANY (ARRAY['week'::text, 'rotation'::text])),
-  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-  CONSTRAINT splits_pkey PRIMARY KEY (id),
-  CONSTRAINT splits_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
+
+-- Table: workout_exercises (depends on profiles, workouts, exercises)
 CREATE TABLE public.workout_exercises (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
@@ -105,17 +137,4 @@ CREATE TABLE public.workout_exercises (
   CONSTRAINT workout_exercises_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
   CONSTRAINT workout_exercises_workout_id_fkey FOREIGN KEY (workout_id) REFERENCES public.workouts(id),
   CONSTRAINT workout_exercises_exercise_id_fkey FOREIGN KEY (exercise_id) REFERENCES public.exercises(id)
-);
-CREATE TABLE public.workouts (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  user_id uuid,
-  day_id uuid,
-  date date NOT NULL DEFAULT CURRENT_DATE,
-  completed boolean DEFAULT false,
-  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-  split_run_id uuid,
-  CONSTRAINT workouts_pkey PRIMARY KEY (id),
-  CONSTRAINT workouts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT workouts_day_id_fkey FOREIGN KEY (day_id) REFERENCES public.days(id),
-  CONSTRAINT workouts_split_run_id_fkey FOREIGN KEY (split_run_id) REFERENCES public.split_runs(id)
 );

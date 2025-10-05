@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, TextInput, FlatList, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity, Platform, ScrollView } from 'react-native';
-import { colors } from '../styles/theme';
+import { useTheme } from '../lib/ThemeContext';
 import DatePickerModal from '../components/DatePickerModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import styles from '../styles/todayStyles';
@@ -17,7 +17,10 @@ import { useProfileStore } from '../lib/profileStore';
 
 
 
+import { Switch } from 'react-native';
+
 export default function TodayTab() {
+  const { theme, darkMode, setDarkMode } = useTheme();
   const insets = useSafeAreaInsets();
   const {
     profile,
@@ -117,6 +120,7 @@ export default function TodayTab() {
   const [removedExerciseIds, setRemovedExerciseIds] = useState<string[]>([]);
   const [showBodyweightModal, setShowBodyweightModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  // Removed local darkMode/setDarkMode, now using context
   const [bodyweight, setBodyweight] = useState('');
   const [isKg, setIsKg] = useState(true);
   const [bodyweightSubmitting, setBodyweightSubmitting] = useState(false);
@@ -229,21 +233,21 @@ export default function TodayTab() {
           return (
             <View style={{ flexDirection: 'column' }}>
               <Text style={[styles.title, { marginBottom: 2 }]}>{headerIsRest ? 'Rest' : `${dayLabel} Day`}</Text>
-              <Text style={{ color: colors.textMuted, fontSize: 14 }}>{fullDateLine}</Text>
+              <Text style={{ color: theme.textMuted, fontSize: 14 }}>{fullDateLine}</Text>
             </View>
           );
         })()}
         <View style={{ flexDirection: 'row', marginLeft: 'auto' }}>
           <TouchableOpacity
             onPress={() => setShowCalendarModal(true)}
-            style={[styles.bodyweightBtn, { backgroundColor: colors.primary }]}
+            style={[styles.bodyweightBtn, { backgroundColor: theme.primary }]}
             activeOpacity={0.9}
             accessibilityLabel="Open calendar"
           >
-            {IconFeather ? <IconFeather name="calendar" size={18} color={colors.background} /> : <Text style={styles.bodyweightIcon}>📅</Text>}
+            {IconFeather ? <IconFeather name="calendar" size={18} color={theme.background} /> : <Text style={styles.bodyweightIcon}>📅</Text>}
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setShowSettingsModal(true)} style={[styles.bodyweightBtn, { backgroundColor: colors.text, marginLeft: 8 }]} activeOpacity={0.9} accessibilityLabel="Open settings">
-            {IconFeather ? <IconFeather name="settings" size={18} color={colors.background} /> : <Text style={styles.bodyweightIcon}>⚙️</Text>}
+          <TouchableOpacity onPress={() => setShowSettingsModal(true)} style={[styles.bodyweightBtn, { backgroundColor: theme.text, marginLeft: 8 }]} activeOpacity={0.9} accessibilityLabel="Open settings">
+            {IconFeather ? <IconFeather name="settings" size={18} color={theme.background} /> : <Text style={styles.bodyweightIcon}>⚙️</Text>}
           </TouchableOpacity>
         </View>
       </View>
@@ -281,7 +285,7 @@ export default function TodayTab() {
               }}
               style={{ alignSelf: 'flex-start' }}
             >
-                <Text style={{ color: colors.primary, fontWeight: '700' }}>{'+ Add Exercise'}</Text>
+                <Text style={{ color: theme.primary, fontWeight: '700' }}>{'+ Add Exercise'}</Text>
             </TouchableOpacity>
           </View>
 
@@ -420,10 +424,10 @@ export default function TodayTab() {
                 rightLabel={bodyweightSubmitting ? 'Logging...' : 'Save'}
                 onLeftPress={() => setShowBodyweightModal(false)}
                 onRightPress={onSaveBodyweight}
-                leftColor={colors.muted}
-                rightColor={colors.primary}
-                leftTextColor={colors.text}
-                rightTextColor={colors.background}
+                leftColor={theme.muted}
+                rightColor={theme.primary}
+                leftTextColor={theme.text}
+                rightTextColor={theme.background}
                 rightDisabled={bodyweightSubmitting}
               />
             </View>
@@ -436,8 +440,17 @@ export default function TodayTab() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 12 }}>Settings</Text>
-            <TouchableOpacity onPress={() => { setShowSettingsModal(false); setShowBodyweightModal(true); }} style={{ backgroundColor: '#007AFF', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 8 }}>
-              <Text style={{ color: '#fff', fontWeight: '700' }}>Log Bodyweight</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <Text style={{ fontSize: 16, color: theme.text }}>Dark Mode</Text>
+              <Switch
+                value={darkMode}
+                onValueChange={setDarkMode}
+                thumbColor={darkMode ? theme.primary : theme.muted}
+                trackColor={{ false: theme.muted, true: theme.primary }}
+              />
+            </View>
+            <TouchableOpacity onPress={() => { setShowSettingsModal(false); setShowBodyweightModal(true); }} style={{ backgroundColor: theme.primary, padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 8 }}>
+              <Text style={{ color: theme.text, fontWeight: '700' }}>Log Bodyweight</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

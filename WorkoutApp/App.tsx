@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import MainNavigator from './MainNavigator';
+import { ThemeProvider } from './lib/ThemeContext';
 import { supabase } from './lib/supabase';
 import { useProfileStore } from './lib/profileStore';
 import AuthScreen from './screens/AuthScreen';
@@ -59,9 +60,11 @@ export default function App() {
 
   // Main app UI goes here
   return (
-    <SafeAreaProvider>
-      <MainNavigator />
-    </SafeAreaProvider>
+    <ThemeProvider>
+      <SafeAreaProvider>
+        <MainNavigator />
+      </SafeAreaProvider>
+    </ThemeProvider>
   );
 }
 

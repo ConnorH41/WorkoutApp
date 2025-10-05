@@ -17,15 +17,21 @@ export default StyleSheet.create({
     fontWeight: 'bold',
   },
   addButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#800000', // Maroon from theme
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
+    shadowColor: '#800000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   addButtonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+    letterSpacing: 1,
   },
   row: {
     flexDirection: 'row',
