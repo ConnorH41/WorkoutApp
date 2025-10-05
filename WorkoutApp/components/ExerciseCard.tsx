@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '../lib/ThemeContext';
 import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import appStyles from '../styles/appStyles';
 import ScaleInView from './animations/ScaleInView';
@@ -25,9 +26,15 @@ export default function ExerciseCard(props: {
   IconFeather?: any;
 }) {
   const { item, sets, name, editing, notes, readonlyMode, onToggleEdit, onChangeName, onChangeSet, onToggleCompleted, onAddSet, onRemoveSet, onChangeNotes, onRemoveExercise, IconFeather } = props;
+  const { theme } = useTheme();
 
   return (
-    <ScaleInView style={styles.exerciseBox}>
+    <ScaleInView style={{
+      ...styles.exerciseBox,
+      borderColor: theme.border,
+      backgroundColor: theme.card,
+      shadowColor: theme.shadow,
+    }}>
       {!(String(item.id).startsWith('tmp')) && (
         <View style={styles.goalBadge}>
           <Text style={styles.goalBadgeText}>{`${item.sets}×${item.reps}`}</Text>
@@ -71,10 +78,18 @@ export default function ExerciseCard(props: {
 
 const styles = StyleSheet.create({
   exerciseBox: {
-    borderRadius: 8,
-    padding: 12,
-    paddingBottom: 40,
-    marginBottom: 16,
+  borderWidth: 1,
+  borderRadius: 12,
+  padding: 16,
+  paddingBottom: 40,
+  marginBottom: 16,
+  marginHorizontal: 16,
+  backgroundColor: '#fff', // fallback, overridden by theme
+  shadowColor: '#000', // fallback, overridden by theme
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.12,
+  shadowRadius: 6,
+  elevation: 4,
   },
   titleRow: {
     flexDirection: 'row',
