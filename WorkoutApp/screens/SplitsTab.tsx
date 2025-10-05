@@ -8,6 +8,7 @@ import ModalButtons from '../components/ModalButtons';
 import EditPencil from '../components/EditPencil';
 import RemoveButton from '../components/RemoveButton';
 import styles from '../styles/splitsStyles';
+import daysStyles from '../styles/daysStyles';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -117,25 +118,6 @@ export default function SplitsTab() {
       Alert.alert('Validation', msg);
     }
   };
-
-  // computed weeks between start and end (inclusive)
-  const computedWeeks = (() => {
-    if (!calendarDate || !endDate) return 0;
-    const msPerDay = 24 * 60 * 60 * 1000;
-    const s = new Date(calendarDate as Date);
-    s.setHours(0, 0, 0, 0);
-    const e = new Date(endDate as Date);
-    e.setHours(0, 0, 0, 0);
-    const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay);
-    if (diffDays <= 0) return 0;
-    const weeks = diffDays / 7;
-    return Math.max(0.5, roundToHalf(weeks));
-  })();
-
-  const endBeforeStart = !!endDate && !!calendarDate && new Date(endDate).setHours(0, 0, 0, 0) < new Date(calendarDate).setHours(0, 0, 0, 0);
-  // initial load of active runs handled by fetchActiveRun() in the profile effect below
-
-
   // Open modal to set current split
   const handleSetCurrentSplit = async (split: any) => {
     setPendingSplit(split);
@@ -1224,7 +1206,7 @@ export default function SplitsTab() {
                             rightTextColor="#fff"
                             // Allow scheduling with empty start date so the user can clear/reset timeframe.
                             // Only disable when the end date is before the start in weekly mode.
-                            rightDisabled={(pendingSplit?.mode === 'week' && endBeforeStart)}
+                            rightDisabled={pendingSplit?.mode === 'week' && !!calendarDate && !!endDate && endDate < calendarDate}
                           />
                           {/* Show Clear button when there is an active run for this split */}
                           
@@ -1874,5 +1856,5 @@ export default function SplitsTab() {
       </Modal>
     </View>
   );
-}
+};
 

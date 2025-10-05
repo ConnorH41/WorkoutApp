@@ -234,7 +234,12 @@ export default function TodayTab() {
         contentContainerStyle={{ paddingBottom: 24 }}
         data={visibleExercises}
         keyExtractor={(item) => item.id}
-        ListHeaderComponent={Header}
+        ListHeaderComponent={() => (
+          <>
+            <Header />
+            <View style={{ height: 24 }} />
+          </>
+        )}
         ListFooterComponent={() => (
           <View>
             {/* + Add Exercise text link placed above the workout controls and left-aligned */}

@@ -5,7 +5,6 @@ export default StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    padding: spacing.lg,
   },
   header: {
     flexDirection: 'row',
@@ -22,9 +21,9 @@ export default StyleSheet.create({
   addButton: {
     backgroundColor: colors.primary,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
-    ...shadows.md,
+    ...shadows.sm,
   },
   addButtonText: {
     color: colors.surface,
@@ -49,8 +48,9 @@ export default StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: borderRadius.lg,
-    padding: spacing.xl,
+    padding: spacing.lg,
     marginBottom: spacing.lg,
+    marginHorizontal: spacing.lg,
     backgroundColor: colors.card,
     ...shadows.sm,
   },
