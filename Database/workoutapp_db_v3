@@ -35,7 +35,7 @@ CREATE TABLE public.split_runs (
   active boolean DEFAULT false,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
   CONSTRAINT split_runs_pkey PRIMARY KEY (id),
-  CONSTRAINT split_runs_split_id_fkey FOREIGN KEY (split_id) REFERENCES public.splits(id),
+  CONSTRAINT split_runs_split_id_fkey FOREIGN KEY (split_id) REFERENCES public.splits(id) ON DELETE SET NULL,
   CONSTRAINT split_runs_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 
@@ -115,7 +115,7 @@ CREATE TABLE public.split_days (
   order_index integer,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
   CONSTRAINT split_days_pkey PRIMARY KEY (id),
-  CONSTRAINT split_days_split_id_fkey FOREIGN KEY (split_id) REFERENCES public.splits(id),
+  CONSTRAINT split_days_split_id_fkey FOREIGN KEY (split_id) REFERENCES public.splits(id) ON DELETE CASCADE,
   CONSTRAINT split_days_day_id_fkey FOREIGN KEY (day_id) REFERENCES public.days(id)
 );
 

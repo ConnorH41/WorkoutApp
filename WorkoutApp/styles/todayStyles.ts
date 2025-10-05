@@ -58,13 +58,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.overlay,
     justifyContent: 'center',
-    padding: spacing.xl,
+    alignItems: 'center',
+    padding: spacing.lg,
   },
   modalContent: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.xl,
     padding: spacing.xl,
     ...shadows.lg,
+    maxWidth: 400,
+    width: '100%',
+    alignItems: 'center',
   },
   modalButton: {
     paddingHorizontal: spacing.lg,
