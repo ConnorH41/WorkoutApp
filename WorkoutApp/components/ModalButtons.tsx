@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors } from '../styles/theme';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { colors, shadows } from '../styles/theme';
 
 type Props = {
   leftLabel: string;
@@ -29,22 +29,49 @@ export default function ModalButtons({
 }: Props) {
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        style={[styles.button, { backgroundColor: leftColor, marginRight: 8 }]}
+      <Pressable
+        style={({ pressed }) => [
+          styles.button,
+          { backgroundColor: leftColor, marginRight: 8 },
+          pressed && styles.buttonPressed,
+          leftDisabled && styles.buttonDisabled,
+        ]}
         onPress={onLeftPress}
         disabled={leftDisabled}
-        activeOpacity={0.9}
       >
-        <Text style={[styles.leftText, { color: leftTextColor }]}>{leftLabel}</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.button, { backgroundColor: rightColor }]}
+        {({ pressed }) => (
+          <Text style={[
+            styles.leftText,
+            { color: leftTextColor },
+            pressed && styles.textPressed,
+            leftDisabled && styles.textDisabled,
+          ]}>
+            {leftLabel}
+          </Text>
+        )}
+      </Pressable>
+      <Pressable
+        style={({ pressed }) => [
+          styles.button,
+          { backgroundColor: rightColor },
+          pressed && styles.buttonPressed,
+          !pressed && shadows.sm,
+          rightDisabled && styles.buttonDisabled,
+        ]}
         onPress={onRightPress as any}
         disabled={rightDisabled}
-        activeOpacity={0.9}
       >
-        <Text style={[styles.rightText, { color: rightTextColor }]}>{rightLabel}</Text>
-      </TouchableOpacity>
+        {({ pressed }) => (
+          <Text style={[
+            styles.rightText,
+            { color: rightTextColor },
+            pressed && styles.textPressed,
+            rightDisabled && styles.textDisabled,
+          ]}>
+            {rightLabel}
+          </Text>
+        )}
+      </Pressable>
     </View>
   );
 }
@@ -60,6 +87,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
+    transform: [{ scale: 1 }],
+  },
+  buttonPressed: {
+    transform: [{ scale: 0.97 }],
+    opacity: 0.85,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
   leftText: {
     textAlign: 'center',
@@ -68,5 +103,11 @@ const styles = StyleSheet.create({
   rightText: {
     textAlign: 'center',
     fontWeight: 'bold',
+  },
+  textPressed: {
+    opacity: 0.9,
+  },
+  textDisabled: {
+    opacity: 0.6,
   },
 });
