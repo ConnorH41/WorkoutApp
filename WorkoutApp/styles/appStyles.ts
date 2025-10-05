@@ -1,5 +1,5 @@
-import { StyleSheet, Platform } from 'react-native';
-import { colors, spacing } from './theme';
+import { StyleSheet } from 'react-native';
+import { colors, spacing, borderRadius, shadows } from './theme';
 
 export default StyleSheet.create({
   container: {
@@ -10,22 +10,13 @@ export default StyleSheet.create({
   },
   card: {
     backgroundColor: colors.card,
-    borderRadius: 8,
-    padding: spacing.md,
-    marginBottom: spacing.md,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    marginHorizontal: spacing.lg,
     borderWidth: 1,
-    borderColor: '#eee',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    borderColor: colors.border,
+    ...shadows.md,
   },
   touchableHitSlop: {
     padding: spacing.sm,
