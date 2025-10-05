@@ -3,6 +3,7 @@ import { TouchableOpacity, View, Text } from 'react-native';
 import styles from '../styles/daysStyles';
 import EditPencil from './EditPencil';
 import RemoveButton from './RemoveButton';
+import ExpandableView from './animations/ExpandableView';
 import { Day } from '../lib/types';
 
 type Props = {
@@ -32,7 +33,9 @@ export default function DayRow({ day, isSelected, onPress, exerciseCount = 0, on
       <View style={styles.dayActions}>
         <RemoveButton onPress={() => onDeleteDay(day.id)} label="Delete" accessibilityLabel={`Delete ${day.name}`} />
       </View>
-      {isSelected ? expandedContent : null}
+      <ExpandableView expanded={isSelected}>
+        {expandedContent}
+      </ExpandableView>
     </TouchableOpacity>
   );
 }

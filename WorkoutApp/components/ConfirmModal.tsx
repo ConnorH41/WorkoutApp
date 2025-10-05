@@ -1,6 +1,8 @@
 import React from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import AnimatedModal from './animations/AnimatedModal';
 import ModalButtons from './ModalButtons';
+import { colors } from '../styles/theme';
 
 type Props = {
   visible: boolean;
@@ -22,56 +24,51 @@ export default function ConfirmModal({
   cancelLabel = 'Cancel',
   onConfirm,
   onCancel,
-  confirmColor = '#007AFF',
-  cancelColor = '#e0e0e0',
+  confirmColor = colors.primary,
+  cancelColor = colors.backgroundMuted,
 }: Props) {
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          {title ? <Text style={styles.title}>{title}</Text> : null}
-          {message ? <Text style={styles.message}>{message}</Text> : null}
-          <View style={{ marginTop: 12 }}>
-            <ModalButtons
-              leftLabel={cancelLabel}
-              rightLabel={confirmLabel}
-              onLeftPress={onCancel}
-              onRightPress={onConfirm}
-              leftColor={cancelColor}
-              rightColor={confirmColor}
-              leftTextColor="#000"
-              rightTextColor="#fff"
-            />
-          </View>
+    <AnimatedModal visible={visible} onClose={onCancel}>
+      <View style={styles.container}>
+        {title ? <Text style={styles.title}>{title}</Text> : null}
+        {message ? <Text style={styles.message}>{message}</Text> : null}
+        <View style={{ marginTop: 12 }}>
+          <ModalButtons
+            leftLabel={cancelLabel}
+            rightLabel={confirmLabel}
+            onLeftPress={onCancel}
+            onRightPress={onConfirm}
+            leftColor={cancelColor}
+            rightColor={confirmColor}
+            leftTextColor={colors.text}
+            rightTextColor={colors.background}
+          />
         </View>
       </View>
-    </Modal>
+    </AnimatedModal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    padding: 20,
-  },
   container: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 20,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
   },
   title: {
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 8,
+    color: colors.text,
   },
   message: {
     fontSize: 15,
-    color: '#333',
+    color: colors.textMuted,
+    lineHeight: 22,
   },
 });

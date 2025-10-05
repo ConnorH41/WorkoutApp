@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import appStyles from '../styles/appStyles';
+import ScaleInView from './animations/ScaleInView';
 import EditPencil from './EditPencil';
 import RemoveButton from './RemoveButton';
 
@@ -26,7 +27,7 @@ export default function ExerciseCard(props: {
   const { item, sets, name, editing, notes, readonlyMode, onToggleEdit, onChangeName, onChangeSet, onToggleCompleted, onAddSet, onRemoveSet, onChangeNotes, onRemoveExercise, IconFeather } = props;
 
   return (
-    <View style={styles.exerciseBox}>
+    <ScaleInView style={styles.exerciseBox}>
       {!(String(item.id).startsWith('tmp')) && (
         <View style={styles.goalBadge}>
           <Text style={styles.goalBadgeText}>{`${item.sets}×${item.reps}`}</Text>
@@ -64,7 +65,7 @@ export default function ExerciseCard(props: {
   <TextInput style={[styles.input, styles.notesInput, readonlyMode ? styles.inputDisabled : null]} placeholder="Notes (optional)" value={notes || ''} onChangeText={(v)=> { if (!readonlyMode) onChangeNotes(v); }} multiline numberOfLines={3} editable={!readonlyMode} />
 
       <RemoveButton onPress={() => { if (!readonlyMode) onRemoveExercise(); }} label="Remove" accessibilityLabel={`Remove ${name || item.name}`} style={{ position: 'absolute', right: 10, bottom: 10 }} />
-    </View>
+    </ScaleInView>
   );
 }
 
