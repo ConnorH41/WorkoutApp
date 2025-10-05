@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Alert, Modal, Platform, Keyboard, ToastAndroid, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -1022,12 +1021,19 @@ export default function SplitsTab() {
 
   // Delete a split
   const handleDeleteSplit = async (splitId: string) => {
+    // If the split being deleted is the current split, end its run today
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const currentRun = activeRuns.find(r => r.split_id === splitId && r.active);
+    if (currentRun && currentRun.id) {
+      await supabase.from('split_runs').update({ end_date: todayIso, active: false }).eq('id', currentRun.id);
+    }
     const { error } = await supabase.from('splits').delete().eq('id', splitId);
     if (error) {
       Alert.alert('Error', error.message);
     } else {
       if (selectedSplitId === splitId) setSelectedSplitId(null);
       fetchSplits();
+      fetchActiveRun();
     }
   };
 

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, TextInput, FlatList, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity, Platform, ScrollView } from 'react-native';
 import { useTheme } from '../lib/ThemeContext';
@@ -22,6 +21,38 @@ import { Switch } from 'react-native';
 export default function TodayTab() {
   const { theme, darkMode, setDarkMode } = useTheme();
   const insets = useSafeAreaInsets();
+  const [calendarDate, setCalendarDate] = useState<Date | null>(new Date());
+  const [bodyweight, setBodyweight] = useState('');
+  const [showBodyweightModal, setShowBodyweightModal] = useState(false);
+  const [isKg, setIsKg] = useState(true);
+  const [bodyweightSubmitting, setBodyweightSubmitting] = useState(false);
+  const [bodyweightRecordId, setBodyweightRecordId] = useState<string | null>(null);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showChangeDayModal, setShowChangeDayModal] = useState(false);
+  const [changeDaySubmitting, setChangeDaySubmitting] = useState(false);
+  const [splitDayNames, setSplitDayNames] = useState<Record<string, string>>({});
+  const [splitDayNamesLoading, setSplitDayNamesLoading] = useState(false);
+  const [removedExerciseIds, setRemovedExerciseIds] = useState<string[]>([]);
+  const [editedNames, setEditedNames] = useState<Record<string, string>>({});
+  const [editingByExercise, setEditingByExercise] = useState<Record<string, boolean>>({});
+  const notesDebounceTimers = useRef<Record<string, any>>({});
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
+  const [showRestConfirm, setShowRestConfirm] = useState(false);
+  const [showDeleteSetConfirm, setShowDeleteSetConfirm] = useState(false);
+  const [deleteSetTarget, setDeleteSetTarget] = useState<{ exerciseId: string; index: number } | null>(null);
+  const [showDeleteExerciseConfirm, setShowDeleteExerciseConfirm] = useState(false);
+  const [deleteExerciseTarget, setDeleteExerciseTarget] = useState<string | null>(null);
+
+  // Date formatting helper
+  const formatDateOnly = (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const dd = new Date(d);
+    dd.setHours(0, 0, 0, 0);
+    return `${dd.getFullYear()}-${pad(dd.getMonth() + 1)}-${pad(dd.getDate())}`;
+  };
+
+  // --- useTodayWorkout hook ---
   const {
     profile,
     workoutLoading,
@@ -31,16 +62,16 @@ export default function TodayTab() {
     splitDayName,
     dayNameFromWorkout,
     fetchTodayWorkout,
-  fetchActiveSplitRun,
+    fetchActiveSplitRun,
     createWorkoutFromScheduledDay,
     createExercise,
     addBlankExerciseToWorkout,
-  addTransientExercise,
+    addTransientExercise,
     addBlankExerciseToSplit,
     deleteExercise,
-  updateWorkoutExerciseInstance,
-  markComplete,
-  unmarkComplete,
+    updateWorkoutExerciseInstance,
+    markComplete,
+    unmarkComplete,
     markRestDay,
     unmarkRestDay,
     creatingWorkout,
@@ -54,10 +85,8 @@ export default function TodayTab() {
     splitDays,
     setScheduledDayForToday,
   } = useTodayWorkout();
-  const [editedNames, setEditedNames] = useState<Record<string, string>>({});
-  const [editingByExercise, setEditingByExercise] = useState<Record<string, boolean>>({});
-  const notesDebounceTimers = useRef<Record<string, any>>({});
 
+  // --- logsHook ---
   const logsHook = useExerciseLogs({
     createWorkoutFromScheduledDay,
     createExercise,
@@ -71,66 +100,6 @@ export default function TodayTab() {
       return ex ? ex.name : undefined;
     },
   });
-
-  // Load persisted logs for today's workout when it becomes available so
-  // reps/weight/completed state is restored on reload/login.
-  useEffect(() => {
-    const loadPersistedLogs = async () => {
-      try {
-        if (!todayWorkout || !todayWorkout.id) return;
-        const { data, error } = await api.getLogsByWorkoutId(todayWorkout.id);
-        if (error || !data) return;
-        // Transform into logsHook shape: group by exercise id and fill arrays
-        const grouped: any = {};
-        const notes: any = {};
-        for (const row of data) {
-          const exId = String(row.exercise_id || row.workout_exercise_id || row.exercise_id || '');
-          if (!grouped[exId]) grouped[exId] = [];
-          grouped[exId].push({ setNumber: row.set_number, reps: String(row.reps ?? ''), weight: String(row.weight ?? ''), completed: !!row.completed, logId: row.id });
-          if (row.notes) notes[exId] = String(row.notes);
-        }
-        // Ensure each group's sets are sorted by setNumber and indexed from 0..n-1
-        Object.keys(grouped).forEach(k => {
-          grouped[k] = grouped[k].sort((a: any, b: any) => (a.setNumber || 0) - (b.setNumber || 0));
-        });
-        // Update logsHook state
-        logsHook.setLogs(grouped);
-        logsHook.setNotesByExercise(notes);
-      } catch (e) {
-        // ignore
-      }
-    };
-    loadPersistedLogs();
-  }, [todayWorkout?.id]);
-
-  // ...existing code...
-
-  // Ensure default set rows exist for all exercises
-  useEffect(() => {
-    (exercises || []).forEach(ex => logsHook.ensureSetsForExercise(ex));
-    (splitDayExercises || []).forEach(ex => logsHook.ensureSetsForExercise(ex));
-  }, [exercises, splitDayExercises]);
-
-  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
-  const [showRestConfirm, setShowRestConfirm] = useState(false);
-  const [showDeleteSetConfirm, setShowDeleteSetConfirm] = useState(false);
-  const [deleteSetTarget, setDeleteSetTarget] = useState<{ exerciseId: string; index: number } | null>(null);
-  const [showDeleteExerciseConfirm, setShowDeleteExerciseConfirm] = useState(false);
-  const [deleteExerciseTarget, setDeleteExerciseTarget] = useState<string | null>(null);
-  const [removedExerciseIds, setRemovedExerciseIds] = useState<string[]>([]);
-  const [showBodyweightModal, setShowBodyweightModal] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
-  // Removed local darkMode/setDarkMode, now using context
-  const [bodyweight, setBodyweight] = useState('');
-  const [isKg, setIsKg] = useState(true);
-  const [bodyweightSubmitting, setBodyweightSubmitting] = useState(false);
-  const [bodyweightRecordId, setBodyweightRecordId] = useState<string | null>(null);
-  const [showCalendarModal, setShowCalendarModal] = useState(false);
-  const [showChangeDayModal, setShowChangeDayModal] = useState(false);
-  const [changeDaySubmitting, setChangeDaySubmitting] = useState(false);
-  const [splitDayNames, setSplitDayNames] = useState<Record<string, string>>({});
-  const [splitDayNamesLoading, setSplitDayNamesLoading] = useState(false);
-  const [calendarDate, setCalendarDate] = useState<Date | null>(new Date());
 
   const onSaveBodyweight = async () => {
     if (!profile || !profile.id) return;
@@ -164,24 +133,20 @@ export default function TodayTab() {
       if (!showBodyweightModal) return;
       if (!profile || !profile.id) return;
       try {
-        const isoDate = (calendarDate || new Date()).toISOString().slice(0, 10);
+        const isoDate = calendarDate ? formatDateOnly(calendarDate) : formatDateOnly(new Date());
         const { data, error } = await api.getBodyweightByUserDate(profile.id, isoDate);
         if (!mounted) return;
         if (!error && data && data.length > 0) {
           const row = data[0];
           setBodyweight(String(row.weight ?? ''));
-          // set units based on stored value if present
           if (row.unit === 'lbs') setIsKg(false);
           else setIsKg(true);
           setBodyweightRecordId(row.id || null);
-          // If the stored units are known we could set isKg accordingly; assume kg for now
         } else {
           setBodyweight('');
           setBodyweightRecordId(null);
         }
-      } catch (e) {
-        // ignore
-      }
+      } catch (e) {}
     };
     load();
     return () => { mounted = false; };
@@ -208,7 +173,7 @@ export default function TodayTab() {
     } catch (e) {
       return false;
     }
-  }, [visibleExercises, logsHook.logs]);
+  }, [visibleExercises, logsHook.logs, calendarDate]);
 
   const effectiveCompleted = !!((todayWorkout && todayWorkout.completed) || allSetsCompleted);
 
@@ -264,127 +229,134 @@ export default function TodayTab() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}> 
-  <FlatList
-    style={{ flex: 1 }}
-    contentContainerStyle={{ paddingBottom: 24 }}
-      data={visibleExercises}
-      keyExtractor={(item) => item.id}
-      ListHeaderComponent={Header}
-      ListFooterComponent={() => (
-        <View>
-          {/* + Add Exercise text link placed above the workout controls and left-aligned */}
-          <View style={{ marginTop: 12, paddingHorizontal: 16 }}>
+      <FlatList
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 24 }}
+        data={visibleExercises}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={Header}
+        ListFooterComponent={() => (
+          <View>
+            {/* + Add Exercise text link placed above the workout controls and left-aligned */}
+            <View style={{ marginTop: 12, paddingHorizontal: 16 }}>
               <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => {
-                try {
-                  addBlankExerciseToWorkout();
-                } catch (e) {
-                  // ignore
-                }
-              }}
-              style={{ alignSelf: 'flex-start' }}
-            >
+                activeOpacity={0.8}
+                onPress={() => {
+                  try {
+                    addBlankExerciseToWorkout();
+                  } catch (e) {}
+                }}
+                style={{ alignSelf: 'flex-start' }}
+              >
                 <Text style={{ color: theme.primary, fontWeight: '700' }}>{'+ Add Exercise'}</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={{ marginTop: 12 }}>
-            <WorkoutControls
-              todayWorkout={todayWorkout}
-              isRestDay={headerIsRest}
-              completing={completing}
-              resting={resting}
-              onConfirmComplete={() => setShowCompleteConfirm(true)}
-              onUnmarkComplete={() => setShowCompleteConfirm(true)}
-              onConfirmRestToggle={() => setShowRestConfirm(true)}
-            />
-          </View>
-
-          {/* If there's no workout for today and neither the run nor the header indicate a rest day,
-              allow marking either as a completed workout or marking as a rest day. Both buttons
-              should be visible under the same conditions. */}
-          {!todayWorkout && !headerIsRest && (
-            <View style={{ paddingHorizontal: 16 }}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => setShowCompleteConfirm(true)}
-                disabled={completing}
-                style={[styles.secondaryButton, completing ? styles.secondaryButtonDisabled : null, { marginBottom: 8 }]}
-              >
-                <Text style={[styles.secondaryButtonText, completing ? styles.secondaryButtonTextDisabled : null]}>{completing ? 'Completing...' : (effectiveCompleted ? 'Unmark Workout as Complete' : 'Mark Workout Complete')}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => setShowRestConfirm(true)}
-                disabled={resting}
-                style={[styles.secondaryButton, resting ? styles.secondaryButtonDisabled : null]}
-              >
-                <Text style={[styles.secondaryButtonText, resting ? styles.secondaryButtonTextDisabled : null]}>{resting ? 'Logging...' : 'Mark as Rest Day'}</Text>
               </TouchableOpacity>
             </View>
-          )}
-
-          {/* If it's a rest day (either flagged or implied by header) show a friendly message instead of the mark button */}
-          {headerIsRest && (
-            <View style={{ padding: 12 }}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => setShowRestConfirm(true)}
-                disabled={resting}
-                style={[styles.secondaryButton, resting ? styles.secondaryButtonDisabled : null]}
-              >
-                <Text style={[styles.secondaryButtonText, resting ? styles.secondaryButtonTextDisabled : null]}>{resting ? 'Logging...' : 'Unmark as Rest Day'}</Text>
-              </TouchableOpacity>
+            <View style={{ marginTop: 12 }}>
+              <WorkoutControls
+                todayWorkout={todayWorkout}
+                isRestDay={headerIsRest}
+                completing={completing}
+                resting={resting}
+                onConfirmComplete={() => setShowCompleteConfirm(true)}
+                onUnmarkComplete={() => setShowCompleteConfirm(true)}
+                onConfirmRestToggle={() => setShowRestConfirm(true)}
+              />
             </View>
-          )}
-
-        </View>
-      )}
-      renderItem={({ item }) => (
-        <ExerciseCard
-          key={item.id}
-          item={item}
-          sets={logsHook.logs[String(item.id)] || [{ setNumber: 1, reps: '', weight: '', completed: false }]}
-          name={editedNames[item.id] ?? item.name}
-          editing={!!editingByExercise[item.id]}
-          readonlyMode={headerIsRest}
-          notes={logsHook.notesByExercise[String(item.id)] || ''}
-          onToggleEdit={() => {
-            // If we are toggling off editing, persist the name if changed
-            const currently = !!editingByExercise[item.id];
-            if (currently) {
-              const edited = editedNames[item.id];
-              if (edited != null && String(edited).trim() !== String(item.name).trim()) {
-                // persist name change for persisted instances
-                if (item && item.workout_id) {
-                  updateWorkoutExerciseInstance(item.id, { name: String(edited).trim() }).catch(() => {});
+            {/* If there's no workout for today and neither the run nor the header indicate a rest day, allow marking either as a completed workout or marking as a rest day. Both buttons should be visible under the same conditions. */}
+            {!todayWorkout && !headerIsRest && (
+              <View style={{ paddingHorizontal: 16 }}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setShowCompleteConfirm(true)}
+                  disabled={completing}
+                  style={[styles.secondaryButton, completing ? styles.secondaryButtonDisabled : null, { marginBottom: 8 }]}
+                >
+                  <Text style={[styles.secondaryButtonText, completing ? styles.secondaryButtonTextDisabled : null]}>{completing ? 'Completing...' : (effectiveCompleted ? 'Unmark Workout as Complete' : 'Mark Workout Complete')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setShowRestConfirm(true)}
+                  disabled={resting}
+                  style={[styles.secondaryButton, resting ? styles.secondaryButtonDisabled : null]}
+                >
+                  <Text style={[styles.secondaryButtonText, resting ? styles.secondaryButtonTextDisabled : null]}>{resting ? 'Logging...' : 'Mark as Rest Day'}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {/* If it's a rest day (either flagged or implied by header) show a friendly message instead of the mark button */}
+            {headerIsRest && (
+              <View style={{ padding: 12 }}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setShowRestConfirm(true)}
+                  disabled={resting}
+                  style={[styles.secondaryButton, resting ? styles.secondaryButtonDisabled : null]}
+                >
+                  <Text style={[styles.secondaryButtonText, resting ? styles.secondaryButtonTextDisabled : null]}>{resting ? 'Logging...' : 'Unmark as Rest Day'}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
+        renderItem={({ item }) => (
+          <ExerciseCard
+            key={item.id}
+            item={item}
+            sets={logsHook.logs[String(item.id)] || [{ setNumber: 1, reps: '', weight: '', completed: false }]}
+            name={editedNames[item.id] ?? item.name}
+            editing={!!editingByExercise[item.id]}
+            readonlyMode={headerIsRest}
+            notes={logsHook.notesByExercise[String(item.id)] || ''}
+            onToggleEdit={() => {
+              // If we are toggling off editing, persist the name if changed
+              const currently = !!editingByExercise[item.id];
+              if (currently) {
+                const edited = editedNames[item.id];
+                if (edited != null && String(edited).trim() !== String(item.name).trim()) {
+                  // persist name change for persisted instances
+                  if (item && item.workout_id) {
+                    updateWorkoutExerciseInstance(item.id, { name: String(edited).trim() }).catch(() => {});
+                  }
                 }
               }
-            }
-            setEditingByExercise(prev => ({ ...prev, [item.id]: !prev[item.id] }));
-          }}
-          onChangeName={(v) => setEditedNames(prev => ({ ...prev, [item.id]: v }))}
-          onChangeNotes={(v) => {
-            logsHook.handleNotesChange(item.id, v);
-            try { if (notesDebounceTimers.current[item.id]) clearTimeout(notesDebounceTimers.current[item.id]); } catch {}
-            notesDebounceTimers.current[item.id] = setTimeout(async () => {
-              if (item && item.workout_id) {
-                try { await updateWorkoutExerciseInstance(item.id, { notes: v }); } catch (e) {}
-              }
-            }, 800);
-          }}
-          onChangeSet={(idx, field, v) => logsHook.handleSetChange(item.id, idx, field as any, v)}
-          onToggleCompleted={(idx) => logsHook.toggleSetCompleted(item.id, idx)}
-          onAddSet={async () => { logsHook.addSetRow(item.id); if (item && item.workout_id) { try { await updateWorkoutExerciseInstance(item.id, { sets: (Number(item.sets) || 1) + 1 }); } catch {} } }}
-          onRemoveSet={(idx) => { setDeleteSetTarget({ exerciseId: item.id, index: idx }); setShowDeleteSetConfirm(true); }}
-          
-          onRemoveExercise={() => { setDeleteExerciseTarget(item.id); setShowDeleteExerciseConfirm(true); }}
-          IconFeather={IconFeather}
-        />
-      )}
-    />
+              setEditingByExercise(prev => ({ ...prev, [item.id]: !prev[item.id] }));
+            }}
+            onChangeName={(v) => setEditedNames(prev => ({ ...prev, [item.id]: v }))}
+            onChangeNotes={(v) => {
+              logsHook.handleNotesChange(item.id, v);
+              try { if (notesDebounceTimers.current[item.id]) clearTimeout(notesDebounceTimers.current[item.id]); } catch {}
+              notesDebounceTimers.current[item.id] = setTimeout(async () => {
+                if (item && item.workout_id) {
+                  try { await updateWorkoutExerciseInstance(item.id, { notes: v }); } catch (e) {}
+                }
+              }, 800);
+            }}
+            onChangeSet={(idx, field, v) => logsHook.handleSetChange(item.id, idx, field as any, v)}
+            onToggleCompleted={(idx) => logsHook.toggleSetCompleted(item.id, idx)}
+            onAddSet={async () => { logsHook.addSetRow(item.id); if (item && item.workout_id) { try { await updateWorkoutExerciseInstance(item.id, { sets: (Number(item.sets) || 1) + 1 }); } catch {} } }}
+            onRemoveSet={(idx) => { setDeleteSetTarget({ exerciseId: item.id, index: idx }); setShowDeleteSetConfirm(true); }}
+            onRemoveExercise={() => { setDeleteExerciseTarget(item.id); setShowDeleteExerciseConfirm(true); }}
+            IconFeather={IconFeather}
+          />
+        )}
+      />
+      {/* Calendar modal for selecting date (single instance) */}
+      <DatePickerModal
+        visible={showCalendarModal}
+        initialDate={calendarDate}
+        onCancel={() => setShowCalendarModal(false)}
+        onConfirm={(isoDate) => {
+          setShowCalendarModal(false);
+          // Parse ISO date string to Date
+          const parts = isoDate.split('-').map((p) => parseInt(p, 10));
+          if (parts.length === 3) {
+            const d = new Date(parts[0], parts[1] - 1, parts[2]);
+            setCalendarDate(d);
+            // Refetch all data for selected date
+            fetchTodayWorkout(isoDate);
+          }
+        }}
+      />
 
       {/* Modals and confirmations placed outside the FlatList but inside the component root */}
       <Modal visible={showBodyweightModal} animationType="slide" transparent>
@@ -424,7 +396,7 @@ export default function TodayTab() {
                 rightLabel={bodyweightSubmitting ? 'Logging...' : 'Save'}
                 onLeftPress={() => setShowBodyweightModal(false)}
                 onRightPress={onSaveBodyweight}
-                leftColor={theme.muted}
+                leftColor={theme.backgroundMuted}
                 rightColor={theme.primary}
                 leftTextColor={theme.text}
                 rightTextColor={theme.background}
@@ -445,8 +417,8 @@ export default function TodayTab() {
               <Switch
                 value={darkMode}
                 onValueChange={setDarkMode}
-                thumbColor={darkMode ? theme.primary : theme.muted}
-                trackColor={{ false: theme.muted, true: theme.primary }}
+                thumbColor={darkMode ? theme.primary : theme.backgroundMuted}
+                trackColor={{ false: theme.backgroundMuted, true: theme.primary }}
               />
             </View>
             <TouchableOpacity onPress={() => { setShowSettingsModal(false); setShowBodyweightModal(true); }} style={{ backgroundColor: theme.primary, padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 8 }}>
