@@ -237,7 +237,8 @@ export default function TodayTab() {
         ListHeaderComponent={() => (
           <>
             <Header />
-            <View style={{ height: 24 }} />
+            <View style={{ borderBottomWidth: 1, borderBottomColor: '#E0E0E0', marginBottom: 12, marginHorizontal: 16 }} />
+            <View style={{ height: 12 }} />
           </>
         )}
         ListFooterComponent={() => (
