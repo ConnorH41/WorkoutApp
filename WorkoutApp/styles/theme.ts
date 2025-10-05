@@ -1,41 +1,114 @@
 export const colors = {
-  primary: '#800000', // Maroon
-  danger: '#B22222', // Firebrick
-  background: '#ffffff', // White
-  backgroundMuted: '#f5f5f5', // Light grey
-  muted: '#e0e0e0', // Muted grey
-  surface: '#ffffff',
-  card: '#f5f5f5',
-  text: '#222222',
-  textMuted: '#666666',
-  link: '#800000',
-  success: '#388E3C',
-  border: '#cccccc',
+  primary: '#C62828',
+  primaryLight: '#E57373',
+  primaryDark: '#8E0000',
+  accent: '#FF5722',
+  accentLight: '#FF8A65',
+  background: '#FAFAFA',
+  backgroundMuted: '#F5F5F5',
+  surface: '#FFFFFF',
+  card: '#FFFFFF',
+  text: '#212121',
+  textMuted: '#757575',
+  textLight: '#9E9E9E',
+  success: '#4CAF50',
+  successLight: '#81C784',
+  warning: '#FF9800',
+  warningLight: '#FFB74D',
+  danger: '#F44336',
+  dangerLight: '#E57373',
+  border: '#E0E0E0',
+  borderLight: '#EEEEEE',
+  overlay: 'rgba(0, 0, 0, 0.5)',
+  shadow: 'rgba(0, 0, 0, 0.1)',
 };
 
 export const darkColors = {
-  primary: '#B22222', // Lighter maroon for dark mode
-  danger: '#ff3b30',
-  background: '#181818', // Dark grey
-  backgroundMuted: '#222222',
-  muted: '#333333',
-  surface: '#222222',
-  card: '#181818',
-  text: '#f5f5f5',
-  textMuted: '#cccccc',
-  link: '#B22222',
-  success: '#34C759',
-  border: '#444444',
+  primary: '#EF5350',
+  primaryLight: '#FF867C',
+  primaryDark: '#B61827',
+  accent: '#FF7043',
+  accentLight: '#FFA270',
+  background: '#121212',
+  backgroundMuted: '#1E1E1E',
+  surface: '#1E1E1E',
+  card: '#2C2C2C',
+  text: '#FFFFFF',
+  textMuted: '#B0B0B0',
+  textLight: '#808080',
+  success: '#66BB6A',
+  successLight: '#81C784',
+  warning: '#FFA726',
+  warningLight: '#FFB74D',
+  danger: '#EF5350',
+  dangerLight: '#E57373',
+  border: '#333333',
+  borderLight: '#404040',
+  overlay: 'rgba(0, 0, 0, 0.7)',
+  shadow: 'rgba(0, 0, 0, 0.3)',
 };
 
 export const spacing = {
   xs: 4,
   sm: 8,
-  md: 16,
-  lg: 24,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  xxl: 32,
+};
+
+export const borderRadius = {
+  sm: 4,
+  md: 8,
+  lg: 12,
+  xl: 16,
+  round: 999,
 };
 
 export const fonts = {
-  titleSize: 28,
-  baseSize: 16,
+  size: {
+    xs: 12,
+    sm: 14,
+    md: 16,
+    lg: 18,
+    xl: 20,
+    xxl: 24,
+    xxxl: 28,
+    huge: 32,
+  },
+  weight: {
+    normal: '400' as const,
+    medium: '500' as const,
+    semibold: '600' as const,
+    bold: '700' as const,
+  },
+  lineHeight: {
+    tight: 1.2,
+    normal: 1.5,
+    relaxed: 1.8,
+  },
+};
+
+export const shadows = {
+  sm: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  md: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  lg: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
 };
