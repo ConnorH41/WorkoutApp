@@ -187,36 +187,37 @@ export default function TodayTab() {
 
     const Header = () => (
       <View style={{ paddingHorizontal: 16 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-        {(() => {
-          const refDate = calendarDate ?? new Date();
-          const dayLabel = splitDayName || dayNameFromWorkout || 'Rest';
-          const weekdayLong = refDate.toLocaleString(undefined, { weekday: 'long' });
-          const monthLong = refDate.toLocaleString(undefined, { month: 'long' });
-          const dayNum = refDate.getDate();
-          const fullDateLine = `${weekdayLong} ${monthLong} ${dayNum}`;
-          return (
-            <View style={{ flexDirection: 'column' }}>
-              <Text style={[styles.title, { marginBottom: 2 }]}>{headerIsRest ? 'Rest' : `${dayLabel} Day`}</Text>
-              <Text style={{ color: theme.textMuted, fontSize: 14 }}>{fullDateLine}</Text>
-            </View>
-          );
-        })()}
-        <View style={{ flexDirection: 'row', marginLeft: 'auto' }}>
-          <TouchableOpacity
-            onPress={() => setShowCalendarModal(true)}
-            style={[styles.bodyweightBtn, { backgroundColor: theme.primary }]}
-            activeOpacity={0.9}
-            accessibilityLabel="Open calendar"
-          >
-            {IconFeather ? <IconFeather name="calendar" size={18} color={theme.background} /> : <Text style={styles.bodyweightIcon}>📅</Text>}
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setShowSettingsModal(true)} style={[styles.bodyweightBtn, { backgroundColor: theme.text, marginLeft: 8 }]} activeOpacity={0.9} accessibilityLabel="Open settings">
-            {IconFeather ? <IconFeather name="settings" size={18} color={theme.background} /> : <Text style={styles.bodyweightIcon}>⚙️</Text>}
-          </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          {(() => {
+            const refDate = calendarDate ?? new Date();
+            const dayLabel = splitDayName || dayNameFromWorkout || 'Rest';
+            const weekdayLong = refDate.toLocaleString(undefined, { weekday: 'long' });
+            const monthLong = refDate.toLocaleString(undefined, { month: 'long' });
+            const dayNum = refDate.getDate();
+            const fullDateLine = `${weekdayLong} ${monthLong} ${dayNum}`;
+            return (
+              <View style={{ flexDirection: 'column' }}>
+                <Text style={[styles.title, { marginBottom: 2 }]}>{headerIsRest ? 'Rest' : `${dayLabel} Day`}</Text>
+                <Text style={{ color: theme.textMuted, fontSize: 14 }}>{fullDateLine}</Text>
+              </View>
+            );
+          })()}
+          <View style={{ flexDirection: 'row', marginLeft: 'auto' }}>
+            <TouchableOpacity
+              onPress={() => setShowCalendarModal(true)}
+              style={[styles.bodyweightBtn, { backgroundColor: theme.primary }]}
+              activeOpacity={0.9}
+              accessibilityLabel="Open calendar"
+            >
+              {IconFeather ? <IconFeather name="calendar" size={18} color={theme.background} /> : <Text style={styles.bodyweightIcon}>📅</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowSettingsModal(true)} style={[styles.bodyweightBtn, { backgroundColor: theme.text, marginLeft: 8 }]} activeOpacity={0.9} accessibilityLabel="Open settings">
+              {IconFeather ? <IconFeather name="settings" size={18} color={theme.background} /> : <Text style={styles.bodyweightIcon}>⚙️</Text>}
+            </TouchableOpacity>
+          </View>
         </View>
+        <View style={{ height: 1, backgroundColor: '#E0E0E0', marginTop: 4, marginBottom: 8 }} />
       </View>
-    </View>
   );
 
   // Footer removed: day-name display moved to header to avoid duplication.

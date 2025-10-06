@@ -2,6 +2,12 @@ import { StyleSheet } from 'react-native';
 import { colors, fonts, spacing, borderRadius, shadows } from './theme';
 
 const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.background,

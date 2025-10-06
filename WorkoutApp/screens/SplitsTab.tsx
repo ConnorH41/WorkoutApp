@@ -1103,6 +1103,7 @@ export default function SplitsTab() {
           <Text style={styles.addButtonText}>Add New Split</Text>
         </TouchableOpacity>
       </View>
+      <View style={{ height: 1, backgroundColor: '#E0E0E0', marginTop: 8, marginBottom: 8 }} />
       {loading && <Text>Loading...</Text>}
     </View>
   );
