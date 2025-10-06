@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, TextInput, FlatList, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity, Platform, ScrollView } from 'react-native';
+import BodyweightCard from '../components/BodyweightCard';
 import { useTheme } from '../lib/ThemeContext';
 import DatePickerModal from '../components/DatePickerModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -111,12 +112,20 @@ export default function TodayTab() {
     try {
       const unit: 'kg' | 'lbs' = isKg ? 'kg' : 'lbs';
       if (bodyweightRecordId) {
-        await api.updateBodyweight(bodyweightRecordId, { weight: parsed, unit });
+        const { data, error } = await api.updateBodyweight(bodyweightRecordId, { weight: parsed, unit });
+        if (error) throw error;
+        // Keep the value and ensure record id persists so input becomes read-only
+  const arr = ((data as unknown) as any[]) || [];
+        const row: any = arr[0] || null;
+        if (row && row.id) setBodyweightRecordId(row.id as string);
       } else {
-        await api.insertBodyweight({ user_id: profile.id, weight: parsed, unit });
+        const { data, error } = await api.insertBodyweight({ user_id: profile.id, weight: parsed, unit });
+        if (error) throw error;
+  const arr = ((data as unknown) as any[]) || [];
+        const row: any = arr[0] || null;
+        if (row && row.id) setBodyweightRecordId(row.id as string);
       }
-      setBodyweight('');
-      setBodyweightRecordId(null);
+      // Do not clear the value; lock the field by having recordId set
     } catch (e: any) {
       Alert.alert('Error', e.message || String(e));
     } finally {
@@ -181,48 +190,48 @@ export default function TodayTab() {
   // was evaluated for the date (`splitDayMapped === true`) and the mapping returned
   // `null` (no split day slot) => treat as an explicit rest day from the split.
   const headerIsRest = !!isRestDay || (hasActiveSplit && splitDayMapped && splitDayId == null);
+  // Helper to get an exercise display name by id (used in delete confirm)
+  const getExerciseName = (id: string | null) => {
+    if (!id) return '';
+    if (editedNames[id]) return editedNames[id];
+    const ex = (exercises || []).find((e: any) => e.id === id) || (splitDayExercises || []).find((e: any) => e.id === id);
+    return ex ? (ex.name || '') : '';
+  };
 
-    const Header = () => (
-      <View style={{ paddingHorizontal: 16 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-          {(() => {
-            const refDate = calendarDate ?? new Date();
-            const dayLabel = splitDayName || dayNameFromWorkout || 'Rest';
-            const weekdayLong = refDate.toLocaleString(undefined, { weekday: 'long' });
-            const monthLong = refDate.toLocaleString(undefined, { month: 'long' });
-            const dayNum = refDate.getDate();
-            const fullDateLine = `${weekdayLong} ${monthLong} ${dayNum}`;
-            return (
-              <View style={{ flexDirection: 'column' }}>
-                <Text style={[styles.title, { marginBottom: 2 }]}>{headerIsRest ? 'Rest' : `${dayLabel} Day`}</Text>
-                <Text style={{ color: theme.textMuted, fontSize: 14 }}>{fullDateLine}</Text>
-              </View>
-            );
-          })()}
-          <View style={{ flexDirection: 'row', marginLeft: 'auto' }}>
-            <TouchableOpacity
-              onPress={() => setShowCalendarModal(true)}
-              style={[styles.bodyweightBtn, { backgroundColor: theme.primary }]}
-              activeOpacity={0.9}
-              accessibilityLabel="Open calendar"
-            >
-              {IconFeather ? <IconFeather name="calendar" size={18} color={theme.background} /> : <Text style={styles.bodyweightIcon}>📅</Text>}
+  // Stable top header for the day title, date, theme switch, and actions
+  const Header: React.FC = () => {
+    const dateLabel = (() => {
+      try {
+        if (!calendarDate) return '';
+        const d = new Date(calendarDate);
+        const opts: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' };
+        return d.toLocaleDateString(undefined, opts);
+      } catch {
+        return '';
+      }
+    })();
+    return (
+      <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View>
+            <Text style={{ fontSize: 20, fontWeight: '800' }}>{headerDayLabel}</Text>
+            {!!dateLabel && <Text style={{ color: '#666', marginTop: 2 }}>{dateLabel}</Text>}
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <TouchableOpacity onPress={() => setShowCalendarModal(true)} activeOpacity={0.8}>
+              <Text style={{ color: theme.primary, fontWeight: '700' }}>Calendar</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setShowSettingsModal(true)} style={[styles.bodyweightBtn, { backgroundColor: theme.text, marginLeft: 8 }]} activeOpacity={0.9} accessibilityLabel="Open settings">
-              {IconFeather ? <IconFeather name="settings" size={18} color={theme.background} /> : <Text style={styles.bodyweightIcon}>⚙️</Text>}
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ marginRight: 6 }}>Dark</Text>
+              <Switch value={darkMode} onValueChange={setDarkMode} />
+            </View>
+            <TouchableOpacity onPress={() => setShowSettingsModal(true)} activeOpacity={0.8}>
+              <Text style={{ color: theme.primary, fontWeight: '700' }}>Settings</Text>
             </TouchableOpacity>
           </View>
         </View>
-      <View style={{ height: 1, backgroundColor: '#E0E0E0', marginTop: 8, marginBottom: 8 }} />
       </View>
-  );
-
-  // Footer removed: day-name display moved to header to avoid duplication.
-
-  const getExerciseName = (id: string | null) => {
-    if (!id) return '';
-    const ex = (exercises || []).find(e => e.id === id) || (splitDayExercises || []).find(e => e.id === id);
-    return ex ? ex.name : '';
+    );
   };
 
   return (
@@ -230,54 +239,84 @@ export default function TodayTab() {
       <FlatList
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 24 }}
+        keyboardShouldPersistTaps="handled"
         data={visibleExercises}
         keyExtractor={(item) => item.id}
-        ListHeaderComponent={() => (
-          <>
+        ListHeaderComponent={(
+          <View>
             <Header />
             <View style={{ height: 24 }} />
-            <View style={[styles.exerciseBox, { marginBottom: 16, marginHorizontal: 16 }]}>  
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <Text style={styles.exerciseTitle}>Bodyweight</Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 40 }}>
-                {/* Log checkbox on the left, matching exercise sets */}
-                <TouchableOpacity
-                  onPress={onSaveBodyweight}
-                  style={[styles.checkbox, bodyweightRecordId ? styles.checkboxChecked : null, { height: 40, width: 40, borderRadius: 8 }]}
-                  disabled={bodyweightSubmitting}
-                  accessibilityLabel="Log bodyweight"
-                >
-                  {bodyweightRecordId ? <Text style={styles.checkboxText}>✓</Text> : null}
-                </TouchableOpacity>
-                <TextInput
-                  style={[styles.input, styles.inputWeight, bodyweightRecordId ? styles.inputDisabled : null]}
-                  placeholder={isKg ? 'Weight (kg)' : 'Weight (lbs)'}
-                  value={bodyweight}
-                  onChangeText={setBodyweight}
-                  keyboardType="numeric"
-                  editable={!bodyweightRecordId}
-                />
-                <View style={[styles.unitSwitchContainer, { marginLeft: 0 }]}> 
-                  <TouchableOpacity
-                    style={[styles.unitToggleBtn, isKg ? styles.unitToggleBtnActive : null]}
-                    onPress={() => setIsKg(true)}
-                    activeOpacity={0.9}
-                  >
-                    <Text style={[styles.unitToggleText, isKg ? styles.unitToggleTextActive : null]}>kg</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.unitToggleBtn, !isKg ? styles.unitToggleBtnActive : null]}
-                    onPress={() => setIsKg(false)}
-                    activeOpacity={0.9}
-                  >
-                    <Text style={[styles.unitToggleText, !isKg ? styles.unitToggleTextActive : null]}>lbs</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </>
+            <BodyweightCard
+              bodyweight={bodyweight}
+              isKg={isKg}
+              submitting={bodyweightSubmitting}
+              recordId={bodyweightRecordId}
+              onChangeWeight={setBodyweight}
+              onToggleKg={setIsKg}
+              onSave={onSaveBodyweight}
+            />
+          </View>
         )}
+        renderItem={({ item }) => {
+          // Ensure the sets array matches the number specified for the exercise
+          let sets = logsHook.logs[String(item.id)] || [];
+          const expectedSets = Number(item.sets) || 1;
+          if (sets.length < expectedSets) {
+            sets = [
+              ...sets,
+              ...Array(expectedSets - sets.length).fill(0).map((_, i) => ({
+                setNumber: sets.length + i + 1,
+                reps: '',
+                weight: '',
+                completed: false,
+                logId: null,
+              }))
+            ];
+          } else if (sets.length > expectedSets) {
+            sets = sets.slice(0, expectedSets);
+          }
+          return (
+            <ExerciseCard
+              key={item.id}
+              item={item}
+              sets={sets}
+              name={editedNames[item.id] ?? item.name}
+              editing={!!editingByExercise[item.id]}
+              readonlyMode={headerIsRest}
+              notes={logsHook.notesByExercise[String(item.id)] || ''}
+              onToggleEdit={() => {
+                // If we are toggling off editing, persist the name if changed
+                const currently = !!editingByExercise[item.id];
+                if (currently) {
+                  const edited = editedNames[item.id];
+                  if (edited != null && String(edited).trim() !== String(item.name).trim()) {
+                    // persist name change for persisted instances
+                    if (item && item.workout_id) {
+                      updateWorkoutExerciseInstance(item.id, { name: String(edited).trim() }).catch(() => {});
+                    }
+                  }
+                }
+                setEditingByExercise(prev => ({ ...prev, [item.id]: !prev[item.id] }));
+              }}
+              onChangeName={(v) => setEditedNames(prev => ({ ...prev, [item.id]: v }))}
+              onChangeNotes={(v) => {
+                logsHook.handleNotesChange(item.id, v);
+                try { if (notesDebounceTimers.current[item.id]) clearTimeout(notesDebounceTimers.current[item.id]); } catch {}
+                notesDebounceTimers.current[item.id] = setTimeout(async () => {
+                  if (item && item.workout_id) {
+                    try { await updateWorkoutExerciseInstance(item.id, { notes: v }); } catch (e) {}
+                  }
+                }, 800);
+              }}
+              onChangeSet={(idx, field, v) => logsHook.handleSetChange(item.id, idx, field as any, v)}
+              onToggleCompleted={(idx) => logsHook.toggleSetCompleted(item.id, idx)}
+              onAddSet={async () => { logsHook.addSetRow(item.id); if (item && item.workout_id) { try { await updateWorkoutExerciseInstance(item.id, { sets: (Number(item.sets) || 1) + 1 }); } catch {} } }}
+              onRemoveSet={(idx) => { setDeleteSetTarget({ exerciseId: item.id, index: idx }); setShowDeleteSetConfirm(true); }}
+              onRemoveExercise={() => { setDeleteExerciseTarget(item.id); setShowDeleteExerciseConfirm(true); }}
+              IconFeather={IconFeather}
+            />
+          );
+        }}
         ListFooterComponent={() => (
           <View>
             {/* + Add Exercise text link placed above the workout controls and left-aligned */}
@@ -341,85 +380,7 @@ export default function TodayTab() {
             )}
           </View>
         )}
-        renderItem={({ item }) => {
-          // Ensure the sets array matches the number specified for the exercise
-          let sets = logsHook.logs[String(item.id)] || [];
-          const expectedSets = Number(item.sets) || 1;
-          if (sets.length < expectedSets) {
-            sets = [
-              ...sets,
-              ...Array(expectedSets - sets.length).fill(0).map((_, i) => ({
-                setNumber: sets.length + i + 1,
-                reps: '',
-                weight: '',
-                completed: false,
-                logId: null,
-              }))
-            ];
-          } else if (sets.length > expectedSets) {
-            sets = sets.slice(0, expectedSets);
-          }
-          return (
-            <ExerciseCard
-              key={item.id}
-              item={item}
-              sets={sets}
-              name={editedNames[item.id] ?? item.name}
-              editing={!!editingByExercise[item.id]}
-              readonlyMode={headerIsRest}
-              notes={logsHook.notesByExercise[String(item.id)] || ''}
-              onToggleEdit={() => {
-                // If we are toggling off editing, persist the name if changed
-                const currently = !!editingByExercise[item.id];
-                if (currently) {
-                  const edited = editedNames[item.id];
-                  if (edited != null && String(edited).trim() !== String(item.name).trim()) {
-                    // persist name change for persisted instances
-                    if (item && item.workout_id) {
-                      updateWorkoutExerciseInstance(item.id, { name: String(edited).trim() }).catch(() => {});
-                    }
-                  }
-                }
-                setEditingByExercise(prev => ({ ...prev, [item.id]: !prev[item.id] }));
-              }}
-              onChangeName={(v) => setEditedNames(prev => ({ ...prev, [item.id]: v }))}
-              onChangeNotes={(v) => {
-                logsHook.handleNotesChange(item.id, v);
-                try { if (notesDebounceTimers.current[item.id]) clearTimeout(notesDebounceTimers.current[item.id]); } catch {}
-                notesDebounceTimers.current[item.id] = setTimeout(async () => {
-                  if (item && item.workout_id) {
-                    try { await updateWorkoutExerciseInstance(item.id, { notes: v }); } catch (e) {}
-                  }
-                }, 800);
-              }}
-              onChangeSet={(idx, field, v) => logsHook.handleSetChange(item.id, idx, field as any, v)}
-              onToggleCompleted={(idx) => logsHook.toggleSetCompleted(item.id, idx)}
-              onAddSet={async () => { logsHook.addSetRow(item.id); if (item && item.workout_id) { try { await updateWorkoutExerciseInstance(item.id, { sets: (Number(item.sets) || 1) + 1 }); } catch {} } }}
-              onRemoveSet={(idx) => { setDeleteSetTarget({ exerciseId: item.id, index: idx }); setShowDeleteSetConfirm(true); }}
-              onRemoveExercise={() => { setDeleteExerciseTarget(item.id); setShowDeleteExerciseConfirm(true); }}
-              IconFeather={IconFeather}
-            />
-          );
-        }}
       />
-      {/* Calendar modal for selecting date (single instance) */}
-      <DatePickerModal
-        visible={showCalendarModal}
-        initialDate={calendarDate}
-        onCancel={() => setShowCalendarModal(false)}
-        onConfirm={(isoDate) => {
-          setShowCalendarModal(false);
-          // Parse ISO date string to Date
-          const parts = isoDate.split('-').map((p) => parseInt(p, 10));
-          if (parts.length === 3) {
-            const d = new Date(parts[0], parts[1] - 1, parts[2]);
-            setCalendarDate(d);
-            // Refetch all data for selected date
-            fetchTodayWorkout(isoDate);
-          }
-        }}
-      />
-
       {/* Modals and confirmations placed outside the FlatList but inside the component root */}
       {/* Removed Bodyweight Modal - now inline card only */}
 
@@ -481,7 +442,7 @@ export default function TodayTab() {
         </View>
       </Modal>
 
-      {/* Calendar modal (placeholder) */}
+      {/* Calendar modal */}
       <DatePickerModal
         visible={showCalendarModal}
         initialDate={calendarDate}
