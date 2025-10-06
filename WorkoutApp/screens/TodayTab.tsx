@@ -239,6 +239,57 @@ export default function TodayTab() {
           <>
             <Header />
             <View style={{ height: 24 }} />
+            {/* Bodyweight Card */}
+            <View style={[styles.exerciseBox, { marginBottom: 16 }]}>  
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <Text style={styles.exerciseTitle}>Bodyweight</Text>
+                <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ marginRight: 8, color: theme.textMuted }}>Log</Text>
+                  <TouchableOpacity
+                    onPress={() => setShowBodyweightModal(v => !v)}
+                    style={{ width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: theme.primary, alignItems: 'center', justifyContent: 'center', backgroundColor: showBodyweightModal ? theme.primary : 'transparent' }}
+                  >
+                    {showBodyweightModal ? <Text style={{ color: theme.background, fontWeight: 'bold' }}>✓</Text> : null}
+                  </TouchableOpacity>
+                </View>
+              </View>
+              {/* Inline input and unit switch, only if enabled */}
+              {showBodyweightModal && (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <TextInput
+                    style={[styles.input, styles.textInput, { marginBottom: 0, flex: 1 }]}
+                    placeholder={isKg ? 'Weight (kg)' : 'Weight (lbs)'}
+                    value={bodyweight}
+                    onChangeText={setBodyweight}
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                  />
+                  <View style={styles.unitSwitchContainer}>
+                    <TouchableOpacity
+                      style={[styles.unitToggleBtn, isKg ? styles.unitToggleBtnActive : null]}
+                      onPress={() => setIsKg(true)}
+                      activeOpacity={0.9}
+                    >
+                      <Text style={[styles.unitToggleText, isKg ? styles.unitToggleTextActive : null]}>kg</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.unitToggleBtn, !isKg ? styles.unitToggleBtnActive : null]}
+                      onPress={() => setIsKg(false)}
+                      activeOpacity={0.9}
+                    >
+                      <Text style={[styles.unitToggleText, !isKg ? styles.unitToggleTextActive : null]}>lbs</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <TouchableOpacity
+                    onPress={onSaveBodyweight}
+                    style={[styles.addButton, { marginLeft: 8 }]} 
+                    disabled={bodyweightSubmitting}
+                  >
+                    <Text style={styles.addButtonText}>{bodyweightSubmitting ? 'Logging...' : 'Save'}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
           </>
         )}
         ListFooterComponent={() => (
@@ -437,9 +488,6 @@ export default function TodayTab() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 12 }}>Settings</Text>
-            <TouchableOpacity onPress={() => { setShowSettingsModal(false); setShowBodyweightModal(true); }} style={{ backgroundColor: theme.primary, padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 8 }}>
-              <Text style={{ color: theme.text, fontWeight: '700' }}>Log Bodyweight</Text>
-            </TouchableOpacity>
 
             <TouchableOpacity
               onPress={async () => {
