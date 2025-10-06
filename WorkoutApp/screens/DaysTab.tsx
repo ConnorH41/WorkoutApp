@@ -13,6 +13,7 @@ import EditPencil from '../components/EditPencil';
 import RemoveButton from '../components/RemoveButton';
 import AddExercise from '../components/AddExercise';
 import DayRow from '../components/DayRow';
+import Badge from '../components/Badge';
 import ExercisesList from '../components/ExercisesList';
 import AddDayModal from '../components/AddDayModal';
 import EditDayModal from '../components/EditDayModal';
@@ -243,7 +244,6 @@ export default function DaysTab() {
           <Text style={styles.addButtonText}>Add New Day</Text>
         </TouchableOpacity>
       </View>
-  <View style={{ borderBottomWidth: 1, borderBottomColor: '#E0E0E0', marginBottom: 12 }} />
       {loading && <Text>Loading...</Text>}
     </View>
   );
@@ -274,11 +274,13 @@ export default function DaysTab() {
                 <EditPencil onPress={() => handleEditDay(item.id, item.name)} accessibilityLabel={`Edit ${item.name}`} />
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={styles.exerciseCountBadge}>
-                  <Text style={styles.badgeText}>
-                    { (localCounts[item.id] ?? exerciseCounts[item.id] ?? 0) } { (localCounts[item.id] ?? exerciseCounts[item.id] ?? 0) === 1 ? 'Exercise' : 'Exercises' }
-                  </Text>
-                </View>
+                <Badge
+                  text={`${(localCounts[item.id] ?? exerciseCounts[item.id] ?? 0)} ${(localCounts[item.id] ?? exerciseCounts[item.id] ?? 0) === 1 ? 'Exercise' : 'Exercises'}`}
+                  backgroundColor={styles.exerciseCountBadge?.backgroundColor || '#E0E0E0'}
+                  color={styles.badgeText?.color || '#333'}
+                  size="sm"
+                  style={{ marginLeft: 8 }}
+                />
               </View>
             </View>
             <View style={styles.dayActions}>

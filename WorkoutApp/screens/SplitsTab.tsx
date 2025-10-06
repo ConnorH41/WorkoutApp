@@ -9,6 +9,7 @@ import EditPencil from '../components/EditPencil';
 import RemoveButton from '../components/RemoveButton';
 import styles from '../styles/splitsStyles';
 import daysStyles from '../styles/daysStyles';
+import Badge from '../components/Badge';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -1102,7 +1103,6 @@ export default function SplitsTab() {
           <Text style={styles.addButtonText}>Add New Split</Text>
         </TouchableOpacity>
       </View>
-  <View style={{ borderBottomWidth: 1, borderBottomColor: '#E0E0E0', marginBottom: 12 }} />
       {loading && <Text>Loading...</Text>}
     </View>
   );
@@ -1129,13 +1129,20 @@ export default function SplitsTab() {
                   <EditPencil onPress={() => handleEditSplit(item)} accessibilityLabel={`Edit ${item.name}`} />
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <View style={styles.modeBadge}>
-                    <Text style={styles.badgeText}>{item.mode === 'week' ? 'Weekly' : 'Rotation'}</Text>
-                  </View>
+                  <Badge
+                    text={item.mode === 'week' ? 'Weekly' : 'Rotation'}
+                    backgroundColor={styles.modeBadge?.backgroundColor || '#E0E0E0'}
+                    color={styles.badgeText?.color || '#333'}
+                    size="sm"
+                    style={{ marginRight: 8 }}
+                  />
                   {isSplitCurrentlyActive(item.id) && (
-                    <View style={styles.currentBadge}>
-                      <Text style={styles.badgeText}>Current</Text>
-                    </View>
+                    <Badge
+                      text="Current"
+                      backgroundColor={styles.currentBadge?.backgroundColor || '#007AFF'}
+                      color={styles.badgeText?.color || '#fff'}
+                      size="sm"
+                    />
                   )}
                 </View>
               </View>

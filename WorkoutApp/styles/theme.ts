@@ -23,6 +23,30 @@ export const colors = {
   shadow: 'rgba(0, 0, 0, 0.1)',
 };
 
+export const darkColors = {
+  primary: '#EF5350',
+  primaryLight: '#FF867C',
+  primaryDark: '#B61827',
+  accent: '#FF7043',
+  accentLight: '#FFA270',
+  background: '#121212',
+  backgroundMuted: '#1E1E1E',
+  surface: '#1E1E1E',
+  card: '#2C2C2C',
+  text: '#FFFFFF',
+  textMuted: '#B0B0B0',
+  textLight: '#808080',
+  success: '#66BB6A',
+  successLight: '#81C784',
+  warning: '#FFA726',
+  warningLight: '#FFB74D',
+  danger: '#EF5350',
+  dangerLight: '#E57373',
+  border: '#333333',
+  borderLight: '#404040',
+  overlay: 'rgba(0, 0, 0, 0.7)',
+  shadow: 'rgba(0, 0, 0, 0.3)',
+};
 
 export const spacing = {
   xs: 4,

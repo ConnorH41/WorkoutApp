@@ -1,3 +1,4 @@
+import Badge from './Badge';
 import React from 'react';
 import { useTheme } from '../lib/ThemeContext';
 import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
@@ -36,9 +37,15 @@ export default function ExerciseCard(props: {
       shadowColor: theme.shadow,
     }}>
       {!(String(item.id).startsWith('tmp')) && (
-        <View style={styles.goalBadge}>
-          <Text style={styles.goalBadgeText}>{`${item.sets}×${item.reps}`}</Text>
-        </View>
+        <Badge
+          text={`${item.sets}×${item.reps}`}
+          backgroundColor={theme.primaryLight}
+          color={theme.text}
+          size="sm"
+          position="absolute"
+          right={10}
+          top={8}
+        />
       )}
       <View style={styles.titleRow}>
         {!editing ? (

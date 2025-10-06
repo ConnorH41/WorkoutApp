@@ -5,6 +5,7 @@ import SwipeableRow from './SwipeableRow';
 import EditPencil from './EditPencil';
 import RemoveButton from './RemoveButton';
 import ExpandableView from './animations/ExpandableView';
+import Badge from './Badge';
 import { Day } from '../lib/types';
 import { colors } from '../styles/theme';
 
@@ -28,9 +29,13 @@ export default function DayRow({ day, isSelected, onPress, exerciseCount = 0, on
           <EditPencil onPress={() => onEditDay(day.id, day.name)} accessibilityLabel={`Edit ${day.name}`} />
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={styles.exerciseCountBadge}>
-            <Text style={styles.badgeText}>{exerciseCount} {exerciseCount === 1 ? 'Exercise' : 'Exercises'}</Text>
-          </View>
+          <Badge
+            text={`${exerciseCount} ${exerciseCount === 1 ? 'Exercise' : 'Exercises'}`}
+            backgroundColor={colors.primaryLight}
+            color={colors.text}
+            size="sm"
+            style={{ marginLeft: 8 }}
+          />
         </View>
       </View>
       <View style={styles.dayActions}>
