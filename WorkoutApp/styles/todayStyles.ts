@@ -8,6 +8,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.lg,
   },
+  separator: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginTop: 8,
+    marginBottom: 8,
+    width: '100%',
+  },
   container: {
     flex: 1,
     backgroundColor: colors.background,
