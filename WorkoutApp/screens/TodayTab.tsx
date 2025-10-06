@@ -23,7 +23,6 @@ export default function TodayTab() {
   const insets = useSafeAreaInsets();
   const [calendarDate, setCalendarDate] = useState<Date | null>(new Date());
   const [bodyweight, setBodyweight] = useState('');
-  const [showBodyweightModal, setShowBodyweightModal] = useState(false);
   const [isKg, setIsKg] = useState(true);
   const [bodyweightSubmitting, setBodyweightSubmitting] = useState(false);
   const [bodyweightRecordId, setBodyweightRecordId] = useState<string | null>(null);
@@ -116,7 +115,6 @@ export default function TodayTab() {
       } else {
         await api.insertBodyweight({ user_id: profile.id, weight: parsed, unit });
       }
-      setShowBodyweightModal(false);
       setBodyweight('');
       setBodyweightRecordId(null);
     } catch (e: any) {
@@ -126,11 +124,10 @@ export default function TodayTab() {
     }
   };
 
-  // When the bodyweight modal opens, load existing bodyweight for the selected date (calendarDate or today)
+  // Load existing bodyweight for the selected date (calendarDate or today)
   useEffect(() => {
     let mounted = true;
     const load = async () => {
-      if (!showBodyweightModal) return;
       if (!profile || !profile.id) return;
       try {
         const isoDate = calendarDate ? formatDateOnly(calendarDate) : formatDateOnly(new Date());
@@ -150,7 +147,7 @@ export default function TodayTab() {
     };
     load();
     return () => { mounted = false; };
-  }, [showBodyweightModal, calendarDate, profile]);
+  }, [calendarDate, profile]);
 
       
   // Prepare the data array for the FlatList:
@@ -239,56 +236,45 @@ export default function TodayTab() {
           <>
             <Header />
             <View style={{ height: 24 }} />
-            {/* Bodyweight Card */}
-            <View style={[styles.exerciseBox, { marginBottom: 16 }]}>  
+            <View style={[styles.exerciseBox, { marginBottom: 16, marginHorizontal: 16 }]}>  
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                 <Text style={styles.exerciseTitle}>Bodyweight</Text>
-                <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ marginRight: 8, color: theme.textMuted }}>Log</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 40 }}>
+                {/* Log checkbox on the left, matching exercise sets */}
+                <TouchableOpacity
+                  onPress={onSaveBodyweight}
+                  style={[styles.checkbox, bodyweightRecordId ? styles.checkboxChecked : null, { height: 40, width: 40, borderRadius: 8 }]}
+                  disabled={bodyweightSubmitting}
+                  accessibilityLabel="Log bodyweight"
+                >
+                  {bodyweightRecordId ? <Text style={styles.checkboxText}>✓</Text> : null}
+                </TouchableOpacity>
+                <TextInput
+                  style={[styles.input, styles.inputWeight, bodyweightRecordId ? styles.inputDisabled : null]}
+                  placeholder={isKg ? 'Weight (kg)' : 'Weight (lbs)'}
+                  value={bodyweight}
+                  onChangeText={setBodyweight}
+                  keyboardType="numeric"
+                  editable={!bodyweightRecordId}
+                />
+                <View style={[styles.unitSwitchContainer, { marginLeft: 0 }]}> 
                   <TouchableOpacity
-                    onPress={() => setShowBodyweightModal(v => !v)}
-                    style={{ width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: theme.primary, alignItems: 'center', justifyContent: 'center', backgroundColor: showBodyweightModal ? theme.primary : 'transparent' }}
+                    style={[styles.unitToggleBtn, isKg ? styles.unitToggleBtnActive : null]}
+                    onPress={() => setIsKg(true)}
+                    activeOpacity={0.9}
                   >
-                    {showBodyweightModal ? <Text style={{ color: theme.background, fontWeight: 'bold' }}>✓</Text> : null}
+                    <Text style={[styles.unitToggleText, isKg ? styles.unitToggleTextActive : null]}>kg</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.unitToggleBtn, !isKg ? styles.unitToggleBtnActive : null]}
+                    onPress={() => setIsKg(false)}
+                    activeOpacity={0.9}
+                  >
+                    <Text style={[styles.unitToggleText, !isKg ? styles.unitToggleTextActive : null]}>lbs</Text>
                   </TouchableOpacity>
                 </View>
               </View>
-              {/* Inline input and unit switch, only if enabled */}
-              {showBodyweightModal && (
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <TextInput
-                    style={[styles.input, styles.textInput, { marginBottom: 0, flex: 1 }]}
-                    placeholder={isKg ? 'Weight (kg)' : 'Weight (lbs)'}
-                    value={bodyweight}
-                    onChangeText={setBodyweight}
-                    keyboardType="numeric"
-                    returnKeyType="done"
-                  />
-                  <View style={styles.unitSwitchContainer}>
-                    <TouchableOpacity
-                      style={[styles.unitToggleBtn, isKg ? styles.unitToggleBtnActive : null]}
-                      onPress={() => setIsKg(true)}
-                      activeOpacity={0.9}
-                    >
-                      <Text style={[styles.unitToggleText, isKg ? styles.unitToggleTextActive : null]}>kg</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.unitToggleBtn, !isKg ? styles.unitToggleBtnActive : null]}
-                      onPress={() => setIsKg(false)}
-                      activeOpacity={0.9}
-                    >
-                      <Text style={[styles.unitToggleText, !isKg ? styles.unitToggleTextActive : null]}>lbs</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <TouchableOpacity
-                    onPress={onSaveBodyweight}
-                    style={[styles.addButton, { marginLeft: 8 }]} 
-                    disabled={bodyweightSubmitting}
-                  >
-                    <Text style={styles.addButtonText}>{bodyweightSubmitting ? 'Logging...' : 'Save'}</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
             </View>
           </>
         )}
@@ -435,53 +421,7 @@ export default function TodayTab() {
       />
 
       {/* Modals and confirmations placed outside the FlatList but inside the component root */}
-      <Modal visible={showBodyweightModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>Enter Today's Bodyweight</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <TextInput
-                  style={[styles.input, styles.textInput, { marginBottom: 0 }]}
-                  placeholder={isKg ? 'Weight (kg)' : 'Weight (lbs)'}
-                  value={bodyweight}
-                  onChangeText={setBodyweight}
-                  keyboardType="numeric"
-                  returnKeyType="done"
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                />
-              <View style={styles.unitSwitchContainer}>
-                <TouchableOpacity
-                  style={[styles.unitToggleBtn, isKg ? styles.unitToggleBtnActive : null]}
-                  onPress={() => setIsKg(true)}
-                  activeOpacity={0.9}
-                >
-                  <Text style={[styles.unitToggleText, isKg ? styles.unitToggleTextActive : null]}>kg</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.unitToggleBtn, !isKg ? styles.unitToggleBtnActive : null]}
-                  onPress={() => setIsKg(false)}
-                  activeOpacity={0.9}
-                >
-                  <Text style={[styles.unitToggleText, !isKg ? styles.unitToggleTextActive : null]}>lbs</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            <View>
-              <ModalButtons
-                leftLabel="Cancel"
-                rightLabel={bodyweightSubmitting ? 'Logging...' : 'Save'}
-                onLeftPress={() => setShowBodyweightModal(false)}
-                onRightPress={onSaveBodyweight}
-                leftColor={theme.backgroundMuted}
-                rightColor={theme.primary}
-                leftTextColor={theme.text}
-                rightTextColor={theme.background}
-                rightDisabled={bodyweightSubmitting}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* Removed Bodyweight Modal - now inline card only */}
 
       {/* Settings modal (simple placeholder with Logout) */}
       <Modal visible={showSettingsModal} animationType="slide" transparent>
