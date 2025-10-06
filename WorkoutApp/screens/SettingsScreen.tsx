@@ -1,25 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, Switch, StyleSheet } from 'react-native';
-import { colors, darkColors } from '../styles/theme';
 
-export default function SettingsScreen({ navigation }) {
-  const [darkMode, setDarkMode] = useState(false);
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { colors } from '../styles/theme';
 
-  // You would want to lift this state up to context or redux for global theme switching
-  const theme = darkMode ? darkColors : colors;
-
+export default function SettingsScreen() {
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}> 
-      <Text style={[styles.title, { color: theme.text }]}>Settings</Text>
-      <View style={styles.row}>
-        <Text style={{ color: theme.text, fontSize: 16 }}>Dark Mode</Text>
-        <Switch
-          value={darkMode}
-          onValueChange={setDarkMode}
-          thumbColor={darkMode ? theme.primary : theme.muted}
-          trackColor={{ false: theme.muted, true: theme.primary }}
-        />
-      </View>
+    <View style={[styles.container, { backgroundColor: colors.background }]}> 
+      <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
+      {/* Add other settings here as needed */}
     </View>
   );
 }
@@ -33,11 +21,5 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     marginBottom: 24,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
   },
 });

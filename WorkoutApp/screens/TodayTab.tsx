@@ -437,15 +437,6 @@ export default function TodayTab() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 12 }}>Settings</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <Text style={{ fontSize: 16, color: theme.text }}>Dark Mode</Text>
-              <Switch
-                value={darkMode}
-                onValueChange={setDarkMode}
-                thumbColor={darkMode ? theme.primary : theme.backgroundMuted}
-                trackColor={{ false: theme.backgroundMuted, true: theme.primary }}
-              />
-            </View>
             <TouchableOpacity onPress={() => { setShowSettingsModal(false); setShowBodyweightModal(true); }} style={{ backgroundColor: theme.primary, padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 8 }}>
               <Text style={{ color: theme.text, fontWeight: '700' }}>Log Bodyweight</Text>
             </TouchableOpacity>
