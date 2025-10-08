@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import TodayTab from './screens/TodayTab';
 import DaysTab from './screens/DaysTab';
 import SplitsTab from './screens/SplitsTab';
+import { colors } from './styles/theme';
 let IconFeather: any = null;
 try { IconFeather = require('@expo/vector-icons').Feather; } catch (e) { IconFeather = null; }
 
@@ -21,7 +22,7 @@ export default function MainNavigator() {
             if (route.name === 'Today') name = 'home';
             else if (route.name === 'Days') name = 'calendar';
             else if (route.name === 'Splits') name = 'layers';
-            return <IconFeather name={name} size={20} color={focused ? '#007AFF' : '#666'} />;
+            return <IconFeather name={name} size={20} color={focused ? colors.primary : '#666'} />;
           },
         })}
       >

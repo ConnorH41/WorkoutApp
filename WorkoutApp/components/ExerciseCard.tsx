@@ -6,6 +6,7 @@ import appStyles from '../styles/appStyles';
 import ScaleInView from './animations/ScaleInView';
 import EditPencil from './EditPencil';
 import RemoveButton from './RemoveButton';
+import { colors } from '../styles/theme';
 
 type SetRow = { setNumber: number; reps: string; weight: string; completed?: boolean; logId?: string | null };
 
@@ -130,15 +131,15 @@ const styles = StyleSheet.create({
   inputReps: { width: 80, marginRight: 8, height: 40, paddingVertical: 6, textAlignVertical: 'center' },
   addSetLink: { marginBottom: 8 },
   addSetLinkPressed: { opacity: 0.8 },
-  addSetText: { color: '#007AFF', fontWeight: '700' },
+  addSetText: { color: colors.primary, fontWeight: '700' },
   notesInput: { marginTop: 8 },
   removeBtn: { marginLeft: 8, paddingHorizontal: 8, paddingVertical: 6, minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: -8, borderRadius: 8 },
   removeBtnPressed: { opacity: 0.8 },
   removeBtnText: { color: '#ff3b30', fontWeight: '700', fontSize: 18 },
-  goalBadge: { position: 'absolute', right: 10, top: 8, backgroundColor: '#007AFF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
+  goalBadge: { position: 'absolute', right: 10, top: 8, backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   goalBadgeText: { color: '#fff', fontWeight: '700', fontSize: 12 },
   checkbox: { width: 36, height: 36, borderRadius: 6, borderWidth: 1, borderColor: '#ccc', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
-  checkboxChecked: { backgroundColor: '#007AFF', borderColor: '#007AFF' },
+  checkboxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
   checkboxDisabled: { backgroundColor: '#f2f2f2', borderColor: '#ddd' },
   checkboxPressed: { opacity: 0.85 },
   checkboxText: { color: '#fff', fontWeight: '700' },

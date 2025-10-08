@@ -9,7 +9,7 @@ export const colors = {
   surface: '#FFFFFF',
   card: '#FFFFFF',
   text: '#212121',
-  textMuted: '#757575',
+  textMuted: '#9E9E9E',
   textLight: '#9E9E9E',
   success: '#4CAF50',
   successLight: '#81C784',

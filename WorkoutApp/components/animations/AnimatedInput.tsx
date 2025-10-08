@@ -48,7 +48,7 @@ export default function AnimatedInput({ containerStyle, style, ...props }: Props
 
   const borderColor = borderAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#ccc', '#007AFF'],
+    outputRange: ['#ccc', '#C62828'],
   });
 
   const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);

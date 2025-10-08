@@ -2,6 +2,7 @@ import React from 'react';
 import { Modal, View, Text, TextInput, Keyboard, ScrollView } from 'react-native';
 import styles from '../styles/daysStyles';
 import ModalButtons from './ModalButtons';
+import { colors } from '../styles/theme';
 
 type Props = {
   visible: boolean;
@@ -23,7 +24,7 @@ export default function EditDayModal({ visible, onClose, name, setName, onSave }
               <TextInput style={[styles.input, styles.textInput]} placeholder="e.g. Upper A, Push Day" value={name} onChangeText={setName} returnKeyType="done" onSubmitEditing={() => Keyboard.dismiss()} />
             </View>
             <View>
-              <ModalButtons leftLabel="Cancel" rightLabel="Save" onLeftPress={onClose} onRightPress={onSave} leftColor="#e0e0e0" rightColor="#007AFF" leftTextColor="#333" rightTextColor="#fff" />
+              <ModalButtons leftLabel="Cancel" rightLabel="Save" onLeftPress={onClose} onRightPress={onSave} leftColor="#e0e0e0" rightColor={colors.primary} leftTextColor="#333" rightTextColor="#fff" />
             </View>
           </ScrollView>
         </View>

@@ -141,7 +141,7 @@ export default function AddExercise({ mode = 'modal', onAdd, adding = false, add
                   rightLabel={adding ? 'Adding...' : (addButtonText || 'Add Exercise')}
                   onLeftPress={() => { reset(); setVisible(false); }}
                   onRightPress={handleAdd}
-                  leftColor={colors.muted}
+                  leftColor={colors.textMuted}
                   rightColor={colors.primary}
                   leftTextColor={colors.text}
                   rightTextColor={colors.background}

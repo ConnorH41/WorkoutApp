@@ -3,6 +3,7 @@ import { View, TextInput, TouchableOpacity, Text, Linking } from 'react-native';
 import { supabase } from '../lib/supabase';
 import styles from '../styles/authStyles';
 import { FontAwesome } from '@expo/vector-icons';
+import { colors } from '../styles/theme';
 
 export default function AuthScreen({ onAuthSuccess }: { onAuthSuccess: () => void }) {
   const [email, setEmail] = useState('');
@@ -75,7 +76,7 @@ export default function AuthScreen({ onAuthSuccess }: { onAuthSuccess: () => voi
           </TouchableOpacity>
 
           <TouchableOpacity onPress={handleSignUp} disabled={loading} style={{ borderWidth: 1, borderColor: '#007AFF', padding: 12, borderRadius: 8, alignItems: 'center' }}>
-            <Text style={{ color: '#007AFF', fontWeight: '700' }}>{loading ? 'Working...' : 'Create Account'}</Text>
+            <Text style={{ color: colors.primary, fontWeight: '700' }}>{loading ? 'Working...' : 'Create Account'}</Text>
           </TouchableOpacity>
 
           <View style={{ height: 16 }} />

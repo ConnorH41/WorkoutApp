@@ -173,7 +173,7 @@ export default StyleSheet.create({
     fontWeight: fonts.weight.bold,
   },
   primaryBtn: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.primary,
   },
   primaryBtnText: {
     color: '#fff',

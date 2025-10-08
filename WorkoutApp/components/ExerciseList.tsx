@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import ExerciseCard from './ExerciseCard';
+import { colors } from '../styles/theme';
 
 type Props = {
   exercises: any[];
@@ -48,7 +49,7 @@ export default function ExerciseList({ exercises, splitDayExercises, logs, nameB
       ))}
 
       <TouchableOpacity style={{ marginTop: 0, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6, alignSelf: 'flex-start' }} onPress={onAddExercise}>
-        <Text style={{ color: '#007AFF', fontWeight: '700' }}>+ Add Exercise</Text>
+        <Text style={{ color: colors.primary, fontWeight: '700' }}>+ Add Exercise</Text>
       </TouchableOpacity>
     </View>
   );

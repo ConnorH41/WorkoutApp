@@ -8,8 +8,8 @@ import ModalButtons from '../components/ModalButtons';
 import EditPencil from '../components/EditPencil';
 import RemoveButton from '../components/RemoveButton';
 import styles from '../styles/splitsStyles';
-import daysStyles from '../styles/daysStyles';
 import Badge from '../components/Badge';
+import { colors } from '../styles/theme';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -685,7 +685,7 @@ export default function SplitsTab() {
           />
           <Text style={{ marginHorizontal: 6, color: '#666', fontWeight: '600' }}>or</Text>
           <TouchableOpacity
-            style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: durationWeeks === -1 ? '#007AFF' : '#e0e0e0' }}
+            style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: durationWeeks === -1 ? colors.primary : '#e0e0e0' }}
             onPress={() => {
               if (durationWeeks === -1) {
                 setDurationWeeks(null);
@@ -1140,7 +1140,7 @@ export default function SplitsTab() {
                   {isSplitCurrentlyActive(item.id) && (
                     <Badge
                       text="Current"
-                      backgroundColor={styles.currentBadge?.backgroundColor || '#007AFF'}
+                      backgroundColor={styles.currentBadge?.backgroundColor || colors.primary}
                       color={styles.badgeText?.color || '#fff'}
                       size="sm"
                     />
@@ -1210,7 +1210,7 @@ export default function SplitsTab() {
                             onLeftPress={() => setShowSetModal(false)}
                             onRightPress={handleConfirmSetCurrentSplit}
                             leftColor="#e0e0e0"
-                            rightColor="#007AFF"
+                            rightColor={colors.primary}
                             leftTextColor="#333"
                             rightTextColor="#fff"
                             // Allow scheduling with empty start date so the user can clear/reset timeframe.
@@ -1313,19 +1313,19 @@ export default function SplitsTab() {
               {/* Tab Navigation */}
               <View style={{ flexDirection: 'row', marginBottom: 20, backgroundColor: '#f0f0f0', borderRadius: 8, padding: 4 }}>
               <TouchableOpacity
-                style={[styles.tabButton, { backgroundColor: newSplitTab === 0 ? '#007AFF' : 'transparent' }]}
+                style={[styles.tabButton, { backgroundColor: newSplitTab === 0 ? colors.primary : 'transparent' }]}
                 onPress={() => setNewSplitTab(0)}
               >
                 <Text style={{ color: newSplitTab === 0 ? '#fff' : '#333', fontWeight: 'bold', fontSize: 12 }}>1. Basic</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.tabButton, { backgroundColor: newSplitTab === 1 ? '#007AFF' : 'transparent' }]}
+                style={[styles.tabButton, { backgroundColor: newSplitTab === 1 ? colors.primary : 'transparent' }]}
                 onPress={() => setNewSplitTab(1)}
               >
                 <Text style={{ color: newSplitTab === 1 ? '#fff' : '#333', fontWeight: 'bold', fontSize: 12 }}>2. Days</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.tabButton, { backgroundColor: newSplitTab === 2 ? '#007AFF' : 'transparent' }]}
+                style={[styles.tabButton, { backgroundColor: newSplitTab === 2 ? colors.primary : 'transparent' }]}
                 onPress={() => setNewSplitTab(2)}
               >
                 <Text style={{ color: newSplitTab === 2 ? '#fff' : '#333', fontWeight: 'bold', fontSize: 12 }}>3. Schedule</Text>
@@ -1352,7 +1352,7 @@ export default function SplitsTab() {
                   <TouchableOpacity
                     style={[
                       styles.modeButton,
-                      { backgroundColor: newSplit.mode === 'week' ? '#007AFF' : '#e0e0e0' }
+                      { backgroundColor: newSplit.mode === 'week' ? colors.primary : '#e0e0e0' }
                     ]}
                     onPress={() => setNewSplit(s => ({ ...s, mode: 'week' }))}
                   >
@@ -1363,7 +1363,7 @@ export default function SplitsTab() {
                   <TouchableOpacity
                     style={[
                       styles.modeButton,
-                      { backgroundColor: newSplit.mode === 'rotation' ? '#007AFF' : '#e0e0e0', marginLeft: 8 }
+                      { backgroundColor: newSplit.mode === 'rotation' ? colors.primary : '#e0e0e0', marginLeft: 8 }
                     ]}
                     onPress={() => setNewSplit(s => ({ ...s, mode: 'rotation' }))}
                   >
@@ -1496,7 +1496,7 @@ export default function SplitsTab() {
                   onLeftPress={() => setShowAddModal(false)}
                   onRightPress={() => setNewSplitTab(newSplitTab + 1)}
                   leftColor="#e0e0e0"
-                  rightColor="#007AFF"
+                  rightColor={colors.primary}
                   leftTextColor="#333"
                   rightTextColor="#fff"
                 />
@@ -1507,7 +1507,7 @@ export default function SplitsTab() {
                   onLeftPress={() => setShowAddModal(false)}
                   onRightPress={handleAddSplit}
                   leftColor="#e0e0e0"
-                  rightColor="#007AFF"
+                  rightColor={colors.primary}
                   leftTextColor="#333"
                   rightTextColor="#fff"
                   rightDisabled={adding}
@@ -1552,7 +1552,7 @@ export default function SplitsTab() {
                 <TouchableOpacity
                   style={[
                     styles.modeButton,
-                    { backgroundColor: editingSplit?.mode === 'week' ? '#007AFF' : '#e0e0e0' }
+                    { backgroundColor: editingSplit?.mode === 'week' ? colors.primary : '#e0e0e0' }
                   ]}
                   onPress={() => setEditingSplit((prev: any) => ({ ...prev, mode: 'week' }))}
                 >
@@ -1563,7 +1563,7 @@ export default function SplitsTab() {
                 <TouchableOpacity
                   style={[
                     styles.modeButton,
-                    { backgroundColor: editingSplit?.mode === 'rotation' ? '#007AFF' : '#e0e0e0', marginLeft: 8 }
+                    { backgroundColor: editingSplit?.mode === 'rotation' ? colors.primary : '#e0e0e0', marginLeft: 8 }
                   ]}
                   onPress={() => setEditingSplit((prev: any) => ({ ...prev, mode: 'rotation' }))}
                 >
@@ -1614,7 +1614,7 @@ export default function SplitsTab() {
                 onLeftPress={() => setShowEditModal(false)}
                 onRightPress={handleSaveEditSplit}
                 leftColor="#e0e0e0"
-                rightColor="#007AFF"
+                rightColor={colors.primary}
                 leftTextColor="#333"
                 rightTextColor="#fff"
                 rightDisabled={adding}

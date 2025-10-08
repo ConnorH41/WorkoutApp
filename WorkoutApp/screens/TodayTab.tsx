@@ -14,6 +14,7 @@ import { useExerciseLogs } from '../hooks/useExerciseLogs';
 import * as api from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { useProfileStore } from '../lib/profileStore';
+import { colors } from '../styles/theme';
 
 
 
@@ -451,7 +452,7 @@ export default function TodayTab() {
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => setShowSettingsModal(false)} style={{ padding: 12, alignItems: 'center' }}>
-              <Text style={{ color: '#007AFF', fontWeight: '700' }}>Close</Text>
+              <Text style={{ color: colors.primary, fontWeight: '700' }}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -505,7 +506,7 @@ export default function TodayTab() {
                 }}
                 style={{ paddingVertical: 10 }}
               >
-                <Text style={{ color: '#007AFF' }}>{changeDaySubmitting ? 'Saving...' : 'Clear scheduled day'}</Text>
+                <Text style={{ color: colors.primary }}>{changeDaySubmitting ? 'Saving...' : 'Clear scheduled day'}</Text>
               </TouchableOpacity>
 
               {(() => {
@@ -529,7 +530,7 @@ export default function TodayTab() {
               })()}
             </ScrollView>
             <TouchableOpacity onPress={() => setShowChangeDayModal(false)} style={{ paddingVertical: 10, alignItems: 'center' }}>
-              <Text style={{ color: '#007AFF', fontWeight: '700' }}>Close</Text>
+              <Text style={{ color: colors.primary, fontWeight: '700' }}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
