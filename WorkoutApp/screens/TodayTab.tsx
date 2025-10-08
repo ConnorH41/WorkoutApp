@@ -17,10 +17,10 @@ import { useProfileStore } from '../lib/profileStore';
 
 
 
-import { Switch } from 'react-native';
+// ...existing imports...
 
 export default function TodayTab() {
-  const { theme, darkMode, setDarkMode } = useTheme();
+  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const [calendarDate, setCalendarDate] = useState<Date | null>(new Date());
   const [bodyweight, setBodyweight] = useState('');
@@ -221,10 +221,6 @@ export default function TodayTab() {
             <TouchableOpacity onPress={() => setShowCalendarModal(true)} activeOpacity={0.8}>
               <Text style={{ color: theme.primary, fontWeight: '700' }}>Calendar</Text>
             </TouchableOpacity>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ marginRight: 6 }}>Dark</Text>
-              <Switch value={darkMode} onValueChange={setDarkMode} />
-            </View>
             <TouchableOpacity onPress={() => setShowSettingsModal(true)} activeOpacity={0.8}>
               <Text style={{ color: theme.primary, fontWeight: '700' }}>Settings</Text>
             </TouchableOpacity>
