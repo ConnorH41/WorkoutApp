@@ -348,7 +348,7 @@ export default function TodayTab() {
                 <Text style={{ color: theme.primary, fontWeight: '700' }}>{'+ Add Exercise'}</Text>
               </TouchableOpacity>
             </View>
-            <View style={{ marginTop: 12 }}>
+            <View style={{ marginTop: 12, paddingHorizontal: 16 }}>
               <WorkoutControls
                 todayWorkout={todayWorkout}
                 isRestDay={headerIsRest}
@@ -382,7 +382,7 @@ export default function TodayTab() {
             )}
             {/* If it's a rest day (either flagged or implied by header) show a friendly message instead of the mark button */}
             {headerIsRest && (
-              <View style={{ padding: 12 }}>
+              <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={() => setShowRestConfirm(true)}
