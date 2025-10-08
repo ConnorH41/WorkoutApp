@@ -214,18 +214,38 @@ export default function TodayTab() {
       <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
-            <Text style={{ fontSize: 20, fontWeight: '800' }}>{headerDayLabel}</Text>
+            {/* Match Days/Splits title size (fonts.size.xxxl -> ~28) */}
+            <Text style={{ fontSize: 28, fontWeight: '700', color: '#212121' }}>{headerDayLabel}</Text>
             {!!dateLabel && <Text style={{ color: '#666', marginTop: 2 }}>{dateLabel}</Text>}
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <TouchableOpacity onPress={() => setShowCalendarModal(true)} activeOpacity={0.8}>
-              <Text style={{ color: theme.primary, fontWeight: '700' }}>Calendar</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity
+              onPress={() => setShowCalendarModal(true)}
+              activeOpacity={0.8}
+              accessibilityLabel="Open calendar"
+              style={{ padding: 6 }}
+            >
+              {IconFeather ? (
+                <IconFeather name="calendar" size={22} color={theme.primary} />
+              ) : (
+                <Text style={{ color: theme.primary, fontWeight: '700' }}>Calendar</Text>
+              )}
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setShowSettingsModal(true)} activeOpacity={0.8}>
-              <Text style={{ color: theme.primary, fontWeight: '700' }}>Settings</Text>
+            <TouchableOpacity
+              onPress={() => setShowSettingsModal(true)}
+              activeOpacity={0.8}
+              accessibilityLabel="Open settings"
+              style={{ padding: 6, marginLeft: 8 }}
+            >
+              {IconFeather ? (
+                <IconFeather name="settings" size={22} color={theme.primary} />
+              ) : (
+                <Text style={{ color: theme.primary, fontWeight: '700' }}>Settings</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
+        <View style={{ borderBottomWidth: 1, borderBottomColor: '#E0E0E0', marginTop: 8, marginBottom: 12 }} />
       </View>
     );
   };
@@ -241,7 +261,6 @@ export default function TodayTab() {
         ListHeaderComponent={(
           <View>
             <Header />
-            <View style={{ height: 24 }} />
             <BodyweightCard
               bodyweight={bodyweight}
               isKg={isKg}
