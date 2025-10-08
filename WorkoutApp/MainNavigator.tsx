@@ -16,13 +16,15 @@ export default function MainNavigator() {
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,
-          tabBarIcon: ({ focused, color, size }) => {
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: '#666',
+          tabBarIcon: ({ color, size }) => {
             if (!IconFeather) return null;
             let name = 'circle';
             if (route.name === 'Today') name = 'home';
             else if (route.name === 'Days') name = 'calendar';
             else if (route.name === 'Splits') name = 'layers';
-            return <IconFeather name={name} size={20} color={focused ? colors.primary : '#666'} />;
+            return <IconFeather name={name} size={20} color={color} />;
           },
         })}
       >
