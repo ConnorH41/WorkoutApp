@@ -71,11 +71,11 @@ export default function AuthScreen({ onAuthSuccess }: { onAuthSuccess: () => voi
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          <TouchableOpacity onPress={handleSignIn} disabled={loading} style={{ backgroundColor: '#007AFF', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 8 }}>
+          <TouchableOpacity onPress={handleSignIn} disabled={loading} style={{ backgroundColor: colors.primary, padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 8 }}>
             <Text style={{ color: '#fff', fontWeight: '700' }}>{loading ? 'Signing in...' : 'Sign In'}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={handleSignUp} disabled={loading} style={{ borderWidth: 1, borderColor: '#007AFF', padding: 12, borderRadius: 8, alignItems: 'center' }}>
+          <TouchableOpacity onPress={handleSignUp} disabled={loading} style={{ borderWidth: 1, borderColor: colors.primary, padding: 12, borderRadius: 8, alignItems: 'center' }}>
             <Text style={{ color: colors.primary, fontWeight: '700' }}>{loading ? 'Working...' : 'Create Account'}</Text>
           </TouchableOpacity>
 
