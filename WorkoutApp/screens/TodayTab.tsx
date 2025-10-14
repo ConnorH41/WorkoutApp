@@ -406,6 +406,7 @@ export default function TodayTab() {
           <View style={styles.modalContent}>
             <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 12 }}>Settings</Text>
 
+
             <TouchableOpacity
               onPress={async () => {
                 // Load display names for day_id references before opening modal
@@ -432,9 +433,9 @@ export default function TodayTab() {
                     setShowChangeDayModal(true);
                   }
               }}
-              style={{ backgroundColor: '#5cb85c', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 8 }}
+              style={[styles.primaryButton, { marginBottom: 8 }]}
             >
-              <Text style={{ color: '#fff', fontWeight: '700' }}>{splitDayNamesLoading ? 'Loading...' : 'Change Scheduled Day'}</Text>
+              <Text style={styles.primaryButtonText}>{splitDayNamesLoading ? 'Loading...' : 'Change Scheduled Day'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -446,9 +447,9 @@ export default function TodayTab() {
                 }
                 useProfileStore.getState().setProfile(null);
               }}
-              style={{ backgroundColor: '#ff3b30', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 8 }}
+              style={[styles.primaryButton, { backgroundColor: colors.danger, marginBottom: 8 }]}
             >
-              <Text style={{ color: '#fff', fontWeight: '700' }}>Logout</Text>
+              <Text style={styles.primaryButtonText}>Logout</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => setShowSettingsModal(false)} style={{ padding: 12, alignItems: 'center' }}>
@@ -495,38 +496,28 @@ export default function TodayTab() {
             <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 12 }}>Change Today's Scheduled Day</Text>
             <Text style={{ marginBottom: 8, color: '#666' }}>Select a different scheduled day to apply for today. This will persist into your calendar but won't alter your split configuration.</Text>
             <ScrollView style={{ maxHeight: 300, marginBottom: 12 }}>
-              <TouchableOpacity
-                onPress={async () => {
-                  setChangeDaySubmitting(true);
-                  try {
-                    await setScheduledDayForToday(null);
-                    setShowChangeDayModal(false);
-                  } catch (e) {}
-                  setChangeDaySubmitting(false);
-                }}
-                style={{ paddingVertical: 10 }}
-              >
-                <Text style={{ color: colors.primary }}>{changeDaySubmitting ? 'Saving...' : 'Clear scheduled day'}</Text>
-              </TouchableOpacity>
-
               {(() => {
                 const ids = Array.from(new Set((splitDays || []).map((s: any) => s.day_id).filter(Boolean)));
-                return ids.map((dayId: string) => (
-                  <TouchableOpacity
-                    key={dayId}
-                    onPress={async () => {
-                      setChangeDaySubmitting(true);
-                      try {
-                        await setScheduledDayForToday(dayId ?? null);
-                        setShowChangeDayModal(false);
-                      } catch (e) {}
-                      setChangeDaySubmitting(false);
-                    }}
-                    style={{ paddingVertical: 10 }}
-                  >
-                    <Text style={{ fontSize: 16 }}>{splitDayNames[dayId] || dayId}</Text>
-                  </TouchableOpacity>
-                ));
+                return (
+                  <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                    {ids.map((dayId: string) => (
+                      <TouchableOpacity
+                        key={dayId}
+                        onPress={async () => {
+                          setChangeDaySubmitting(true);
+                          try {
+                            await setScheduledDayForToday(dayId ?? null);
+                            setShowChangeDayModal(false);
+                          } catch (e) {}
+                          setChangeDaySubmitting(false);
+                        }}
+                        style={[require('../styles/splitsStyles').default.assignBtn, { marginVertical: 8, minWidth: 160, alignItems: 'center', justifyContent: 'center' }]}
+                      >
+                        <Text style={require('../styles/splitsStyles').default.assignBtnText}>{splitDayNames[dayId] || dayId}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                );
               })()}
             </ScrollView>
             <TouchableOpacity onPress={() => setShowChangeDayModal(false)} style={{ paddingVertical: 10, alignItems: 'center' }}>
