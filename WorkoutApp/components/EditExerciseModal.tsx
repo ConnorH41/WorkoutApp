@@ -35,7 +35,7 @@ export default function EditExerciseModal({ visible, exercise, setExercise, onCl
             </View>
             <Text style={{ marginBottom: 4, fontWeight: '500' }}>Notes (optional):</Text>
             <TextInput style={[styles.input, styles.textInputMultiline, { marginBottom: 16 }]} placeholder="e.g. Focus on form, increase weight next week" value={exercise.notes} onChangeText={v => setExercise(prev => ({ ...prev, notes: v }))} returnKeyType="done" onSubmitEditing={() => Keyboard.dismiss()} multiline numberOfLines={3} />
-            <ModalButtons leftLabel="Cancel" rightLabel={saving ? 'Saving...' : 'Save'} onLeftPress={onClose} onRightPress={onSave} leftColor={colors.muted} rightColor={colors.primary} leftTextColor={colors.text} rightTextColor={colors.background} />
+            <ModalButtons leftLabel="Cancel" rightLabel={saving ? 'Saving...' : 'Save'} onLeftPress={onClose} onRightPress={onSave} leftColor={colors.backgroundMuted} rightColor={colors.primary} leftTextColor={colors.text} rightTextColor={colors.background} />
           </ScrollView>
         </View>
       </View>
