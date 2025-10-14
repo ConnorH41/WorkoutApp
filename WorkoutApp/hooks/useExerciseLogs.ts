@@ -137,7 +137,11 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
           const localExercises = opts?.getExercises ? opts.getExercises() : [];
           const localEx = localExercises.find((e: any) => String(e.id) === String(exerciseId));
           if (localEx && localEx.workout_id) {
-            await api.updateWorkoutExercise(localEx.id, { completed: willComplete, completed_at: willComplete ? new Date().toISOString() : null });
+            await api.updateWorkoutExercise(localEx.id, {
+              completed: willComplete,
+              completed_at: willComplete ? new Date().toISOString() : null,
+              notes: notesByExercise[exerciseId] || ''
+            });
           }
         } catch (e) {
           // ignore sync error
@@ -182,7 +186,11 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
           const localExercises = opts?.getExercises ? opts.getExercises() : [];
           const localEx = localExercises.find((e: any) => String(e.id) === String(exerciseId));
           if (localEx && localEx.workout_id) {
-            await api.updateWorkoutExercise(localEx.id, { completed: false, completed_at: null });
+            await api.updateWorkoutExercise(localEx.id, {
+              completed: false,
+              completed_at: null,
+              notes: notesByExercise[exerciseId] || ''
+            });
           }
         } catch (e) {
           // ignore
