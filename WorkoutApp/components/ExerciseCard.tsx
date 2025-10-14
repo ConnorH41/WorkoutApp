@@ -152,7 +152,7 @@ export default function ExerciseCard(props: {
         onPress={() => { if (!readonlyMode) onRemoveExercise(); }} 
         label="Remove" 
         accessibilityLabel={`Remove ${name || item.name}`} 
-        style={{ position: 'absolute', right: 10, bottom: 10 }} 
+        style={{ position: 'absolute', right: 10, bottom: 6 }} // Moved slightly lower
       />
     </ScaleInView>
   );
@@ -260,6 +260,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 8,
+    marginLeft: -8, 
   },
   removeBtnPressed: {
     opacity: 0.8,
