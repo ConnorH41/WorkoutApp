@@ -673,7 +673,7 @@ export default function SplitsTab() {
           />
           <Text style={{ marginHorizontal: 6, color: '#666', fontWeight: '600' }}>or</Text>
           <TouchableOpacity
-            style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: durationWeeks === -1 ? colors.primary : '#e0e0e0' }}
+            style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: durationWeeks === -1 ? colors.primary : colors.backgroundMuted }}
             onPress={() => {
               if (durationWeeks === -1) {
                 setDurationWeeks(null);
@@ -903,7 +903,7 @@ export default function SplitsTab() {
           <Text style={styles.addButtonText}>Add New Split</Text>
         </TouchableOpacity>
       </View>
-  <View style={{ borderBottomWidth: 1, borderBottomColor: '#E0E0E0', marginBottom: 12 }} />
+  <View style={{ borderBottomWidth: 1, borderBottomColor: colors.backgroundMuted, marginBottom: 12 }} />
       {loading && <Text>Loading...</Text>}
     </View>
   );
@@ -932,7 +932,7 @@ export default function SplitsTab() {
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Badge
                     text={item.mode === 'week' ? 'Weekly' : 'Rotation'}
-                    backgroundColor={styles.modeBadge?.backgroundColor || '#E0E0E0'}
+                    backgroundColor={styles.modeBadge?.backgroundColor || colors.backgroundMuted}
                     color={styles.badgeText?.color || '#333'}
                     size="sm"
                     style={{ marginRight: 8 }}
@@ -1009,7 +1009,7 @@ export default function SplitsTab() {
                             rightLabel="Schedule"
                             onLeftPress={() => setShowSetModal(false)}
                             onRightPress={handleConfirmSetCurrentSplit}
-                            leftColor="#e0e0e0"
+                            leftColor={colors.backgroundMuted}
                             rightColor={colors.primary}
                             leftTextColor="#333"
                             rightTextColor="#fff"
@@ -1139,7 +1139,7 @@ export default function SplitsTab() {
                 <TouchableOpacity
                   style={[
                     styles.modeButton,
-                    { backgroundColor: editingSplit?.mode === 'week' ? colors.primary : '#e0e0e0' }
+                    { backgroundColor: editingSplit?.mode === 'week' ? colors.primary : colors.backgroundMuted }
                   ]}
                   onPress={() => setEditingSplit((prev: any) => ({ ...prev, mode: 'week' }))}
                 >
@@ -1150,7 +1150,7 @@ export default function SplitsTab() {
                 <TouchableOpacity
                   style={[
                     styles.modeButton,
-                    { backgroundColor: editingSplit?.mode === 'rotation' ? colors.primary : '#e0e0e0', marginLeft: 8 }
+                    { backgroundColor: editingSplit?.mode === 'rotation' ? colors.primary : colors.backgroundMuted, marginLeft: 8 }
                   ]}
                   onPress={() => setEditingSplit((prev: any) => ({ ...prev, mode: 'rotation' }))}
                 >
@@ -1200,7 +1200,7 @@ export default function SplitsTab() {
                 rightLabel={adding ? 'Saving...' : 'Save Split'}
                 onLeftPress={() => setShowEditModal(false)}
                 onRightPress={handleSaveEditSplit}
-                leftColor="#e0e0e0"
+                leftColor={colors.backgroundMuted}
                 rightColor={colors.primary}
                 leftTextColor="#333"
                 rightTextColor="#fff"
@@ -1290,7 +1290,7 @@ export default function SplitsTab() {
                   rightLabel="Close"
                   onLeftPress={() => { setShowWeekdayModal(false); setPendingDayId(null); setPendingRotationIndex(null); }}
                   onRightPress={() => { setShowWeekdayModal(false); setPendingDayId(null); setPendingRotationIndex(null); }}
-                  leftColor="#e0e0e0"
+                  leftColor={colors.backgroundMuted}
                   rightColor={colors.primary}
                   leftTextColor="#333"
                   rightTextColor="#fff"
@@ -1319,7 +1319,7 @@ export default function SplitsTab() {
                     rightLabel="Delete"
                     onLeftPress={() => { setShowDeleteConfirm(false); setDeleteTargetId(null); }}
                     onRightPress={async () => { if (deleteTargetId) await handleDeleteSplit(deleteTargetId); setShowDeleteConfirm(false); setDeleteTargetId(null); }}
-                  leftColor="#e0e0e0"
+                  leftColor={colors.backgroundMuted}
                   rightColor="#ff3b30"
                   leftTextColor="#333"
                   rightTextColor="#fff"

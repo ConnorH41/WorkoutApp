@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import styles from '../styles/todayStyles';
+import { colors } from '../styles/theme';
 
 interface BodyweightCardProps {
   bodyweight: string;
@@ -89,7 +90,7 @@ const localStyles = StyleSheet.create({
     height: ELEMENT_HEIGHT,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.backgroundMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -97,7 +98,7 @@ const localStyles = StyleSheet.create({
     flex: 1,
     height: ELEMENT_HEIGHT,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.backgroundMuted,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 0,

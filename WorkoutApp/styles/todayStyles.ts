@@ -10,7 +10,7 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 1,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: colors.backgroundMuted,
     marginTop: 8,
     marginBottom: 8,
     width: '100%',

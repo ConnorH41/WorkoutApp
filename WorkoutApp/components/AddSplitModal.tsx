@@ -100,7 +100,7 @@ const AddSplitModal: React.FC<AddSplitModalProps> = ({ visible, onClose, days, a
       <View style={{ flexDirection:'row', alignItems:'center', marginBottom:8 }}>
         <TextInput style={[styles.input,{ flex:1, marginRight:8 }]} placeholder={split.mode==='rotation' ? 'e.g. 3' : 'e.g. 4 or 4.5'} value={duration===null||duration===-1? '' : String(duration)} keyboardType='numeric' onChangeText={(t)=>{ if(!t.trim()){ setDuration(null); return; } const v=parseFloat(t); if(!isNaN(v)){ setDuration(v); const base=startDate ?? getNextMonday(new Date()); const days = split.mode==='rotation'? v*rotationLen -1 : v*7 -1; setEndDate(addDaysFloat(base, days)); if(!startDate) setStartDate(base); } }} />
         <Text style={{ marginHorizontal:6, color:'#666', fontWeight:'600' }}>or</Text>
-        <TouchableOpacity style={{ paddingVertical:8, paddingHorizontal:12, borderRadius:8, backgroundColor: duration===-1? colors.primary : '#e0e0e0' }} onPress={()=>{ if(duration===-1){ setDuration(null); } else { setDuration(-1); setEndDate(null); if(!startDate) setStartDate(getNextMonday(new Date())); } }}>
+        <TouchableOpacity style={{ paddingVertical:8, paddingHorizontal:12, borderRadius:8, backgroundColor: duration===-1? colors.primary : colors.backgroundMuted }} onPress={()=>{ if(duration===-1){ setDuration(null); } else { setDuration(-1); setEndDate(null); if(!startDate) setStartDate(getNextMonday(new Date())); } }}>
           <Text style={{ color: duration===-1? '#fff':'#333', fontWeight:'700' }}>Forever</Text>
         </TouchableOpacity>
       </View>
@@ -125,7 +125,7 @@ const AddSplitModal: React.FC<AddSplitModalProps> = ({ visible, onClose, days, a
               <Text>Set to Rest</Text>
             </TouchableOpacity>
             <View style={{ marginTop:8 }}>
-              <ModalButtons leftLabel="Cancel" rightLabel="Set" onLeftPress={()=>{ setShowPicker(false); setAssignWeekday(null); setAssignIndex(null); }} onRightPress={()=>{ /* handled inline */ }} leftColor="#e0e0e0" rightColor={colors.primary} leftTextColor="#333" rightTextColor="#fff" />
+              <ModalButtons leftLabel="Cancel" rightLabel="Set" onLeftPress={()=>{ setShowPicker(false); setAssignWeekday(null); setAssignIndex(null); }} onRightPress={()=>{ /* handled inline */ }} leftColor="colors.backgroundMuted" rightColor={colors.primary} leftTextColor="#333" rightTextColor="#fff" />
             </View>
           </ScrollView>
         </View>
@@ -150,8 +150,8 @@ const AddSplitModal: React.FC<AddSplitModalProps> = ({ visible, onClose, days, a
                 <TextInput style={[styles.input,{ marginBottom:12, height:35, fontSize:16 }]} placeholder="e.g. PPL, Upper/Lower" value={split.name} onChangeText={v=>setSplit(s=>({...s,name:v}))} returnKeyType='done' onSubmitEditing={()=>Keyboard.dismiss()} />
                 <Text style={{ marginBottom:4, fontWeight:'500' }}>Mode:</Text>
                 <View style={{ flexDirection:'row', marginBottom:16 }}>
-                  <TouchableOpacity style={[styles.modeButton,{ backgroundColor: split.mode==='week'? colors.primary:'#e0e0e0' }]} onPress={()=>setSplit(s=>({...s, mode:'week'}))}><Text style={{ color: split.mode==='week'? '#fff':'#333', fontWeight:'bold' }}>Weekly</Text></TouchableOpacity>
-                  <TouchableOpacity style={[styles.modeButton,{ backgroundColor: split.mode==='rotation'? colors.primary:'#e0e0e0', marginLeft:8 }]} onPress={()=>setSplit(s=>({...s, mode:'rotation'}))}><Text style={{ color: split.mode==='rotation'? '#fff':'#333', fontWeight:'bold' }}>Rotation</Text></TouchableOpacity>
+                  <TouchableOpacity style={[styles.modeButton,{ backgroundColor: split.mode==='week'? colors.primary:colors.backgroundMuted }]} onPress={()=>setSplit(s=>({...s, mode:'week'}))}><Text style={{ color: split.mode==='week'? '#fff':'#333', fontWeight:'bold' }}>Weekly</Text></TouchableOpacity>
+                  <TouchableOpacity style={[styles.modeButton,{ backgroundColor: split.mode==='rotation'? colors.primary:colors.backgroundMuted, marginLeft:8 }]} onPress={()=>setSplit(s=>({...s, mode:'rotation'}))}><Text style={{ color: split.mode==='rotation'? '#fff':'#333', fontWeight:'bold' }}>Rotation</Text></TouchableOpacity>
                 </View>
               </View>
             )}
@@ -192,9 +192,9 @@ const AddSplitModal: React.FC<AddSplitModalProps> = ({ visible, onClose, days, a
             {tab===2 && renderSchedule()}
             <View style={{ marginTop:20 }}>
               {tab<2 ? (
-                <ModalButtons leftLabel='Cancel' rightLabel='Next' onLeftPress={()=>{ reset(); onClose(); }} onRightPress={()=>setTab(tab+1)} leftColor='#e0e0e0' rightColor={colors.primary} leftTextColor='#333' rightTextColor='#fff' />
+                <ModalButtons leftLabel='Cancel' rightLabel='Next' onLeftPress={()=>{ reset(); onClose(); }} onRightPress={()=>setTab(tab+1)} leftColor={colors.backgroundMuted} rightColor={colors.primary} leftTextColor='#333' rightTextColor='#fff' />
               ) : (
-                <ModalButtons leftLabel='Cancel' rightLabel={adding? 'Creating...':'Create'} onLeftPress={()=>{ reset(); onClose(); }} onRightPress={handleCreate} leftColor='#e0e0e0' rightColor={colors.primary} leftTextColor='#333' rightTextColor='#fff' rightDisabled={adding} />
+                <ModalButtons leftLabel='Cancel' rightLabel={adding? 'Creating...':'Create'} onLeftPress={()=>{ reset(); onClose(); }} onRightPress={handleCreate} leftColor= {colors.backgroundMuted} rightColor={colors.primary} leftTextColor='#333' rightTextColor='#fff' rightDisabled={adding} />
               )}
             </View>
           </ScrollView>

@@ -19,6 +19,7 @@ import AddDayModal from '../components/AddDayModal';
 import EditDayModal from '../components/EditDayModal';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import EditExerciseModal from '../components/EditExerciseModal';
+import { colors } from '../styles/theme';
 
 export default function DaysTab() {
   const insets = useSafeAreaInsets();
@@ -244,7 +245,7 @@ export default function DaysTab() {
           <Text style={styles.addButtonText}>Add New Day</Text>
         </TouchableOpacity>
       </View>
-  <View style={{ borderBottomWidth: 1, borderBottomColor: '#E0E0E0', marginBottom: 12 }} />
+  <View style={{ borderBottomWidth: 1, borderBottomColor: colors.backgroundMuted, marginBottom: 12 }} />
       {loading && <Text>Loading...</Text>}
     </View>
   );
@@ -277,7 +278,7 @@ export default function DaysTab() {
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Badge
                   text={`${(localCounts[item.id] ?? exerciseCounts[item.id] ?? 0)} ${(localCounts[item.id] ?? exerciseCounts[item.id] ?? 0) === 1 ? 'Exercise' : 'Exercises'}`}
-                  backgroundColor={styles.exerciseCountBadge?.backgroundColor || '#E0E0E0'}
+                  backgroundColor={styles.exerciseCountBadge?.backgroundColor || colors.backgroundMuted}
                   color={styles.badgeText?.color || '#333'}
                   size="sm"
                   style={{ marginLeft: 8 }}

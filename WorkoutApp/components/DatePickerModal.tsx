@@ -70,7 +70,7 @@ export default function DatePickerModal({ visible, initialDate, onCancel, onConf
           )}
 
           <View style={{ flexDirection: 'row', marginTop: 12 }}>
-            <TouchableOpacity onPress={onCancel} style={{ flex: 1, marginRight: 8, padding: 12, backgroundColor: colors.textMuted, borderRadius: 8, alignItems: 'center' }}>
+            <TouchableOpacity onPress={onCancel} style={{ flex: 1, marginRight: 8, padding: 12, backgroundColor: colors.backgroundMuted, borderRadius: 8, alignItems: 'center' }}>
               <Text style={{ color: colors.text, fontWeight: '700' }}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => { if (date) {

@@ -246,7 +246,7 @@ export default function TodayTab() {
             </TouchableOpacity>
           </View>
         </View>
-        <View style={{ borderBottomWidth: 1, borderBottomColor: '#E0E0E0', marginTop: 8, marginBottom: 12 }} />
+        <View style={{ borderBottomWidth: 1, borderBottomColor: colors.backgroundMuted, marginTop: 8, marginBottom: 12 }} />
       </View>
     );
   };
