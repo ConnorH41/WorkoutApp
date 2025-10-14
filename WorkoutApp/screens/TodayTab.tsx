@@ -520,8 +520,8 @@ export default function TodayTab() {
                 );
               })()}
             </ScrollView>
-            <TouchableOpacity onPress={() => setShowChangeDayModal(false)} style={{ paddingVertical: 10, alignItems: 'center' }}>
-              <Text style={{ color: colors.primary, fontWeight: '700' }}>Close</Text>
+            <TouchableOpacity onPress={() => { setShowChangeDayModal(false); setShowSettingsModal(true); }} style={{ paddingVertical: 10, alignItems: 'center' }}>
+              <Text style={{ color: colors.primary, fontWeight: '700' }}>Back</Text>
             </TouchableOpacity>
           </View>
         </View>
