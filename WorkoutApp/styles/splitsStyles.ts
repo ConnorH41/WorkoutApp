@@ -122,9 +122,11 @@ export default StyleSheet.create({
   },
   assignBtn: {
     backgroundColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.lg,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.md,
     marginHorizontal: spacing.sm,
     ...shadows.sm,
   },
