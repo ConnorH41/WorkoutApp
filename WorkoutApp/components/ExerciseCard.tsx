@@ -10,6 +10,8 @@ import { colors } from '../styles/theme';
 
 type SetRow = { setNumber: number; reps: string; weight: string; completed?: boolean; logId?: string | null };
 
+const ELEMENT_HEIGHT = 40;
+
 export default function ExerciseCard(props: {
   item: any;
   sets: SetRow[];
@@ -61,43 +63,115 @@ export default function ExerciseCard(props: {
 
       {sets.map((s, idx) => (
         <View key={`${item.id}-set-${idx}`} style={styles.setRow}>
-          <Pressable style={({ pressed }) => [styles.checkbox, s.completed ? styles.checkboxChecked : null, readonlyMode ? styles.checkboxDisabled : null, pressed ? styles.checkboxPressed : null]} onPress={() => { if (!readonlyMode) onToggleCompleted(idx); }} android_ripple={{ color: '#cfe9ff' }} accessibilityRole="button" accessibilityLabel={`Toggle set ${s.setNumber} completed`} hitSlop={8}>
+          <Pressable 
+            style={({ pressed }) => [
+              styles.checkbox, 
+              s.completed ? styles.checkboxChecked : null, 
+              readonlyMode ? styles.checkboxDisabled : null, 
+              pressed ? styles.checkboxPressed : null
+            ]} 
+            onPress={() => { if (!readonlyMode) onToggleCompleted(idx); }} 
+            android_ripple={{ color: '#cfe9ff' }} 
+            accessibilityRole="button" 
+            accessibilityLabel={`Toggle set ${s.setNumber} completed`} 
+            hitSlop={8}
+          >
             <Text style={styles.checkboxText}>{s.completed ? '✓' : ''}</Text>
           </Pressable>
+          
           <Text style={styles.setLabel}>{`Set ${s.setNumber}`}</Text>
-          <TextInput editable={!s.completed && !readonlyMode} style={[styles.input, styles.inputWeight, (s.completed || readonlyMode) ? styles.inputDisabled : null]} placeholder="Weight" keyboardType="numeric" value={s.weight} onChangeText={(v) => onChangeSet(idx, 'weight', v)} />
-          <TextInput editable={!s.completed && !readonlyMode} style={[styles.input, styles.inputReps, (s.completed || readonlyMode) ? styles.inputDisabled : null]} placeholder="Reps" keyboardType="numeric" value={s.reps} onChangeText={(v) => onChangeSet(idx, 'reps', v)} />
-          <Pressable onPress={() => { if (!readonlyMode) onRemoveSet(idx); }} style={({ pressed }) => [styles.removeBtn, pressed ? styles.removeBtnPressed : null]} android_ripple={{ color: '#ffdddd' }} accessibilityRole="button" accessibilityLabel={`Remove set ${s.setNumber}`} hitSlop={8}>
+          
+          <TextInput 
+            editable={!s.completed && !readonlyMode} 
+            style={[
+              styles.inputWeight, 
+              (s.completed || readonlyMode) ? styles.inputDisabled : null
+            ]} 
+            placeholder="Weight" 
+            keyboardType="numeric" 
+            value={s.weight} 
+            onChangeText={(v) => onChangeSet(idx, 'weight', v)} 
+          />
+          
+          <TextInput 
+            editable={!s.completed && !readonlyMode} 
+            style={[
+              styles.inputReps, 
+              (s.completed || readonlyMode) ? styles.inputDisabled : null
+            ]} 
+            placeholder="Reps" 
+            keyboardType="numeric" 
+            value={s.reps} 
+            onChangeText={(v) => onChangeSet(idx, 'reps', v)} 
+          />
+          
+          <Pressable 
+            onPress={() => { if (!readonlyMode) onRemoveSet(idx); }} 
+            style={({ pressed }) => [
+              styles.removeBtn, 
+              pressed ? styles.removeBtnPressed : null
+            ]} 
+            android_ripple={{ color: '#ffdddd' }} 
+            accessibilityRole="button" 
+            accessibilityLabel={`Remove set ${s.setNumber}`} 
+            hitSlop={8}
+          >
             <Text style={styles.removeBtnText}>-</Text>
           </Pressable>
         </View>
       ))}
 
-      <Pressable onPress={() => { if (!readonlyMode) onAddSet(); }} style={({ pressed }) => [styles.addSetLink, pressed ? styles.addSetLinkPressed : null]} android_ripple={{ color: '#e6f0ff' }} accessibilityRole="button" accessibilityLabel={`Add set to ${name || item.name}`} hitSlop={8}>
+      <Pressable 
+        onPress={() => { if (!readonlyMode) onAddSet(); }} 
+        style={({ pressed }) => [
+          styles.addSetLink, 
+          pressed ? styles.addSetLinkPressed : null
+        ]} 
+        android_ripple={{ color: '#e6f0ff' }} 
+        accessibilityRole="button" 
+        accessibilityLabel={`Add set to ${name || item.name}`} 
+        hitSlop={8}
+      >
         <Text style={styles.addSetText}>+ Add Set</Text>
       </Pressable>
 
-  <TextInput style={[styles.input, styles.notesInput, readonlyMode ? styles.inputDisabled : null]} placeholder="Notes (optional)" value={notes || ''} onChangeText={(v)=> { if (!readonlyMode) onChangeNotes(v); }} multiline numberOfLines={3} editable={!readonlyMode} />
+      <TextInput 
+        style={[
+          styles.notesInput, 
+          readonlyMode ? styles.inputDisabled : null
+        ]} 
+        placeholder="Notes (optional)" 
+        value={notes || ''} 
+        onChangeText={(v)=> { if (!readonlyMode) onChangeNotes(v); }} 
+        multiline 
+        numberOfLines={3} 
+        editable={!readonlyMode} 
+      />
 
-      <RemoveButton onPress={() => { if (!readonlyMode) onRemoveExercise(); }} label="Remove" accessibilityLabel={`Remove ${name || item.name}`} style={{ position: 'absolute', right: 10, bottom: 10 }} />
+      <RemoveButton 
+        onPress={() => { if (!readonlyMode) onRemoveExercise(); }} 
+        label="Remove" 
+        accessibilityLabel={`Remove ${name || item.name}`} 
+        style={{ position: 'absolute', right: 10, bottom: 10 }} 
+      />
     </ScaleInView>
   );
 }
 
 const styles = StyleSheet.create({
   exerciseBox: {
-  borderWidth: 1,
-  borderRadius: 12,
-  padding: 16,
-  paddingBottom: 40,
-  marginBottom: 16,
-  marginHorizontal: 16,
-  backgroundColor: '#fff', // fallback, overridden by theme
-  shadowColor: '#000', // fallback, overridden by theme
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.12,
-  shadowRadius: 6,
-  elevation: 4,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    paddingBottom: 40,
+    marginBottom: 16,
+    marginHorizontal: 16,
+    backgroundColor: '#fff', // fallback, overridden by theme
+    shadowColor: '#000', // fallback, overridden by theme
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 4,
   },
   titleRow: {
     flexDirection: 'row',
@@ -118,32 +192,112 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     flex: 1,
   },
-  editPencilPressable: { marginLeft: 8, borderRadius: 16, overflow: 'hidden' },
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
-    minHeight: 44,
   },
-  setLabel: { width: 64, fontWeight: '600', marginRight: 8, height: 40, lineHeight: 40 },
-  input: { borderWidth: 1, borderColor: '#ccc', padding: 8, borderRadius: 4, flex: 1, marginRight: 8, marginBottom: 8 },
-  inputWeight: { width: 100, marginRight: 8, height: 40, paddingVertical: 6, textAlignVertical: 'center' },
-  inputReps: { width: 80, marginRight: 8, height: 40, paddingVertical: 6, textAlignVertical: 'center' },
-  addSetLink: { marginBottom: 8 },
-  addSetLinkPressed: { opacity: 0.8 },
-  addSetText: { color: colors.primary, fontWeight: '700' },
-  notesInput: { marginTop: 8 },
-  removeBtn: { marginLeft: 8, paddingHorizontal: 8, paddingVertical: 6, minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: -8, borderRadius: 8 },
-  removeBtnPressed: { opacity: 0.8 },
-  removeBtnText: { color: '#ff3b30', fontWeight: '700', fontSize: 18 },
-  goalBadge: { position: 'absolute', right: 10, top: 8, backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
-  goalBadgeText: { color: '#fff', fontWeight: '700', fontSize: 12 },
-  checkbox: { width: 36, height: 36, borderRadius: 6, borderWidth: 1, borderColor: '#ccc', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
-  checkboxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
-  checkboxDisabled: { backgroundColor: '#f2f2f2', borderColor: '#ddd' },
-  checkboxPressed: { opacity: 0.85 },
-  checkboxText: { color: '#fff', fontWeight: '700' },
-  inputDisabled: { backgroundColor: '#f2f2f2', color: '#999' },
-  removeExerciseAbsolute: { position: 'absolute', right: 10, bottom: 10, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 6, backgroundColor: 'transparent' },
-  removeExerciseText: { color: '#ff3b30', fontWeight: '600', fontSize: 12 },
+  setLabel: {
+    width: 64,
+    fontWeight: '600',
+    marginRight: 8,
+    height: ELEMENT_HEIGHT,
+    lineHeight: ELEMENT_HEIGHT,
+    textAlignVertical: 'center',
+  },
+  inputWeight: {
+    width: 100,
+    height: ELEMENT_HEIGHT,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 0,
+    marginRight: 8,
+    fontSize: 16,
+    backgroundColor: '#fff',
+    textAlignVertical: 'center',
+  },
+  inputReps: {
+    width: 80,
+    height: ELEMENT_HEIGHT,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 0,
+    marginRight: 8,
+    fontSize: 16,
+    backgroundColor: '#fff',
+    textAlignVertical: 'center',
+  },
+  addSetLink: {
+    marginBottom: 8,
+    paddingVertical: 8,
+  },
+  addSetLinkPressed: {
+    opacity: 0.8,
+  },
+  addSetText: {
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  notesInput: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 6,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#fff',
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  removeBtn: {
+    width: ELEMENT_HEIGHT,
+    height: ELEMENT_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  removeBtnPressed: {
+    opacity: 0.8,
+    backgroundColor: '#ffeeee',
+  },
+  removeBtnText: {
+    color: '#ff3b30',
+    fontWeight: '700',
+    fontSize: 20,
+  },
+  checkbox: {
+    width: ELEMENT_HEIGHT,
+    height: ELEMENT_HEIGHT,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  checkboxDisabled: {
+    backgroundColor: '#f2f2f2',
+    borderColor: '#ddd',
+  },
+  checkboxPressed: {
+    opacity: 0.85,
+  },
+  checkboxText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 18,
+  },
+  inputDisabled: {
+    backgroundColor: '#f2f2f2',
+    color: '#999',
+  },
 });
