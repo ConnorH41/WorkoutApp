@@ -24,7 +24,7 @@ export default function EditDayModal({ visible, onClose, name, setName, onSave }
               <TextInput style={[styles.input, styles.textInput]} placeholder="e.g. Upper A, Push Day" value={name} onChangeText={setName} returnKeyType="done" onSubmitEditing={() => Keyboard.dismiss()} />
             </View>
             <View>
-              <ModalButtons leftLabel="Cancel" rightLabel="Save" onLeftPress={onClose} onRightPress={onSave} leftColor="#e0e0e0" rightColor={colors.primary} leftTextColor="#333" rightTextColor="#fff" />
+              <ModalButtons leftLabel="Cancel" rightLabel="Save" onLeftPress={onClose} onRightPress={onSave} leftColor={colors.backgroundMuted} rightColor={colors.primary} leftTextColor="#333" rightTextColor="#fff" />
             </View>
           </ScrollView>
         </View>

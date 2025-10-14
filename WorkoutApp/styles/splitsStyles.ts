@@ -121,7 +121,7 @@ export default StyleSheet.create({
     fontSize: fonts.size.sm,
   },
   assignBtn: {
-    backgroundColor: colors.backgroundMuted,
+    backgroundColor: '#F5F5F5',
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
     borderRadius: borderRadius.md,

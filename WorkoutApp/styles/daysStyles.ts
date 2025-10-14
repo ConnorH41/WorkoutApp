@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     padding: spacing.md,
     marginBottom: spacing.sm,
-    backgroundColor: colors.backgroundMuted,
+    backgroundColor: '#F5F5F5',
     ...shadows.sm,
   },
   exerciseName: {
