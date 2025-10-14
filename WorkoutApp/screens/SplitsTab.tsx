@@ -10,6 +10,7 @@ import RemoveButton from '../components/RemoveButton';
 import styles from '../styles/splitsStyles';
 import Badge from '../components/Badge';
 import { colors } from '../styles/theme';
+import AddSplitModal from '../components/AddSplitModal';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -195,7 +196,7 @@ export default function SplitsTab() {
       const maxIndex = splitDaysData && splitDaysData.length > 0 ? Math.max(...splitDaysData.map((sd: any) => sd.order_index ?? 0)) : -1;
       const length = maxIndex >= 0 ? maxIndex + 1 : 3;
       const filled = Array.from({ length }).map((_, i) => selectedDays[i] ?? null);
-      setSelectedDaysForNewSplit(filled);
+  // rotation day array handled inside AddSplitModal for creation; edit uses DB directly
       setEditSplitRotationLength(length);
       setEditSplitRotationInput(String(length));
     }
@@ -211,14 +212,14 @@ export default function SplitsTab() {
         const maxIndex = sdData && sdData.length > 0 ? Math.max(...sdData.map((sd: any) => sd.order_index ?? 0)) : -1;
         const length = maxIndex >= 0 ? maxIndex + 1 : (sdData ? sdData.length : 3);
         setEditSplitRotationLength(length);
-        setSelectedDaysForNewSplit((sdData || []).map((sd: any) => sd.day_id ?? null));
+  // rotation day snapshot not needed; editing updates directly by slot
       } catch (e) {
         setEditSplitRotationLength(3);
-        setSelectedDaysForNewSplit([]);
+  // clear rotation snapshot (no longer tracked)
       }
     } else {
       setEditSplitRotationLength(3);
-      setSelectedDaysForNewSplit([]);
+  // clear rotation snapshot (no longer tracked)
     }
     
     setShowEditModal(true);
@@ -384,22 +385,11 @@ export default function SplitsTab() {
   await safeStorage.setItem('splitStartDate', now ?? '');
   };
   const [loading, setLoading] = useState(false);
-  const [newSplit, setNewSplit] = useState({ name: '', mode: 'week' });
-  const [adding, setAdding] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedDaysForNewSplit, setSelectedDaysForNewSplit] = useState<(string | null)[]>([]);
-  const [newSplitWeekdays, setNewSplitWeekdays] = useState<(string | null)[]>(new Array(7).fill(null));
-  const [newSplitRotationLength, setNewSplitRotationLength] = useState<number>(3);
-  const newSplitRotationRef = useRef<any>(null);
+  // state for showing loading when saving edits (previously shared with add split)
+  const [adding, setAdding] = useState(false);
+  // rotation editing selection state retained for existing splits only
   const [pendingRotationIndex, setPendingRotationIndex] = useState<number | null>(null);
-  const [newSplitRotationInput, setNewSplitRotationInput] = useState<string>(String(3));
-  const [newRotationFocused, setNewRotationFocused] = useState(false);
-  const [newSplitStartDate, setNewSplitStartDate] = useState<Date | null>(null);
-  const [newSplitEndDate, setNewSplitEndDate] = useState<Date | null>(null);
-  const [showNewSplitStartPicker, setShowNewSplitStartPicker] = useState(false);
-  const [showNewSplitEndPicker, setShowNewSplitEndPicker] = useState(false);
-  const [newSplitDurationWeeks, setNewSplitDurationWeeks] = useState<number | null>(null);
-  const [newSplitTab, setNewSplitTab] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingSplit, setEditingSplit] = useState<any>(null);
   // editSplitTab removed — edit modal simplified
@@ -421,9 +411,7 @@ export default function SplitsTab() {
   const [showWeekdayModal, setShowWeekdayModal] = useState(false);
   const [pendingDayId, setPendingDayId] = useState<string | null>(null);
   // Track whether weekday modal was opened from Add New Split flow
-  const [weekdayModalFromAdd, setWeekdayModalFromAdd] = useState(false);
-  // Track whether weekday modal was opened from Edit Split flow
-  const [weekdayModalFromEdit, setWeekdayModalFromEdit] = useState(false);
+  // removed weekday modal origin flags (AddSplitModal manages its own picker)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
@@ -734,185 +722,7 @@ export default function SplitsTab() {
   };
 
   // Add a new split with days and schedule it
-  const handleAddSplit = async () => {
-    if (!profile || !profile.id) {
-      Alert.alert('Error', 'You must be signed in to create a split');
-      return;
-    }
-    if (!newSplit.name || !newSplit.name.trim()) {
-      showValidationToast('Split name is required');
-      return;
-    }
-    setAdding(true);
-    
-    try {
-      // Create the split
-      const { data: splitData, error: splitError } = await supabase
-        .from('splits')
-        .insert([{ name: newSplit.name.trim(), mode: newSplit.mode, user_id: profile.id }])
-        .select();
-      
-      if (splitError) {
-        Alert.alert('Error', splitError.message);
-        return;
-      }
-      
-      const newSplitId = splitData[0].id;
-      
-      // Add days to the split based on mode
-      if (newSplit.mode === 'week') {
-        // For weekly mode, assign days to weekdays
-        const splitDayInserts = newSplitWeekdays
-          .map((dayId, weekday) => dayId ? { split_id: newSplitId, day_id: dayId, weekday, order_index: null } : null)
-          .filter(Boolean);
-        
-        if (splitDayInserts.length > 0) {
-          const { error: daysError } = await supabase
-            .from('split_days')
-            .insert(splitDayInserts);
-          
-          if (daysError) {
-            Alert.alert('Error', daysError.message);
-            return;
-          }
-        }
-      } else {
-        // For rotation mode, assign days in order
-        const splitDayInserts = selectedDaysForNewSplit.map((dayId, index) => ({
-          split_id: newSplitId,
-          day_id: dayId ?? null,
-          weekday: null,
-          order_index: index,
-        }));
-        
-        if (splitDayInserts.length > 0) {
-          const { error: daysError } = await supabase
-            .from('split_days')
-            .insert(splitDayInserts);
-          
-          if (daysError) {
-            Alert.alert('Error', daysError.message);
-            return;
-          }
-        }
-      }
-      
-      // Schedule the split (create split_run) only if a start date was provided
-  if (newSplitStartDate) {
-          if (newSplit.mode === 'week') {
-          const msPerDay = 24 * 60 * 60 * 1000;
-          let weeks = '0';
-          if (newSplitEndDate) {
-            const s = new Date(newSplitStartDate);
-            s.setHours(0, 0, 0, 0);
-            const e = new Date(newSplitEndDate);
-            e.setHours(0, 0, 0, 0);
-            const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay);
-            const uiWeeks = Math.max(0.5, roundToHalf(diffDays / 7));
-            // store half-week UI value directly
-            weeks = String(uiWeeks);
-          } else {
-            weeks = '999'; // Forever
-          }
-
-          // Check overlap before inserting
-          const intendedStart = toDateOnly(newSplitStartDate);
-          const intendedEnd = newSplitEndDate ? toDateOnly(newSplitEndDate) : null;
-          const overlapping = activeRuns.some(r => rangesOverlap(r.start_date, r.end_date, intendedStart, intendedEnd));
-          if (overlapping) {
-            showValidationToast('Scheduling would overlap an existing split run. Pick different dates.');
-          } else {
-            const existingRun = activeRuns.find(r => r.split_id === newSplitId && r.active);
-            if (existingRun && existingRun.id) {
-              await supabase.from('split_runs').update({
-                start_date: toDateOnly(newSplitStartDate),
-                end_date: newSplitEndDate ? toDateOnly(newSplitEndDate) : null,
-                num_weeks: newSplitEndDate ? parseFloat(weeks) || 1 : null,
-                num_rotations: null,
-                active: true,
-              }).eq('id', existingRun.id);
-            } else {
-              await supabase.from('split_runs').insert({
-                split_id: newSplitId,
-                user_id: profile.id,
-                start_date: toDateOnly(newSplitStartDate),
-                end_date: newSplitEndDate ? toDateOnly(newSplitEndDate) : null,
-                num_weeks: newSplitEndDate ? parseFloat(weeks) || 1 : null,
-                num_rotations: null,
-                active: true,
-              });
-            }
-            await fetchActiveRun();
-          }
-        } else {
-          // For rotation-mode, compute number of rotations if an end date was provided
-          let computedRotations = 1;
-          if (newSplitStartDate && newSplitEndDate && newSplitRotationLength && newSplitRotationLength > 0) {
-            const msPerDay = 24 * 60 * 60 * 1000;
-            const s = new Date(newSplitStartDate);
-            s.setHours(0, 0, 0, 0);
-            const e = new Date(newSplitEndDate);
-            e.setHours(0, 0, 0, 0);
-            const diffDays = Math.floor((e.getTime() - s.getTime()) / msPerDay);
-            const inclusiveDays = Math.max(0, diffDays) + 1;
-            const rotationLen = newSplitRotationLength || 3;
-            const uiRotations = Math.max(0.5, roundToHalf(inclusiveDays / rotationLen));
-            const dbRotations = Math.max(1, Math.ceil(inclusiveDays / rotationLen));
-            computedRotations = dbRotations;
-            await safeStorage.setItem('splitNumRotations', String(uiRotations));
-          } else {
-            await safeStorage.setItem('splitNumRotations', String(computedRotations));
-          }
-          // Check overlap before inserting rotation-mode run
-          const intendedStart = toDateOnly(newSplitStartDate);
-          const intendedEnd = newSplitEndDate ? toDateOnly(newSplitEndDate) : null;
-          const overlapping = activeRuns.some(r => rangesOverlap(r.start_date, r.end_date, intendedStart, intendedEnd));
-          if (overlapping) {
-            showValidationToast('Scheduling would overlap an existing split run. Pick different dates.');
-          } else {
-            const existingRun = activeRuns.find(r => r.split_id === newSplitId && r.active);
-            if (existingRun && existingRun.id) {
-              await supabase.from('split_runs').update({
-                start_date: toDateOnly(newSplitStartDate),
-                end_date: newSplitEndDate ? toDateOnly(newSplitEndDate) : null,
-                num_weeks: null,
-                num_rotations: computedRotations || 1,
-                active: true,
-              }).eq('id', existingRun.id);
-            } else {
-              await supabase.from('split_runs').insert({
-                split_id: newSplitId,
-                user_id: profile.id,
-                start_date: toDateOnly(newSplitStartDate),
-                end_date: newSplitEndDate ? toDateOnly(newSplitEndDate) : null,
-                num_weeks: null,
-                num_rotations: computedRotations || 1,
-                active: true,
-              });
-            }
-            await fetchActiveRun();
-          }
-        }
-      }
-      
-      // Reset form and close modal
-    setNewSplit({ name: '', mode: 'week' });
-  setSelectedDaysForNewSplit([]);
-      setNewSplitWeekdays(new Array(7).fill(null));
-    setNewSplitStartDate(null);
-    setNewSplitEndDate(null);
-    setNewSplitDurationWeeks(null);
-      setNewSplitTab(0);
-      setShowAddModal(false);
-      fetchSplits();
-      fetchActiveRun();
-      
-    } catch (error) {
-      Alert.alert('Error', 'Failed to create split');
-    } finally {
-      setAdding(false);
-    }
-  };
+  // add split logic moved to AddSplitModal
 
   // Save edited split
   const handleSaveEditSplit = async () => {
@@ -972,17 +782,7 @@ export default function SplitsTab() {
             const inserts = Array.from({ length: targetLen - existing.length }).map((_, idx) => ({ split_id: editingSplit.id, day_id: null, weekday: null, order_index: existing.length + idx }));
             if (inserts.length > 0) await supabase.from('split_days').insert(inserts.map(i => ({ ...i, day_id: i.day_id ?? null })));
           }
-          // Update any provided selectedDaysForNewSplit into their slots
-          if (selectedDaysForNewSplit && selectedDaysForNewSplit.length > 0) {
-            const updates = selectedDaysForNewSplit.map((dayId, idx) => ({ id: existing[idx]?.id, day_id: dayId ?? null, order_index: idx }));
-            for (const up of updates) {
-              if (up.id) {
-                await supabase.from('split_days').update({ day_id: up.day_id, order_index: up.order_index }).eq('id', up.id);
-              } else if (up.day_id) {
-                await supabase.from('split_days').insert({ split_id: editingSplit.id, day_id: up.day_id ?? null, weekday: null, order_index: up.order_index });
-              }
-            }
-          }
+          // rotation slot updates performed via individual assignments now
         }
 
         
@@ -990,7 +790,7 @@ export default function SplitsTab() {
       setEditingSplit(null);
   // reset UI state
       setEditSplitWeekdays(new Array(7).fill(null));
-  setSelectedDaysForNewSplit([]);
+  // rotation snapshot cleared
       setShowEditModal(false);
       fetchSplits();
       fetchActiveRun();
@@ -1241,7 +1041,6 @@ export default function SplitsTab() {
                               style={styles.assignBtn}
                               onPress={() => {
                                 setPendingDayId(`${idx}`);
-                                setWeekdayModalFromEdit(false);
                                 setSelectedSplitId(item.id);
                                 setShowWeekdayModal(true);
                               }}
@@ -1277,7 +1076,6 @@ export default function SplitsTab() {
                                 style={styles.assignBtn}
                                 onPress={() => {
                                   setPendingRotationIndex(idx);
-                                  setWeekdayModalFromEdit(false);
                                   setSelectedSplitId(item.id);
                                   setShowWeekdayModal(true);
                                 }}
@@ -1298,226 +1096,15 @@ export default function SplitsTab() {
         />
       )}
 
-      {/* Add New Split Modal */}
-      <Modal
+      <AddSplitModal
         visible={showAddModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowAddModal(false)}
-      >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
-            <ScrollView contentContainerStyle={{ paddingBottom: 16 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 16, textAlign: 'center' }}>Add New Split</Text>
-
-              {/* Tab Navigation */}
-              <View style={{ flexDirection: 'row', marginBottom: 20, backgroundColor: '#f0f0f0', borderRadius: 8, padding: 4 }}>
-              <TouchableOpacity
-                style={[styles.tabButton, { backgroundColor: newSplitTab === 0 ? colors.primary : 'transparent' }]}
-                onPress={() => setNewSplitTab(0)}
-              >
-                <Text style={{ color: newSplitTab === 0 ? '#fff' : '#333', fontWeight: 'bold', fontSize: 12 }}>1. Basic</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.tabButton, { backgroundColor: newSplitTab === 1 ? colors.primary : 'transparent' }]}
-                onPress={() => setNewSplitTab(1)}
-              >
-                <Text style={{ color: newSplitTab === 1 ? '#fff' : '#333', fontWeight: 'bold', fontSize: 12 }}>2. Days</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.tabButton, { backgroundColor: newSplitTab === 2 ? colors.primary : 'transparent' }]}
-                onPress={() => setNewSplitTab(2)}
-              >
-                <Text style={{ color: newSplitTab === 2 ? '#fff' : '#333', fontWeight: 'bold', fontSize: 12 }}>3. Schedule</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Tab Content */}
-            {newSplitTab === 0 && (
-              <View>
-                <Text style={{ marginBottom: 4, fontWeight: '500' }}>Split Name:</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                  <TextInput
-                    style={[styles.input, { marginBottom: 8, height: 35, fontSize: 16 }]}
-                    placeholder="e.g. PPL, Upper/Lower"
-                    value={newSplit.name}
-                    onChangeText={v => setNewSplit(s => ({ ...s, name: v }))}
-                    returnKeyType="done"
-                    onSubmitEditing={() => Keyboard.dismiss()}
-                  />
-                </View>
-
-                <Text style={{ marginBottom: 4, fontWeight: '500' }}>Mode:</Text>
-                <View style={{ flexDirection: 'row', marginBottom: 16 }}>
-                  <TouchableOpacity
-                    style={[
-                      styles.modeButton,
-                      { backgroundColor: newSplit.mode === 'week' ? colors.primary : '#e0e0e0' }
-                    ]}
-                    onPress={() => setNewSplit(s => ({ ...s, mode: 'week' }))}
-                  >
-                    <Text style={{ color: newSplit.mode === 'week' ? '#fff' : '#333', fontWeight: 'bold' }}>
-                      Weekly
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.modeButton,
-                      { backgroundColor: newSplit.mode === 'rotation' ? colors.primary : '#e0e0e0', marginLeft: 8 }
-                    ]}
-                    onPress={() => setNewSplit(s => ({ ...s, mode: 'rotation' }))}
-                  >
-                    <Text style={{ color: newSplit.mode === 'rotation' ? '#fff' : '#333', fontWeight: 'bold' }}>
-                      Rotation
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-            {newSplitTab === 1 && (
-              <View>
-                {newSplit.mode === 'week' ? (
-                  <>
-                    <Text style={{ marginBottom: 8, fontWeight: '500' }}>Week Schedule:</Text>
-                    {WEEKDAYS.map((wd, idx) => {
-                      const assignedDay = newSplitWeekdays[idx] ? days.find(d => d.id === newSplitWeekdays[idx]) : null;
-                      return (
-                        <View key={wd} style={styles.splitDayBox}>
-                          <Text style={{ width: 60, fontWeight: '500' }}>{wd}:</Text>
-                          <TouchableOpacity
-                            style={styles.assignBtn}
-                            onPress={() => {
-                              setPendingDayId(`${idx}`);
-                              if (showAddModal) {
-                                setShowAddModal(false);
-                                setWeekdayModalFromAdd(true);
-                              } else {
-                                setWeekdayModalFromAdd(false);
-                              }
-                              setShowWeekdayModal(true);
-                            }}
-                          >
-                            <Text style={styles.assignBtnText}>{assignedDay ? assignedDay.name : 'Rest'}</Text>
-                          </TouchableOpacity>
-                        </View>
-                      );
-                    })}
-                  </>
-                ) : (
-                  <>
-                    <Text style={{ marginBottom: 8, fontWeight: '500' }}>Rotation Length (days):</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                      <TextInput
-                        ref={newSplitRotationRef}
-                        style={[styles.input, { width: 120, marginRight: 8 }]}
-                        keyboardType="numeric"
-                        returnKeyType="done"
-                        value={newSplitRotationInput}
-                        onChangeText={v => {
-                          setNewSplitRotationInput(v);
-                          const n = parseInt(v, 10);
-                          if (!isNaN(n) && n > 0) {
-                            setNewSplitRotationLength(n);
-                            setSelectedDaysForNewSplit(prev => {
-                              const arr = [...prev];
-                              arr.length = n;
-                              return arr.map(v2 => v2 ?? null);
-                            });
-                          }
-                        }}
-                        onFocus={() => setNewRotationFocused(true)}
-                        onBlur={() => {
-                          setNewRotationFocused(false);
-                          const n = parseInt(newSplitRotationInput, 10);
-                          if (isNaN(n) || n <= 0) {
-                            setNewSplitRotationInput(String(newSplitRotationLength));
-                          }
-                        }}
-                        onSubmitEditing={() => newSplitRotationRef.current?.blur()}
-                      />
-                      <Text style={{ color: '#666' }}>days in rotation</Text>
-                    </View>
-                    <Text style={{ marginBottom: 8, fontWeight: '500' }}>Assign Days To Rotation Slots:</Text>
-                    <View>
-                      {Array.from({ length: newSplitRotationLength }).map((_, idx) => {
-                        const assigned = selectedDaysForNewSplit[idx] ? days.find(d => d.id === selectedDaysForNewSplit[idx]) : null;
-                        return (
-                          <View key={`rot-${idx}`} style={styles.splitDayBox}>
-                            <Text style={{ width: 60, fontWeight: '500' }}>{`Day ${idx + 1}:`}</Text>
-                            <TouchableOpacity
-                              style={styles.assignBtn}
-                              onPress={() => {
-                                setPendingRotationIndex(idx);
-                                setPendingDayId(null);
-                                if (showAddModal) {
-                                  setShowAddModal(false);
-                                  setWeekdayModalFromAdd(true);
-                                } else {
-                                  setWeekdayModalFromAdd(false);
-                                }
-                                setShowWeekdayModal(true);
-                              }}
-                            >
-                              <Text style={styles.assignBtnText}>{assigned ? assigned.name : 'Rest'}</Text>
-                            </TouchableOpacity>
-                          </View>
-                        );
-                      })}
-                    </View>
-                  </>
-                )}
-              </View>
-            )}
-
-            {newSplitTab === 2 && (
-              <ScheduleEditor
-                mode={newSplit.mode}
-                startDate={newSplitStartDate}
-                setStartDate={setNewSplitStartDate}
-                endDate={newSplitEndDate}
-                setEndDate={setNewSplitEndDate}
-                showStartPicker={showNewSplitStartPicker}
-                setShowStartPicker={setShowNewSplitStartPicker}
-                showEndPicker={showNewSplitEndPicker}
-                setShowEndPicker={setShowNewSplitEndPicker}
-                durationWeeks={newSplitDurationWeeks}
-                setDurationWeeks={setNewSplitDurationWeeks}
-                rotationLength={newSplitRotationLength}
-              />
-            )}
-
-            {/* Navigation Buttons - fixed three slots to keep buttons consistent size */}
-            <View style={{ marginTop: 20 }}>
-              {newSplitTab < 2 ? (
-                <ModalButtons
-                  leftLabel="Cancel"
-                  rightLabel="Next"
-                  onLeftPress={() => setShowAddModal(false)}
-                  onRightPress={() => setNewSplitTab(newSplitTab + 1)}
-                  leftColor="#e0e0e0"
-                  rightColor={colors.primary}
-                  leftTextColor="#333"
-                  rightTextColor="#fff"
-                />
-              ) : (
-                <ModalButtons
-                  leftLabel="Cancel"
-                  rightLabel={adding ? 'Creating...' : 'Create'}
-                  onLeftPress={() => setShowAddModal(false)}
-                  onRightPress={handleAddSplit}
-                  leftColor="#e0e0e0"
-                  rightColor={colors.primary}
-                  leftTextColor="#333"
-                  rightTextColor="#fff"
-                  rightDisabled={adding}
-                />
-              )}
-            </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowAddModal(false)}
+        days={days}
+        activeRuns={activeRuns}
+        profile={profile}
+        fetchActiveRun={fetchActiveRun}
+        fetchSplits={fetchSplits}
+      />
 
       {/* Edit Split Modal */}
       <Modal
@@ -1626,210 +1213,89 @@ export default function SplitsTab() {
         </View>
       </Modal>
 
-      {/* Day picker modal for assigning a day to a weekday */}
+      {/* Day picker modal for assigning a day to a weekday or rotation slot on an existing split */}
       <Modal
         visible={showWeekdayModal}
         transparent
         animationType="slide"
         onRequestClose={() => {
           setShowWeekdayModal(false);
-          if (weekdayModalFromAdd) {
-            setShowAddModal(true);
-            setWeekdayModalFromAdd(false);
-          }
-          if (weekdayModalFromEdit) {
-            setShowEditModal(true);
-            setWeekdayModalFromEdit(false);
-          }
           setPendingDayId(null);
+          setPendingRotationIndex(null);
         }}
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 24, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
-            <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>
-              {pendingDayId !== null
-                ? `Assign Day to ${WEEKDAYS[parseInt(pendingDayId)]}`
-                : pendingRotationIndex !== null
-                  ? `Assign Day to Day ${pendingRotationIndex + 1}`
-                  : 'Assign Day'}
-            </Text>
-            {days.length === 0 && <Text>No days created yet.</Text>}
-            {days.map((d) => (
-              <TouchableOpacity
-                key={d.id}
-                style={{ padding: 10, marginVertical: 2, backgroundColor: '#eee', borderRadius: 6 }}
-                onPress={async () => {
-                  // If assigning to a weekday (weekly mode)
-                  if (pendingDayId !== null) {
-                    const weekdayIndex = parseInt(pendingDayId, 10);
-                    if (weekdayModalFromAdd) {
-                      setNewSplitWeekdays(prev => {
-                        const newWeekdays = [...prev];
-                        newWeekdays[weekdayIndex] = d.id;
-                        return newWeekdays;
-                      });
-                      setShowWeekdayModal(false);
-                      setPendingDayId(null);
-                      setShowAddModal(true);
-                      setWeekdayModalFromAdd(false);
-                    } else if (weekdayModalFromEdit) {
-                      setEditSplitWeekdays(prev => {
-                        const newWeekdays = [...prev];
-                        newWeekdays[weekdayIndex] = d.id;
-                        return newWeekdays;
-                      });
-                      setShowWeekdayModal(false);
-                      setPendingDayId(null);
-                      setShowEditModal(true);
-                      setWeekdayModalFromEdit(false);
-                    } else if (selectedSplitId) {
-                      const split = splits.find(s => s.id === selectedSplitId);
+          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '80%' }}>
+            <ScrollView>
+              <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 12 }}>Select Day</Text>
+              {days.map(d => (
+                <TouchableOpacity
+                  key={d.id}
+                  style={{ padding: 10, marginVertical: 2, backgroundColor: '#f5f5f5', borderRadius: 6 }}
+                  onPress={async () => {
+                    if (!selectedSplitId) return;
+                    // Assigning to weekday
+                    if (pendingDayId !== null) {
+                      const weekdayIndex = parseInt(pendingDayId, 10);
                       const existing = splitDays.find(sd => sd.weekday === weekdayIndex);
                       if (existing) await handleRemoveSplitDay(existing.id);
-                      doLinkDay(d.id, split, weekdayIndex);
-                    }
-                    return;
-                  }
-
-                  // If assigning to a rotation slot
-                  if (pendingRotationIndex !== null) {
-                    const idx = pendingRotationIndex;
-                    if (weekdayModalFromAdd) {
-                      // Use selectedDaysForNewSplit array for new-split rotation slots
-                      setSelectedDaysForNewSplit(prev => {
-                        const arr = [...prev];
-                        arr[idx] = d.id;
-                        return arr;
-                      });
-                      setPendingRotationIndex(null);
-                      setShowWeekdayModal(false);
-                      setWeekdayModalFromAdd(false);
-                      setShowAddModal(true);
-                      return;
-                    }
-                    if (weekdayModalFromEdit) {
-                      setSelectedDaysForNewSplit(prev => {
-                        const arr = [...prev];
-                        arr[idx] = d.id;
-                        return arr;
-                      });
-                      setPendingRotationIndex(null);
-                      setShowWeekdayModal(false);
-                      setWeekdayModalFromEdit(false);
-                      setShowEditModal(true);
-                      return;
-                    }
-                    if (selectedSplitId) {
-                      // Persist to DB: insert or update split_days with order_index = idx
                       const split = splits.find(s => s.id === selectedSplitId);
-                      // Remove any existing entry at this order_index
+                      doLinkDay(d.id, split, weekdayIndex);
+                      setShowWeekdayModal(false);
+                      setPendingDayId(null);
+                      return;
+                    }
+                    // Assigning to rotation index
+                    if (pendingRotationIndex !== null) {
+                      const idx = pendingRotationIndex;
                       const existing = splitDays.find(sd => sd.order_index === idx);
                       if (existing) await handleRemoveSplitDay(existing.id);
-                      // Insert new
                       await supabase.from('split_days').insert({ split_id: selectedSplitId, day_id: d.id ?? null, weekday: null, order_index: idx });
                       fetchSplitDays(selectedSplitId);
                       setPendingRotationIndex(null);
                       setShowWeekdayModal(false);
                       return;
                     }
-                  }
-                }}
-              >
-                <Text>{d.name}</Text>
-              </TouchableOpacity>
-            ))}
-            <TouchableOpacity
-              style={{ padding: 10, marginVertical: 2, backgroundColor: '#eee', borderRadius: 6 }}
-              onPress={async () => {
-                // Remove assignment for either weekday or rotation slot
-                if (pendingDayId !== null) {
-                  const weekdayIndex = parseInt(pendingDayId, 10);
-                  if (weekdayModalFromAdd) {
-                    setNewSplitWeekdays(prev => {
-                      const newWeekdays = [...prev];
-                      newWeekdays[weekdayIndex] = null;
-                      return newWeekdays;
-                    });
-                    setShowWeekdayModal(false);
-                    setPendingDayId(null);
-                    setShowAddModal(true);
-                    setWeekdayModalFromAdd(false);
-                  } else if (weekdayModalFromEdit) {
-                    setEditSplitWeekdays(prev => {
-                      const newWeekdays = [...prev];
-                      newWeekdays[weekdayIndex] = null;
-                      return newWeekdays;
-                    });
-                    setShowWeekdayModal(false);
-                    setPendingDayId(null);
-                    setShowEditModal(true);
-                    setWeekdayModalFromEdit(false);
-                  } else if (selectedSplitId) {
+                  }}
+                >
+                  <Text>{d.name}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={{ padding: 10, marginVertical: 8, backgroundColor: '#eee', borderRadius: 6 }}
+                onPress={async () => {
+                  if (!selectedSplitId) return;
+                  if (pendingDayId !== null) {
+                    const weekdayIndex = parseInt(pendingDayId, 10);
                     const existing = splitDays.find(sd => sd.weekday === weekdayIndex);
                     if (existing) await handleRemoveSplitDay(existing.id);
                     setShowWeekdayModal(false);
                     setPendingDayId(null);
+                    return;
                   }
-                  return;
-                }
-
-                if (pendingRotationIndex !== null) {
-                  const idx = pendingRotationIndex;
-                  if (weekdayModalFromAdd) {
-                    setSelectedDaysForNewSplit(prev => {
-                      const arr = [...prev];
-                      arr[idx] = null;
-                      return arr;
-                    });
-                    setPendingRotationIndex(null);
-                    setShowWeekdayModal(false);
-                    setShowAddModal(true);
-                    setWeekdayModalFromAdd(false);
-                  } else if (weekdayModalFromEdit) {
-                    setSelectedDaysForNewSplit(prev => {
-                      const arr = [...prev];
-                      arr[idx] = null;
-                      return arr;
-                    });
-                    setPendingRotationIndex(null);
-                    setShowWeekdayModal(false);
-                    setShowEditModal(true);
-                    setWeekdayModalFromEdit(false);
-                  } else if (selectedSplitId) {
+                  if (pendingRotationIndex !== null) {
+                    const idx = pendingRotationIndex;
                     const existing = splitDays.find(sd => sd.order_index === idx);
                     if (existing) await handleRemoveSplitDay(existing.id);
                     setPendingRotationIndex(null);
                     setShowWeekdayModal(false);
                   }
-                }
-              }}
-            >
-              <Text>Set to Rest</Text>
-            </TouchableOpacity>
-            <View style={{ marginTop: 8 }}>
-              <ModalButtons
-                leftLabel="Cancel"
-                rightLabel="Set"
-                onLeftPress={() => {
-                  setShowWeekdayModal(false);
-                  if (weekdayModalFromAdd) {
-                    setShowAddModal(true);
-                    setWeekdayModalFromAdd(false);
-                  }
-                  if (weekdayModalFromEdit) {
-                    setShowEditModal(true);
-                    setWeekdayModalFromEdit(false);
-                  }
-                  setPendingDayId(null);
                 }}
-                onRightPress={() => { /* no-op default - selection handlers already close modal */ }}
-                leftColor="#e0e0e0"
-                rightColor="#007AFF"
-                leftTextColor="#333"
-                rightTextColor="#fff"
-              />
-            </View>
+              >
+                <Text>Set to Rest</Text>
+              </TouchableOpacity>
+              <View style={{ marginTop: 8 }}>
+                <ModalButtons
+                  leftLabel="Cancel"
+                  rightLabel="Close"
+                  onLeftPress={() => { setShowWeekdayModal(false); setPendingDayId(null); setPendingRotationIndex(null); }}
+                  onRightPress={() => { setShowWeekdayModal(false); setPendingDayId(null); setPendingRotationIndex(null); }}
+                  leftColor="#e0e0e0"
+                  rightColor={colors.primary}
+                  leftTextColor="#333"
+                  rightTextColor="#fff"
+                />
+              </View>
             </ScrollView>
           </View>
         </View>
