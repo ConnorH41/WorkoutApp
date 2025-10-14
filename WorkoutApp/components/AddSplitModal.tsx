@@ -147,7 +147,16 @@ const AddSplitModal: React.FC<AddSplitModalProps> = ({ visible, onClose, days, a
             {tab===0 && (
               <View>
                 <Text style={{ marginBottom:4, fontWeight:'500' }}>Split Name:</Text>
-                <TextInput style={[styles.input,{ marginBottom:12, height:35, fontSize:16 }]} placeholder="e.g. PPL, Upper/Lower" value={split.name} onChangeText={v=>setSplit(s=>({...s,name:v}))} returnKeyType='done' onSubmitEditing={()=>Keyboard.dismiss()} />
+                <TextInput
+                  style={[styles.input, { marginBottom: 12 }]}
+                  placeholder="e.g. PPL, Upper/Lower"
+                  value={split.name}
+                  onChangeText={v => setSplit(s => ({ ...s, name: v }))}
+                  returnKeyType='done'
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                  placeholderTextColor={colors.textMuted}
+                  allowFontScaling={false}
+                />
                 <Text style={{ marginBottom:4, fontWeight:'500' }}>Mode:</Text>
                 <View style={{ flexDirection:'row', marginBottom:16 }}>
                   <TouchableOpacity style={[styles.modeButton,{ backgroundColor: split.mode==='week'? colors.primary:colors.backgroundMuted }]} onPress={()=>setSplit(s=>({...s, mode:'week'}))}><Text style={{ color: split.mode==='week'? '#fff':'#333', fontWeight:'bold' }}>Weekly</Text></TouchableOpacity>
