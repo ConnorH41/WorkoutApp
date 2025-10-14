@@ -88,7 +88,6 @@ CREATE TABLE public.logs (
   notes text,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
   completed boolean NOT NULL DEFAULT false,
-  completed_at timestamp with time zone,
   CONSTRAINT logs_pkey PRIMARY KEY (id),
   CONSTRAINT logs_workout_id_fkey FOREIGN KEY (workout_id) REFERENCES public.workouts(id),
   CONSTRAINT logs_exercise_id_fkey FOREIGN KEY (exercise_id) REFERENCES public.exercises(id)
