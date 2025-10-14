@@ -61,6 +61,10 @@ export default function DatePickerModal({ visible, initialDate, onCancel, onConf
               preferredDatePickerStyle={iosInlineSupported ? 'inline' : undefined}
               // @ts-ignore: iOS specific prop
               themeVariant={Platform.OS === 'ios' ? 'light' : undefined}
+              // @ts-ignore: iOS specific prop for accent color
+              accentColor={colors.primary}
+              // @ts-ignore: Android specific prop for text color
+              textColor={colors.primary}
               onChange={handleChange}
             />
           )}
