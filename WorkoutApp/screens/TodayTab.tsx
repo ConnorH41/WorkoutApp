@@ -20,6 +20,8 @@ import { colors } from '../styles/theme';
 
 // ...existing imports...
 
+// Import icons at runtime to avoid type errors when package isn't installed in the environment
+
 export default function TodayTab() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -245,7 +247,7 @@ export default function TodayTab() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}> 
+  <View style={[styles.container, { paddingTop: insets.top, paddingBottom: 0 }]}> 
       <FlatList
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 24 }}
@@ -476,6 +478,16 @@ export default function TodayTab() {
         onCancel={() => { setShowDeleteExerciseConfirm(false); setDeleteExerciseTarget(null); }}
       />
 
+      {/* Calendar DatePickerModal */}
+      <DatePickerModal
+        visible={showCalendarModal}
+        initialDate={calendarDate}
+        onCancel={() => setShowCalendarModal(false)}
+        onConfirm={(isoDate) => {
+          setShowCalendarModal(false);
+          setCalendarDate(new Date(isoDate));
+        }}
+      />
     </View>
   );
 }

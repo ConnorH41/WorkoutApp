@@ -251,7 +251,7 @@ export default function DaysTab() {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}> 
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: 0 }]}> 
       <FlatList
         data={days}
         keyExtractor={(item) => item.id}
