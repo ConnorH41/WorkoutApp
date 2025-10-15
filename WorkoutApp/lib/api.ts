@@ -1,13 +1,12 @@
 import { supabase } from './supabase';
 
-export async function insertBodyweight(payload: { user_id: string; weight: number; unit?: 'kg' | 'lb' }) {
+export async function insertBodyweight(payload: { user_id: string; weight: number; unit?: 'kg' | 'lb'; logged_at?: string }) {
   return await supabase.from('bodyweight').insert(payload instanceof Array ? payload : [payload]).select();
 }
 
 export async function getBodyweightByUserDate(userId: string, isoDate: string) {
-  const start = `${isoDate}T00:00:00Z`;
-  const end = `${isoDate}T23:59:59Z`;
-  return await supabase.from('bodyweight').select('*').eq('user_id', userId).gte('created_at', start).lte('created_at', end).order('created_at', { ascending: false }).limit(1);
+  // Query by logged_at (the date the bodyweight is FOR, not when it was created)
+  return await supabase.from('bodyweight').select('*').eq('user_id', userId).eq('logged_at', isoDate).order('created_at', { ascending: false }).limit(1);
 }
 
 export async function updateBodyweight(id: string, payload: { weight?: number; unit?: 'kg' | 'lb' }) {

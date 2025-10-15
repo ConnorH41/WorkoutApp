@@ -109,6 +109,7 @@ export default function TodayTab() {
       const ex = exercises.find(e => e.id === id) || splitDayExercises.find(e => e.id === id);
       return ex ? ex.name : undefined;
     },
+    getWorkoutDate: () => calendarDate ? formatDateOnly(calendarDate) : formatDateOnly(new Date()),
   });
 
   const onSaveBodyweight = async () => {
@@ -146,8 +147,13 @@ export default function TodayTab() {
         const row: any = arr[0] || null;
         if (row && row.id) setBodyweightRecordId(row.id as string);
       } else {
-        // Insert new record
-        const { data, error } = await api.insertBodyweight({ user_id: profile.id, weight: parsed, unit });
+        // Insert new record with the selected date (logged_at = date it's FOR, not when it's created)
+        const { data, error } = await api.insertBodyweight({ 
+          user_id: profile.id, 
+          weight: parsed, 
+          unit,
+          logged_at: isoDate 
+        });
         if (error) throw error;
         const arr = ((data as unknown) as any[]) || [];
         const row: any = arr[0] || null;

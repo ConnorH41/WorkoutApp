@@ -1,0 +1,28 @@
+-- Migration: Fix Historical Tracking Dates
+-- Date: 2025-10-15
+-- Description: Ensures historical tracking uses the correct date columns
+-- 
+-- Changes:
+-- 1. Bodyweight table already has 'logged_at' column (good!)
+-- 2. Workouts table already has 'date' column (good!)
+-- 3. Logs table uses workout_id which links to workouts.date (good!)
+--
+-- No schema changes needed - only application code needs to be updated to:
+-- - Query bodyweight by 'logged_at' instead of 'created_at'
+-- - Set 'logged_at' to the selected calendar date when inserting/updating
+-- - Continue using workouts.date for logs (already correct via workout_id)
+
+-- Verify the schema is correct:
+-- SELECT column_name, data_type, column_default
+-- FROM information_schema.columns
+-- WHERE table_name = 'bodyweight' AND column_name IN ('logged_at', 'created_at');
+--
+-- SELECT column_name, data_type, column_default
+-- FROM information_schema.columns
+-- WHERE table_name = 'workouts' AND column_name IN ('date', 'created_at');
+--
+-- SELECT column_name, data_type, column_default
+-- FROM information_schema.columns
+-- WHERE table_name = 'logs' AND column_name IN ('workout_id', 'created_at');
+
+-- No SQL changes needed - this is a code-only fix!

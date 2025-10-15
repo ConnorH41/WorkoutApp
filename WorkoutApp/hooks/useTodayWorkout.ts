@@ -399,11 +399,11 @@ export function useTodayWorkout() {
     setWorkoutLoading(false);
   };
 
-  const createWorkoutFromScheduledDay = async () => {
+  const createWorkoutFromScheduledDay = async (dateStr?: string) => {
     if (!profile || !profile.id || !splitDayName) return null;
     setCreatingWorkout(true);
     try {
-      const today = formatDateOnly(new Date());
+      const today = dateStr || formatDateOnly(new Date());
       const payload: any = { user_id: profile.id, date: today };
       if (splitDayName) {
         const { data: dayData } = await api.getDayByName(splitDayName);
@@ -460,7 +460,7 @@ export function useTodayWorkout() {
     return null;
   };
 
-  const addBlankExerciseToWorkout = () => {
+  const addBlankExerciseToWorkout = (dateStr?: string) => {
     if (!profile || !profile.id) return null;
     // Try to persist as a workout_exercise instance. If that fails (offline), fall back
     // to a local tmp exercise so the UI still shows immediately.
@@ -472,10 +472,10 @@ export function useTodayWorkout() {
 
     (async () => {
       try {
-        // Ensure a workout exists for today
+        // Ensure a workout exists for the selected date
         let w = todayWorkout;
         if (!w) {
-          const today = formatDateOnly(new Date());
+          const today = dateStr || formatDateOnly(new Date());
           const { data: wdata } = await api.insertWorkout({ user_id: profile.id, date: today });
           if (wdata && wdata.length > 0) {
             w = wdata[0];

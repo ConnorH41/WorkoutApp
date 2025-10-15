@@ -3,13 +3,14 @@ import { Alert } from 'react-native';
 import * as api from '../lib/api';
 
 type UseExerciseLogsOpts = {
-  createWorkoutFromScheduledDay?: () => Promise<any | null>;
+  createWorkoutFromScheduledDay?: (dateStr?: string) => Promise<any | null>;
   createExercise?: (originalExercise: any, newName: string) => Promise<any | null>;
-  createTransientExercise?: (name?: string) => Promise<any | null>;
+  createTransientExercise?: (name?: string, dateStr?: string) => Promise<any | null>;
   getTodayWorkout?: () => any | null;
   getExercises?: () => any[];
   getSplitDayExercises?: () => any[];
   getNameByExercise?: (id: string) => string | undefined;
+  getWorkoutDate?: () => string;
 };
 
 export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
@@ -68,9 +69,10 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
       return;
     }
     try {
+      const workoutDate = opts?.getWorkoutDate ? opts.getWorkoutDate() : undefined;
       let workout = opts?.getTodayWorkout ? opts.getTodayWorkout() : null;
       if (!workout && opts?.createWorkoutFromScheduledDay) {
-        workout = await opts.createWorkoutFromScheduledDay();
+        workout = await opts.createWorkoutFromScheduledDay(workoutDate);
         if (!workout) {
           Alert.alert('Error', 'Could not create workout for today');
           return;
@@ -93,7 +95,7 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
         }
         // Fallback: try transient/persistent via createTransientExercise if provided
         if ((!created || !created.id) && opts?.createTransientExercise) {
-          try { created = await opts.createTransientExercise(newName); } catch (e) { created = null; }
+          try { created = await opts.createTransientExercise(newName, workoutDate); } catch (e) { created = null; }
         }
         if ((!created || !created.id)) {
           try {
@@ -203,9 +205,10 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
 
   const saveSetsForExercise = async (exerciseId: string) => {
     try {
+      const workoutDate = opts?.getWorkoutDate ? opts.getWorkoutDate() : undefined;
       let workout = opts?.getTodayWorkout ? opts.getTodayWorkout() : null;
       if (!workout && opts?.createWorkoutFromScheduledDay) {
-        workout = await opts.createWorkoutFromScheduledDay();
+        workout = await opts.createWorkoutFromScheduledDay(workoutDate);
         if (!workout) {
           Alert.alert('Error', 'Could not create workout for today');
           return;
@@ -227,7 +230,7 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
           try { created = await opts.createExercise(originalExercise || null, newName); } catch (e) { created = null; }
         }
         if ((!created || !created.id) && opts?.createTransientExercise) {
-          try { created = await opts.createTransientExercise(newName); } catch (e) { created = null; }
+          try { created = await opts.createTransientExercise(newName, workoutDate); } catch (e) { created = null; }
         }
         if (created && created.id) targetExerciseId = created.id;
         else {
