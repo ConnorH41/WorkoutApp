@@ -120,7 +120,7 @@ export default function TodayTab() {
     }
     setBodyweightSubmitting(true);
     try {
-      const unit: 'kg' | 'lbs' = isKg ? 'kg' : 'lbs';
+      const unit: 'kg' | 'lb' = isKg ? 'kg' : 'lb';
       if (bodyweightRecordId) {
         const { data, error } = await api.updateBodyweight(bodyweightRecordId, { weight: parsed, unit });
         if (error) throw error;
@@ -155,11 +155,14 @@ export default function TodayTab() {
         if (!error && data && data.length > 0) {
           const row = data[0];
           setBodyweight(String(row.weight ?? ''));
-          if (row.unit === 'lbs') setIsKg(false);
+          // Set the unit toggle based on the stored value
+          if (row.unit === 'lb') setIsKg(false);
           else setIsKg(true);
           setBodyweightRecordId(row.id || null);
         } else {
+          // No bodyweight record for this date - reset to empty and default to kg
           setBodyweight('');
+          setIsKg(true);
           setBodyweightRecordId(null);
         }
       } catch (e) {}
@@ -220,13 +223,14 @@ export default function TodayTab() {
           if (!logsByOriginalExercise[origExerciseId]) {
             logsByOriginalExercise[origExerciseId] = [];
           }
-          logsByOriginalExercise[origExerciseId].push({
+          const setData = {
             setNumber: log.set_number,
             reps: String(log.reps || ''),
             weight: String(log.weight || ''),
-            completed: !!log.completed,
+            completed: log.completed === true || log.completed === 1,
             logId: log.id,
-          });
+          };
+          logsByOriginalExercise[origExerciseId].push(setData);
           // Store notes (typically same for all sets of an exercise)
           if (log.notes && !notesByOriginalExercise[origExerciseId]) {
             notesByOriginalExercise[origExerciseId] = log.notes;
@@ -261,6 +265,7 @@ export default function TodayTab() {
         });
 
         if (mounted) {
+          console.log('Loading historical logs for', isoDate, '- Sets loaded:', Object.keys(groupedLogs).length);
           logsHook.setLogs(groupedLogs);
           logsHook.setNotesByExercise(notesMap);
         }
