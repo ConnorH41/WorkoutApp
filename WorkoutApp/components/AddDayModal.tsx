@@ -22,40 +22,217 @@ type Props = {
 };
 
 export default function AddDayModal({ visible, onClose, tabIndex, setTabIndex, dayName, setDayName, exercises, setExercises, onCreate, creating }: Props) {
+  const handleReset = () => {
+    setDayName('');
+    setExercises([]);
+    setTabIndex(0);
+  };
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-        <View style={{ backgroundColor: colors.background, padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
-          <View style={{ flexDirection: 'row', marginBottom: 20, backgroundColor: colors.backgroundMuted, borderRadius: 8, padding: 4 }}>
-            <TouchableOpacity style={[splitStyles.tabButton, { backgroundColor: tabIndex === 0 ? colors.primary : 'transparent' }]} onPress={() => setTabIndex(0)}>
-              <Text style={{ color: tabIndex === 0 ? colors.background : colors.text, fontWeight: 'bold', fontSize: 12 }}>1. General</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <View style={{
+          backgroundColor: colors.background,
+          padding: 24,
+          borderRadius: 20,
+          width: '90%',
+          maxWidth: 420,
+          maxHeight: '90%',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.15,
+          shadowRadius: 12,
+          elevation: 8,
+        }}>
+          {/* X Close Button */}
+          <View style={{ position: 'relative' }}>
+            <TouchableOpacity
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                padding: 8,
+                zIndex: 10,
+              }}
+              onPress={() => {
+                handleReset();
+                onClose();
+              }}
+            >
+              <Text style={{
+                fontSize: 24,
+                color: colors.textMuted,
+                fontWeight: '600',
+              }}>✕</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[splitStyles.tabButton, { backgroundColor: tabIndex === 1 ? colors.primary : 'transparent' }]} onPress={() => setTabIndex(1)}>
-              <Text style={{ color: tabIndex === 1 ? colors.background : colors.text, fontWeight: 'bold', fontSize: 12 }}>2. Exercises</Text>
-            </TouchableOpacity>
+
+            {/* Title Section */}
+            <View style={{ marginBottom: 20 }}>
+              <Text style={{
+                fontWeight: '700',
+                fontSize: 22,
+                marginBottom: 4,
+                color: colors.text,
+                letterSpacing: 0.3,
+              }}>Add New Day</Text>
+              <Text style={{
+                fontSize: 14,
+                color: colors.textMuted,
+                letterSpacing: 0.2,
+              }}>Create a custom workout day</Text>
+            </View>
+
+            {/* Tabs */}
+            <View style={{
+              flexDirection: 'row',
+              marginBottom: 24,
+              backgroundColor: colors.backgroundMuted,
+              borderRadius: 12,
+              padding: 4,
+              gap: 4,
+            }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  paddingHorizontal: 8,
+                  borderRadius: 10,
+                  backgroundColor: tabIndex === 0 ? colors.primary : 'transparent',
+                  shadowColor: tabIndex === 0 ? colors.primary : 'transparent',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 4,
+                  elevation: tabIndex === 0 ? 3 : 0,
+                }}
+                onPress={() => setTabIndex(0)}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    color: tabIndex === 0 ? '#fff' : colors.text,
+                    fontWeight: '700',
+                    fontSize: 13,
+                    textAlign: 'center',
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  1. General
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  paddingHorizontal: 8,
+                  borderRadius: 10,
+                  backgroundColor: tabIndex === 1 ? colors.primary : 'transparent',
+                  shadowColor: tabIndex === 1 ? colors.primary : 'transparent',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 4,
+                  elevation: tabIndex === 1 ? 3 : 0,
+                }}
+                onPress={() => setTabIndex(1)}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    color: tabIndex === 1 ? '#fff' : colors.text,
+                    fontWeight: '700',
+                    fontSize: 13,
+                    textAlign: 'center',
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  2. Exercises
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
+
           <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
             {tabIndex === 0 && (
-              <>
-                <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Add New Day</Text>
-                <Text style={{ marginBottom: 4, fontWeight: '500' }}>Day Name:</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                  <TextInput style={[styles.input, styles.textInput]} placeholder="e.g. Upper A, Push Day" value={dayName} onChangeText={setDayName} returnKeyType="done" onSubmitEditing={() => Keyboard.dismiss()} />
-                </View>
-              </>
+              <View>
+                <Text style={{
+                  marginBottom: 8,
+                  fontWeight: '600',
+                  fontSize: 14,
+                  color: colors.text,
+                  letterSpacing: 0.2,
+                }}>Day Name:</Text>
+                <TextInput
+                  style={{
+                    borderWidth: 2,
+                    borderColor: colors.border,
+                    borderRadius: 12,
+                    padding: 14,
+                    fontSize: 15,
+                    backgroundColor: colors.background,
+                    color: colors.text,
+                    height: 50,
+                  }}
+                  placeholder="e.g. Upper A, Push Day"
+                  placeholderTextColor={colors.textMuted}
+                  value={dayName}
+                  onChangeText={setDayName}
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
+              </View>
             )}
 
             {tabIndex === 1 && (
-              <>
-                <PreviewExerciseEditor exercises={exercises} setExercises={setExercises} />
-              </>
+              <PreviewExerciseEditor exercises={exercises} setExercises={setExercises} />
             )}
 
-            <View style={{ marginTop: 12 }}>
+            {/* Action Buttons */}
+            <View style={{ marginTop: 28 }}>
               {tabIndex < 1 ? (
-                <ModalButtons leftLabel="Cancel" rightLabel="Next" onLeftPress={() => { setDayName(''); setExercises([]); onClose(); setTabIndex(0); }} onRightPress={() => setTabIndex(tabIndex + 1)} leftColor={colors.backgroundMuted} rightColor={colors.primary} leftTextColor={colors.text} rightTextColor={colors.background} />
+                <TouchableOpacity
+                  style={{
+                    padding: 16,
+                    borderRadius: 12,
+                    backgroundColor: colors.primary,
+                    alignItems: 'center',
+                    shadowColor: colors.primary,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 6,
+                    elevation: 4,
+                  }}
+                  onPress={() => setTabIndex(tabIndex + 1)}
+                >
+                  <Text style={{
+                    color: '#fff',
+                    fontWeight: '700',
+                    fontSize: 16,
+                    letterSpacing: 0.3,
+                  }}>Next →</Text>
+                </TouchableOpacity>
               ) : (
-                <ModalButtons leftLabel="Cancel" rightLabel={creating ? 'Creating...' : 'Create'} onLeftPress={() => { setDayName(''); setExercises([]); onClose(); setTabIndex(0); }} onRightPress={onCreate} leftColor={colors.backgroundMuted} rightColor={colors.primary} leftTextColor={colors.text} rightTextColor={colors.background} rightDisabled={creating} />
+                <TouchableOpacity
+                  style={{
+                    padding: 16,
+                    borderRadius: 12,
+                    backgroundColor: creating ? colors.backgroundMuted : colors.primary,
+                    alignItems: 'center',
+                    shadowColor: creating ? 'transparent' : colors.primary,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 6,
+                    elevation: creating ? 0 : 4,
+                    opacity: creating ? 0.7 : 1,
+                  }}
+                  onPress={onCreate}
+                  disabled={creating}
+                >
+                  <Text style={{
+                    color: '#fff',
+                    fontWeight: '700',
+                    fontSize: 16,
+                    letterSpacing: 0.3,
+                  }}>{creating ? '⏳ Creating...' : '✓ Create Day'}</Text>
+                </TouchableOpacity>
               )}
             </View>
           </ScrollView>

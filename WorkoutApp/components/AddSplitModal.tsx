@@ -389,14 +389,12 @@ const AddSplitModal: React.FC<AddSplitModalProps> = ({ visible, onClose, days, a
               fontWeight:'700', 
               fontSize:24, 
               marginBottom:8, 
-              textAlign:'center',
               color: colors.text,
               letterSpacing: -0.5,
             }}>Add New Split</Text>
             <Text style={{
               fontSize: 14,
               color: colors.textMuted,
-              textAlign: 'center',
               marginBottom: 24,
             }}>Create your custom workout split</Text>
             
