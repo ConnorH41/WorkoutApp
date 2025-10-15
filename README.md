@@ -5,31 +5,57 @@ Built with **Expo (React Native)** and **Supabase** for cross-platform fitness t
 
 ---
 
-## 📖 Features
+## 📖 How the App Currently Functions
 
-### ✅ Core
-- Create custom **workout days** (e.g., "Upper A", "Legs 1") and add exercises.  
-- Build splits in two modes:
-  - **Weekly Split**: assign days to weekdays.  
-  - **Rotation Split**: cycle through days in order with optional rest days.  
-- **Today Tab**:
-  - Log bodyweight.  
-  - View and complete today’s workout.  
-  - Mark workout as complete or rest.  
-- Workout logging: sets, reps, weight, notes.  
-- Save and track workout history.  
+### Core Functionality
+- **Workout Splits:** Create and organize workout splits using either weekly or rotation scheduling.
+- **Workout Days:** Build custom workout days (e.g., "Upper A", "Legs 1") and assign exercises.
+- **Today Tab:**
+  - Select any date using the calendar picker (historical tracking is fully supported).
+  - Log bodyweight for the selected date.
+  - View and complete the scheduled workout for the selected date.
+  - Log sets, reps, weight, and notes for each exercise.
+  - Mark workout as complete or rest.
+- **Workout Logging:** All workout and bodyweight logs are tied to the selected calendar date, not just the current day.
+- **History:** View past workouts and bodyweight logs by selecting previous dates.
 
-### 📊 Tracking
-- Bodyweight logging & trends.  
-- Personal records & achievements.  
-- Workout history viewer.  
-- Statistical insights (volume, streaks, PR graphs).  
+### Tracking & Insights
+- Bodyweight logging and trends.
+- Workout history viewer (by date).
+- Personal records and achievements (basic, more planned).
 
-### 🌐 Social & Extras (Future)
-- Add friends & share splits.  
-- Upload pictures/videos.  
-- Discover nearby gyms.  
-- Content creator programs (e.g., Jeff Nippard splits).  
+### UI/UX
+- Modernized modals and input styling for splits, days, and bodyweight.
+- Calendar picker with correct timezone handling.
+- Consistent input and checkbox behavior across all logging screens.
+
+### Technical Notes
+- All historical data is now correctly tracked by the date the user selects, not the date the entry was created.
+- Database schema supports both audit (created_at) and semantic (logged_for/date) dates for all logs.
+
+---
+
+## 🚀 Next Steps / Future Work
+
+### High Priority
+- **Stats & Insights Tab:** Add charts for bodyweight trends, PR progression, workout streaks.
+- **Workout History Improvements:** Expand details for past workouts (sets, notes, PRs).
+- **UI/UX Polish:** Add dark/light mode, smooth animations, and onboarding flow.
+- **Notifications:** Daily workout reminders, PR celebrations.
+
+### Medium Priority
+- **Social Features:** Friends system, share splits, leaderboards, achievements.
+- **Content Discovery:** Add content creator programs and discover nearby gyms.
+- **Media Uploads:** Allow users to upload pictures/videos for workouts.
+
+### Technical/Infrastructure
+- **Testing:** Expand Jest test coverage for hooks and components.
+- **Stripe Integration:** Optional, for premium content.
+- **Performance:** Optimize DB queries and offline support.
+
+### Database/Backend
+- **Advanced Analytics:** More statistical insights (volume, streaks, PR graphs).
+- **Row Level Security:** Continue refining Supabase RLS policies.
 
 ---
 
