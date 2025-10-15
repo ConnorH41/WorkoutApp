@@ -113,29 +113,46 @@ export default function TodayTab() {
 
   const onSaveBodyweight = async () => {
     if (!profile || !profile.id) return;
+    
+    // If already saved (recordId exists), allow unchecking to unlock for editing
+    if (bodyweightRecordId) {
+      // Just unlock it locally - don't delete from database yet
+      // This allows user to edit and re-check to update
+      setBodyweightRecordId(null);
+      return;
+    }
+    
+    // Validate before saving
     const parsed = parseFloat(bodyweight);
-    if (isNaN(parsed)) {
+    if (isNaN(parsed) || !bodyweight.trim()) {
       Alert.alert('Invalid weight', 'Enter a numeric weight value');
       return;
     }
+    
     setBodyweightSubmitting(true);
     try {
       const unit: 'kg' | 'lb' = isKg ? 'kg' : 'lb';
-      if (bodyweightRecordId) {
-        const { data, error } = await api.updateBodyweight(bodyweightRecordId, { weight: parsed, unit });
+      const isoDate = calendarDate ? formatDateOnly(calendarDate) : formatDateOnly(new Date());
+      
+      // Check if there's already a record for this date
+      const { data: existing } = await api.getBodyweightByUserDate(profile.id, isoDate);
+      
+      if (existing && existing.length > 0) {
+        // Update existing record
+        const existingId = existing[0].id;
+        const { data, error } = await api.updateBodyweight(existingId, { weight: parsed, unit });
         if (error) throw error;
-        // Keep the value and ensure record id persists so input becomes read-only
-  const arr = ((data as unknown) as any[]) || [];
+        const arr = ((data as unknown) as any[]) || [];
         const row: any = arr[0] || null;
         if (row && row.id) setBodyweightRecordId(row.id as string);
       } else {
+        // Insert new record
         const { data, error } = await api.insertBodyweight({ user_id: profile.id, weight: parsed, unit });
         if (error) throw error;
-  const arr = ((data as unknown) as any[]) || [];
+        const arr = ((data as unknown) as any[]) || [];
         const row: any = arr[0] || null;
         if (row && row.id) setBodyweightRecordId(row.id as string);
       }
-      // Do not clear the value; lock the field by having recordId set
     } catch (e: any) {
       Alert.alert('Error', e.message || String(e));
     } finally {

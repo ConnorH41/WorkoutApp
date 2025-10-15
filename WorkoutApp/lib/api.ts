@@ -14,6 +14,10 @@ export async function updateBodyweight(id: string, payload: { weight?: number; u
   return await supabase.from('bodyweight').update(payload).eq('id', id).select().limit(1);
 }
 
+export async function deleteBodyweight(id: string) {
+  return await supabase.from('bodyweight').delete().eq('id', id);
+}
+
 export async function getDayByName(name: string) {
   return await supabase.from('days').select('*').eq('name', name).limit(1);
 }
