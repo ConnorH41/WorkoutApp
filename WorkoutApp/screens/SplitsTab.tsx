@@ -859,18 +859,20 @@ export default function SplitsTab() {
               onPress={() => setSelectedSplitId(prev => prev === item.id ? null : item.id)}
               style={styles.splitBox}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              {/* Header Section */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 0 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                   <Text style={styles.splitName}>{item.name}</Text>
-                  <EditPencil onPress={() => handleEditSplit(item)} accessibilityLabel={`Edit ${item.name}`} />
+                  <View style={{ marginLeft: 8 }}>
+                    <EditPencil onPress={() => handleEditSplit(item)} accessibilityLabel={`Edit ${item.name}`} />
+                  </View>
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <Badge
                     text={item.mode === 'week' ? 'Weekly' : 'Rotation'}
                     backgroundColor={styles.modeBadge?.backgroundColor || colors.backgroundMuted}
                     color={styles.badgeText?.color || '#333'}
                     size="sm"
-                    style={{ marginRight: 8 }}
                   />
                   {isSplitCurrentlyActive(item.id) && (
                     <Badge
@@ -883,6 +885,7 @@ export default function SplitsTab() {
                 </View>
               </View>
 
+              {/* Footer Section */}
               <View style={styles.splitFooter}>
                 <View style={{ flex: 1 }}>
                   {(() => {
@@ -891,7 +894,7 @@ export default function SplitsTab() {
                       const s = parseDateOnlyLocal(run.start_date);
                       const e = run.end_date ? parseDateOnlyLocal(run.end_date) : null;
                       return (
-                        <Text style={{ fontStyle: 'italic', color: '#666' }}>
+                        <Text style={{ fontSize: 13, color: colors.textMuted, lineHeight: 18 }}>
                           {`Start: ${s ? s.toLocaleDateString() : run.start_date}`}
                           {e ? `  •  End: ${e.toLocaleDateString()}` : '  •  End: Forever'}
                         </Text>
@@ -901,9 +904,12 @@ export default function SplitsTab() {
                   })()}
                 </View>
 
-                <View style={styles.removeWrapper}>
-                  <RemoveButton onPress={() => { setDeleteTargetId(item.id); setShowDeleteConfirm(true); }} label="Delete" accessibilityLabel={`Delete ${item.name}`} textStyle={styles.removeTextStyle} />
-                </View>
+                <RemoveButton 
+                  onPress={() => { setDeleteTargetId(item.id); setShowDeleteConfirm(true); }} 
+                  label="Delete" 
+                  accessibilityLabel={`Delete ${item.name}`} 
+                  textStyle={styles.removeTextStyle} 
+                />
               </View>
               {/* timeframe is shown in the footer when scheduled; no duplicate block here */}
               {selectedSplitId === item.id && (
@@ -916,7 +922,7 @@ export default function SplitsTab() {
                         const assignedDay = splitDay ? days.find(d => d.id === splitDay.day_id) : null;
                         return (
                           <View key={wd} style={styles.splitDayBox}>
-                            <Text style={{ width: 60 }}>{wd}:</Text>
+                            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, width: 80 }}>{wd}:</Text>
                             <View style={styles.assignBtn}>
                               <Text style={styles.assignBtnText}>{assignedDay ? assignedDay.name : 'Rest'}</Text>
                             </View>
@@ -944,7 +950,7 @@ export default function SplitsTab() {
                           const day = sd ? days.find(d => d.id === sd.day_id) : null;
                           return (
                             <View key={`rot-${idx}`} style={styles.splitDayBox}>
-                              <Text style={{ width: 80 }}>{`Day ${idx + 1}:`}</Text>
+                              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, width: 80 }}>{`Day ${idx + 1}:`}</Text>
                               <View style={styles.assignBtn}>
                                 <Text style={styles.assignBtnText}>{day?.name || 'Rest'}</Text>
                               </View>

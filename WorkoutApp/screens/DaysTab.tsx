@@ -260,24 +260,28 @@ export default function DaysTab() {
             }}
             style={styles.dayBox}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {/* Header Section */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 0 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                 <Text style={styles.dayName}>{item.name}</Text>
-                <EditPencil onPress={() => handleEditDay(item.id, item.name)} accessibilityLabel={`Edit ${item.name}`} />
+                <View style={{ marginLeft: 8 }}>
+                  <EditPencil onPress={() => handleEditDay(item.id, item.name)} accessibilityLabel={`Edit ${item.name}`} />
+                </View>
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Badge
-                  text={`${(localCounts[item.id] ?? exerciseCounts[item.id] ?? 0)} ${(localCounts[item.id] ?? exerciseCounts[item.id] ?? 0) === 1 ? 'Exercise' : 'Exercises'}`}
-                  backgroundColor={styles.exerciseCountBadge?.backgroundColor || colors.backgroundMuted}
-                  color={styles.badgeText?.color || '#333'}
-                  size="sm"
-                  style={{ marginLeft: 8 }}
-                />
-              </View>
+              <Badge
+                text={`${(localCounts[item.id] ?? exerciseCounts[item.id] ?? 0)} ${(localCounts[item.id] ?? exerciseCounts[item.id] ?? 0) === 1 ? 'Exercise' : 'Exercises'}`}
+                backgroundColor={styles.exerciseCountBadge?.backgroundColor || colors.backgroundMuted}
+                color={styles.badgeText?.color || '#333'}
+                size="sm"
+              />
             </View>
+
+            {/* Footer Section */}
             <View style={styles.dayActions}>
               <RemoveButton onPress={() => handleDeleteDay(item.id)} label="Delete" accessibilityLabel={`Delete ${item.name}`} />
             </View>
+
+            {/* Expanded Exercise Section */}
             {selectedDayId === item.id && (
               <View style={styles.exerciseSection}>
                 <ExercisesList
