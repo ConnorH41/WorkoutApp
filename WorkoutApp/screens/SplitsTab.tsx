@@ -917,16 +917,9 @@ export default function SplitsTab() {
                         return (
                           <View key={wd} style={styles.splitDayBox}>
                             <Text style={{ width: 60 }}>{wd}:</Text>
-                            <TouchableOpacity
-                              style={styles.assignBtn}
-                              onPress={() => {
-                                setPendingDayId(`${idx}`);
-                                setSelectedSplitId(item.id);
-                                setShowWeekdayModal(true);
-                              }}
-                            >
+                            <View style={styles.assignBtn}>
                               <Text style={styles.assignBtnText}>{assignedDay ? assignedDay.name : 'Rest'}</Text>
-                            </TouchableOpacity>
+                            </View>
                           </View>
                         );
                       })}
@@ -952,16 +945,9 @@ export default function SplitsTab() {
                           return (
                             <View key={`rot-${idx}`} style={styles.splitDayBox}>
                               <Text style={{ width: 80 }}>{`Day ${idx + 1}:`}</Text>
-                              <TouchableOpacity
-                                style={styles.assignBtn}
-                                onPress={() => {
-                                  setPendingRotationIndex(idx);
-                                  setSelectedSplitId(item.id);
-                                  setShowWeekdayModal(true);
-                                }}
-                              >
+                              <View style={styles.assignBtn}>
                                 <Text style={styles.assignBtnText}>{day?.name || 'Rest'}</Text>
-                              </TouchableOpacity>
+                              </View>
                             </View>
                           );
                         });
