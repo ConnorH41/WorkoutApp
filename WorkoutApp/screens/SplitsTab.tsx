@@ -169,7 +169,10 @@ export default function SplitsTab() {
     setShowSetModal(true);
   };
 
-  // Open edit split modal
+  // State to hold edit split data for passing to AddSplitModal
+  const [editSplitData, setEditSplitData] = useState<any>(null);
+
+  // Open edit split modal - now using AddSplitModal
   const handleEditSplit = async (split: any) => {
     setEditingSplit(split);
     
@@ -181,6 +184,11 @@ export default function SplitsTab() {
       .order('weekday', { ascending: true })
       .order('order_index', { ascending: true });
     
+    // Load current split run (for start/end dates)
+    const run = activeRuns.find(r => r.split_id === split.id);
+    const startDateParsed = run && run.start_date ? parseDateOnlyLocal(run.start_date) : null;
+    const endDateParsed = run && run.end_date ? parseDateOnlyLocal(run.end_date) : null;
+    
     if (split.mode === 'week') {
       // Populate weekdays array
       const weekdays = new Array(7).fill(null);
@@ -190,39 +198,42 @@ export default function SplitsTab() {
         }
       });
       setEditSplitWeekdays(weekdays);
+      
+      // Set edit data
+      setEditSplitData({
+        weekdays,
+        startDate: startDateParsed,
+        endDate: endDateParsed,
+      });
+      
+      // Pass data to AddSplitModal
+      setShowAddModal(true);
     } else {
-      // For rotation mode, populate selected days and ensure the array length matches the rotation length
-      const selectedDays = splitDaysData?.map(sd => sd.day_id) || [];
+      // For rotation mode, populate selected days
       const maxIndex = splitDaysData && splitDaysData.length > 0 ? Math.max(...splitDaysData.map((sd: any) => sd.order_index ?? 0)) : -1;
       const length = maxIndex >= 0 ? maxIndex + 1 : 3;
-      const filled = Array.from({ length }).map((_, i) => selectedDays[i] ?? null);
-  // rotation day array handled inside AddSplitModal for creation; edit uses DB directly
+      const rotationDays = Array.from({ length }).map((_, i) => {
+        const sd = splitDaysData?.find(sd => sd.order_index === i);
+        return sd ? sd.day_id : null;
+      });
+      
       setEditSplitRotationLength(length);
       setEditSplitRotationInput(String(length));
+      
+      // Set edit data
+      setEditSplitData({
+        rotationDays,
+        rotationLength: length,
+        startDate: startDateParsed,
+        endDate: endDateParsed,
+      });
+      
+      // Temporarily store in state to pass to AddSplitModal
+      setEditSplitWeekdays(new Array(7).fill(null)); // Clear weekdays
+      
+      // Pass data to AddSplitModal
+      setShowAddModal(true);
     }
-    
-    // Populate rotation-length and selected days snapshot for the edit flow
-    if (split.mode === 'rotation') {
-      try {
-        const { data: sdData } = await supabase
-          .from('split_days')
-          .select('*')
-          .eq('split_id', split.id)
-          .order('order_index', { ascending: true });
-        const maxIndex = sdData && sdData.length > 0 ? Math.max(...sdData.map((sd: any) => sd.order_index ?? 0)) : -1;
-        const length = maxIndex >= 0 ? maxIndex + 1 : (sdData ? sdData.length : 3);
-        setEditSplitRotationLength(length);
-  // rotation day snapshot not needed; editing updates directly by slot
-      } catch (e) {
-        setEditSplitRotationLength(3);
-  // clear rotation snapshot (no longer tracked)
-      }
-    } else {
-      setEditSplitRotationLength(3);
-  // clear rotation snapshot (no longer tracked)
-    }
-    
-    setShowEditModal(true);
   };
 
   // Confirm setting current split with date and weeks/rotations
@@ -724,83 +735,7 @@ export default function SplitsTab() {
   // Add a new split with days and schedule it
   // add split logic moved to AddSplitModal
 
-  // Save edited split
-  const handleSaveEditSplit = async () => {
-    if (!editingSplit || !profile?.id) return;
-    if (!editingSplit?.name || !editingSplit.name.trim()) {
-      showValidationToast('Split name is required');
-      return;
-    }
-    setAdding(true);
-    
-    try {
-      // Update split basic info
-      const { error: splitError } = await supabase
-        .from('splits')
-        .update({ 
-          name: editingSplit.name.trim(), 
-          mode: editingSplit.mode 
-        })
-        .eq('id', editingSplit.id);
-      
-      if (splitError) {
-        Alert.alert('Error', splitError.message);
-        return;
-      }
-      
-      // Update split_days only as needed instead of deleting everything
-        // If switching to weekly mode, keep existing week assignments where possible.
-        if (editingSplit.mode === 'week') {
-          // Build up inserts/updates for weekdays from editSplitWeekdays
-          const splitDayInserts = editSplitWeekdays
-            .map((dayId, weekday) => dayId ? { split_id: editingSplit.id, day_id: dayId, weekday, order_index: null } : null)
-            .filter(Boolean);
-          if (splitDayInserts.length > 0) {
-            // Remove existing weekday entries for this split, then insert the new ones
-            await supabase.from('split_days').delete().eq('split_id', editingSplit.id).not('weekday', 'is', null);
-            const { error: daysError } = await supabase.from('split_days').insert(splitDayInserts);
-            if (daysError) {
-              Alert.alert('Error', daysError.message);
-              return;
-            }
-          } else {
-            // If user cleared all weekdays, remove existing weekly entries
-            await supabase.from('split_days').delete().eq('split_id', editingSplit.id).not('weekday', 'is', null);
-          }
-        } else {
-          // rotation mode: ensure number of rotation slots matches editSplitRotationLength
-          const { data: existingDays } = await supabase.from('split_days').select('*').eq('split_id', editingSplit.id).order('order_index', { ascending: true });
-          const existing = existingDays || [];
-          const targetLen = editSplitRotationLength || 3;
-          // Truncate extra slots
-          if (existing.length > targetLen) {
-            const toDelete = existing.slice(targetLen).map((d: any) => d.id);
-            if (toDelete.length > 0) await supabase.from('split_days').delete().in('id', toDelete);
-          }
-          // Extend with null slots if shorter
-          if (existing.length < targetLen) {
-            const inserts = Array.from({ length: targetLen - existing.length }).map((_, idx) => ({ split_id: editingSplit.id, day_id: null, weekday: null, order_index: existing.length + idx }));
-            if (inserts.length > 0) await supabase.from('split_days').insert(inserts.map(i => ({ ...i, day_id: i.day_id ?? null })));
-          }
-          // rotation slot updates performed via individual assignments now
-        }
 
-        
-      // Reset and close
-      setEditingSplit(null);
-  // reset UI state
-      setEditSplitWeekdays(new Array(7).fill(null));
-  // rotation snapshot cleared
-      setShowEditModal(false);
-      fetchSplits();
-      fetchActiveRun();
-      
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update split');
-    } finally {
-      setAdding(false);
-    }
-  };
 
   // Delete a split
   const handleDeleteSplit = async (splitId: string) => {
@@ -964,66 +899,11 @@ export default function SplitsTab() {
                     }
                     return null;
                   })()}
-                  <TouchableOpacity onPress={() => handleSetCurrentSplit(item)}>
-                    {(() => {
-                      const run = activeRuns.find(r => r.split_id === item.id);
-                      return <Text style={styles.linkText}>{run && run.start_date ? 'Change Timeframe' : 'Schedule'}</Text>;
-                    })()}
-                  </TouchableOpacity>
                 </View>
 
                 <View style={styles.removeWrapper}>
                   <RemoveButton onPress={() => { setDeleteTargetId(item.id); setShowDeleteConfirm(true); }} label="Delete" accessibilityLabel={`Delete ${item.name}`} textStyle={styles.removeTextStyle} />
                 </View>
-                {/* Modal for setting current split with calendar and weeks/rotations */}
-                <Modal
-                  visible={showSetModal}
-                  transparent
-                  animationType="slide"
-                  onRequestClose={() => setShowSetModal(false)}
-                >
-                  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-                    <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
-                      <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
-                        <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Schedule Split</Text>
-
-                        <ScheduleEditor
-                          mode={pendingSplit?.mode}
-                          startDate={calendarDate}
-                          setStartDate={setCalendarDate}
-                          endDate={endDate}
-                          setEndDate={setEndDate}
-                          showStartPicker={showStartPicker}
-                          setShowStartPicker={setShowStartPicker}
-                          showEndPicker={showEndPicker}
-                          setShowEndPicker={setShowEndPicker}
-                          durationWeeks={durationWeeks}
-                          setDurationWeeks={setDurationWeeks}
-                          rotationLength={pendingRotationLength}
-                        />
-
-                        {/* removed display of number of rotations here — it's calculated when scheduling and saved to the DB */}
-                        <View style={{ marginTop: 8 }}>
-                          <ModalButtons
-                            leftLabel="Cancel"
-                            rightLabel="Schedule"
-                            onLeftPress={() => setShowSetModal(false)}
-                            onRightPress={handleConfirmSetCurrentSplit}
-                            leftColor={colors.backgroundMuted}
-                            rightColor={colors.primary}
-                            leftTextColor="#333"
-                            rightTextColor="#fff"
-                            // Allow scheduling with empty start date so the user can clear/reset timeframe.
-                            // Only disable when the end date is before the start in weekly mode.
-                            rightDisabled={pendingSplit?.mode === 'week' && !!calendarDate && !!endDate && endDate < calendarDate}
-                          />
-                          {/* Show Clear button when there is an active run for this split */}
-                          
-                        </View>
-                      </ScrollView>
-                    </View>
-                  </View>
-                </Modal>
               </View>
               {/* timeframe is shown in the footer when scheduled; no duplicate block here */}
               {selectedSplitId === item.id && (
@@ -1098,120 +978,22 @@ export default function SplitsTab() {
 
       <AddSplitModal
         visible={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditingSplit(null);
+          setEditSplitWeekdays(new Array(7).fill(null));
+          setEditSplitData(null);
+        }}
         days={days}
         activeRuns={activeRuns}
         profile={profile}
         fetchActiveRun={fetchActiveRun}
         fetchSplits={fetchSplits}
+        editingSplit={editingSplit}
+        editSplitData={editSplitData}
       />
 
-      {/* Edit Split Modal */}
-      <Modal
-        visible={showEditModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowEditModal(false)}
-      >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 12, width: '90%', maxWidth: 420, maxHeight: '90%' }}>
-            <ScrollView contentContainerStyle={{ paddingBottom: 16 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 16, textAlign: 'center' }}>Edit Split</Text>
 
-            {/* Simplified Edit Modal: only basic info. Rotation splits show a rotation-length input. */}
-            <View>
-              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Split Name:</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                <TextInput
-                  style={{ width: '100%', marginBottom: 8, height: 35, fontSize: 16, textAlignVertical: 'top', padding: 8, borderWidth: 1, borderColor: '#ccc', borderRadius: 4 }}
-                  placeholder="e.g. PPL, Upper/Lower"
-                  value={editingSplit?.name || ''}
-                  onChangeText={v => setEditingSplit((prev: any) => ({ ...prev, name: v }))}
-                  returnKeyType="done"
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                  multiline
-                  numberOfLines={3}
-                />
-              </View>
-
-              <Text style={{ marginBottom: 4, fontWeight: '500' }}>Mode:</Text>
-              <View style={{ flexDirection: 'row', marginBottom: 16 }}>
-                <TouchableOpacity
-                  style={[
-                    styles.modeButton,
-                    { backgroundColor: editingSplit?.mode === 'week' ? colors.primary : colors.backgroundMuted }
-                  ]}
-                  onPress={() => setEditingSplit((prev: any) => ({ ...prev, mode: 'week' }))}
-                >
-                  <Text style={{ color: editingSplit?.mode === 'week' ? '#fff' : '#333', fontWeight: 'bold' }}>
-                    Weekly
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.modeButton,
-                    { backgroundColor: editingSplit?.mode === 'rotation' ? colors.primary : colors.backgroundMuted, marginLeft: 8 }
-                  ]}
-                  onPress={() => setEditingSplit((prev: any) => ({ ...prev, mode: 'rotation' }))}
-                >
-                  <Text style={{ color: editingSplit?.mode === 'rotation' ? '#fff' : '#333', fontWeight: 'bold' }}>
-                    Rotation
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {editingSplit?.mode === 'rotation' && (
-                <View style={{ marginBottom: 12 }}>
-                  <Text style={{ marginBottom: 6, fontWeight: '500' }}>Rotation Length (days):</Text>
-                  <TextInput
-                    ref={editSplitRotationRef}
-                    style={[styles.input, { width: 140 }]}
-                    keyboardType="numeric"
-                    value={editSplitRotationInput}
-                    onChangeText={v => {
-                      // keep the free-form input so the user can clear the field.
-                      setEditSplitRotationInput(v);
-                      const n = parseInt(v, 10);
-                      if (!isNaN(n) && n > 0) {
-                        setEditSplitRotationLength(n);
-                      }
-                    }}
-                    onFocus={() => setEditRotationFocused(true)}
-                    onBlur={() => {
-                      setEditRotationFocused(false);
-                      const n = parseInt(editSplitRotationInput, 10);
-                      if (isNaN(n) || n <= 0) {
-                        // restore display to the last valid length
-                        setEditSplitRotationInput(String(editSplitRotationLength));
-                      }
-                    }}
-                  />
-                </View>
-              )}
-            </View>
-
-            {/* Schedule removed from Edit modal; scheduling is handled via the Schedule button on the split card */}
-
-            {/* Navigation Buttons - fixed three slots to keep buttons consistent size */}
-            <View style={{ marginTop: 20 }}>
-            <View style={{ marginTop: 20 }}>
-              <ModalButtons
-                leftLabel="Cancel"
-                rightLabel={adding ? 'Saving...' : 'Save Split'}
-                onLeftPress={() => setShowEditModal(false)}
-                onRightPress={handleSaveEditSplit}
-                leftColor={colors.backgroundMuted}
-                rightColor={colors.primary}
-                leftTextColor="#333"
-                rightTextColor="#fff"
-                rightDisabled={adding}
-              />
-            </View>
-            </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
 
       {/* Day picker modal for assigning a day to a weekday or rotation slot on an existing split */}
       <Modal

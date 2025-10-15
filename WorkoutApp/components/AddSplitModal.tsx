@@ -23,9 +23,18 @@ interface AddSplitModalProps {
   profile: any;
   fetchActiveRun: () => Promise<void>;
   fetchSplits: () => Promise<void>;
+  editingSplit?: any | null; // Optional: if provided, we're editing
+  editSplitData?: { // Optional: pre-filled data for editing
+    weekdays?: (string|null)[];
+    rotationDays?: (string|null)[];
+    rotationLength?: number;
+    startDate?: Date|null;
+    endDate?: Date|null;
+  };
 }
 
-const AddSplitModal: React.FC<AddSplitModalProps> = ({ visible, onClose, days, activeRuns, profile, fetchActiveRun, fetchSplits }) => {
+const AddSplitModal: React.FC<AddSplitModalProps> = ({ visible, onClose, days, activeRuns, profile, fetchActiveRun, fetchSplits, editingSplit, editSplitData }) => {
+  const isEditing = !!editingSplit;
   const [split, setSplit] = useState<{ name:string; mode:'week'|'rotation' }>({ name:'', mode:'week' });
   const [tab, setTab] = useState(0);
   const [adding, setAdding] = useState(false);
@@ -43,6 +52,25 @@ const AddSplitModal: React.FC<AddSplitModalProps> = ({ visible, onClose, days, a
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
 
+  // Initialize with editing data when modal opens
+  React.useEffect(() => {
+    if (visible && isEditing && editingSplit) {
+      setSplit({ name: editingSplit.name || '', mode: editingSplit.mode || 'week' });
+      if (editSplitData) {
+        if (editSplitData.weekdays) setWeekdays(editSplitData.weekdays);
+        if (editSplitData.rotationDays) setRotationDays(editSplitData.rotationDays);
+        if (editSplitData.rotationLength) {
+          setRotationLen(editSplitData.rotationLength);
+          setRotationInput(String(editSplitData.rotationLength));
+        }
+        if (editSplitData.startDate) setStartDate(editSplitData.startDate);
+        if (editSplitData.endDate) setEndDate(editSplitData.endDate);
+      }
+    } else if (visible && !isEditing) {
+      reset();
+    }
+  }, [visible, isEditing, editingSplit, editSplitData]);
+
   const toast = (m:string)=>{ if(Platform.OS==='android' && ToastAndroid?.show) ToastAndroid.show(m, ToastAndroid.SHORT); else Alert.alert('Validation', m); };
   const rangesOverlap = (s1:string|null,e1:string|null,s2:string|null,e2:string|null)=>{ const parse=(d:string|null)=>{ if(!d) return null; const p=d.split('-').map(n=>parseInt(n,10)); if(p.length<3||p.some(isNaN)) return null; return Date.UTC(p[0],p[1]-1,p[2]); }; if(!s1||!s2) return false; const a1=parse(s1), b1=parse(e1), a2=parse(s2), b2=parse(e2); if(a1==null||a2==null) return false; if(b1!=null && b2!=null) return !(b1 < a2 || b2 < a1); if(b1==null && b2==null) return true; if(b1==null && b2!=null) return !(b2 < a1); if(b1!=null && b2==null) return !(b1 < a2); return false; };
 
@@ -53,9 +81,22 @@ const AddSplitModal: React.FC<AddSplitModalProps> = ({ visible, onClose, days, a
     if(!split.name.trim()){ toast('Split name is required'); return; }
     setAdding(true);
     try {
-      const { data: created, error } = await supabase.from('splits').insert([{ name: split.name.trim(), mode: split.mode, user_id: profile.id }]).select();
-      if(error){ Alert.alert('Error', error.message); return; }
-      const splitId = created![0].id;
+      let splitId: string;
+      
+      if (isEditing && editingSplit) {
+        // Update existing split
+        const { error } = await supabase.from('splits').update({ name: split.name.trim(), mode: split.mode }).eq('id', editingSplit.id);
+        if(error){ Alert.alert('Error', error.message); return; }
+        splitId = editingSplit.id;
+        
+        // Delete existing split_days for this split
+        await supabase.from('split_days').delete().eq('split_id', splitId);
+      } else {
+        // Create new split
+        const { data: created, error } = await supabase.from('splits').insert([{ name: split.name.trim(), mode: split.mode, user_id: profile.id }]).select();
+        if(error){ Alert.alert('Error', error.message); return; }
+        splitId = created![0].id;
+      }
       if(split.mode==='week') {
         const inserts = weekdays.map((d,weekday)=> d ? { split_id: splitId, day_id: d, weekday, order_index: null } : null).filter(Boolean) as any[];
         if(inserts.length){ const { error: dErr } = await supabase.from('split_days').insert(inserts); if(dErr){ Alert.alert('Error', dErr.message); return; } }
@@ -64,12 +105,44 @@ const AddSplitModal: React.FC<AddSplitModalProps> = ({ visible, onClose, days, a
         if(inserts.length){ const { error: dErr } = await supabase.from('split_days').insert(inserts); if(dErr){ Alert.alert('Error', dErr.message); return; } }
       }
       if(startDate) {
+        const existingRun = activeRuns.find(r => r.split_id === splitId);
+        
         if(split.mode==='week') {
           const ms=24*60*60*1000; let weeks='0'; if(endDate){ const s=new Date(startDate); s.setHours(0,0,0,0); const e=new Date(endDate); e.setHours(0,0,0,0); const diff=Math.floor((e.getTime()-s.getTime())/ms); weeks=String(Math.max(0.5, roundToHalf(diff/7))); } else { weeks='999'; }
-          const st=toDateOnly(startDate); const en=endDate?toDateOnly(endDate):null; if(activeRuns.some(r=>rangesOverlap(r.start_date,r.end_date,st,en))) { toast('Scheduling would overlap an existing split run.'); } else { await supabase.from('split_runs').insert({ split_id: splitId, user_id: profile.id, start_date: st, end_date: en, num_weeks: endDate? parseFloat(weeks)||1:null, num_rotations: null, active: true }); await fetchActiveRun(); }
+          const st=toDateOnly(startDate); const en=endDate?toDateOnly(endDate):null; 
+          
+          // Check for overlaps (excluding current split if editing)
+          const hasOverlap = activeRuns.some(r => r.split_id !== splitId && rangesOverlap(r.start_date,r.end_date,st,en));
+          if(hasOverlap) { 
+            toast('Scheduling would overlap an existing split run.'); 
+          } else { 
+            if (existingRun && existingRun.id) {
+              // Update existing run
+              await supabase.from('split_runs').update({ start_date: st, end_date: en, num_weeks: endDate? parseFloat(weeks)||1:null, num_rotations: null, active: true }).eq('id', existingRun.id);
+            } else {
+              // Insert new run
+              await supabase.from('split_runs').insert({ split_id: splitId, user_id: profile.id, start_date: st, end_date: en, num_weeks: endDate? parseFloat(weeks)||1:null, num_rotations: null, active: true });
+            }
+            await fetchActiveRun(); 
+          }
         } else {
           let rotations=1; if(startDate && endDate && rotationLen>0){ const ms=24*60*60*1000; const s=new Date(startDate); s.setHours(0,0,0,0); const e=new Date(endDate); e.setHours(0,0,0,0); const diff=Math.floor((e.getTime()-s.getTime())/ms); const inclusive=Math.max(0,diff)+1; const uiRot=Math.max(0.5, roundToHalf(inclusive/rotationLen)); rotations=Math.max(1, Math.ceil(inclusive/rotationLen)); await safeStorage.setItem('splitNumRotations', String(uiRot)); } else { await safeStorage.setItem('splitNumRotations', String(rotations)); }
-          const st=toDateOnly(startDate); const en=endDate?toDateOnly(endDate):null; if(activeRuns.some(r=>rangesOverlap(r.start_date,r.end_date,st,en))) { toast('Scheduling would overlap an existing split run.'); } else { await supabase.from('split_runs').insert({ split_id: splitId, user_id: profile.id, start_date: st, end_date: en, num_weeks: null, num_rotations: rotations, active: true }); await fetchActiveRun(); }
+          const st=toDateOnly(startDate); const en=endDate?toDateOnly(endDate):null; 
+          
+          // Check for overlaps (excluding current split if editing)
+          const hasOverlap = activeRuns.some(r => r.split_id !== splitId && rangesOverlap(r.start_date,r.end_date,st,en));
+          if(hasOverlap) { 
+            toast('Scheduling would overlap an existing split run.'); 
+          } else { 
+            if (existingRun && existingRun.id) {
+              // Update existing run
+              await supabase.from('split_runs').update({ start_date: st, end_date: en, num_weeks: null, num_rotations: rotations, active: true }).eq('id', existingRun.id);
+            } else {
+              // Insert new run
+              await supabase.from('split_runs').insert({ split_id: splitId, user_id: profile.id, start_date: st, end_date: en, num_weeks: null, num_rotations: rotations, active: true });
+            }
+            await fetchActiveRun(); 
+          }
         }
       }
       await fetchSplits();
@@ -391,12 +464,12 @@ const AddSplitModal: React.FC<AddSplitModalProps> = ({ visible, onClose, days, a
               marginBottom:8, 
               color: colors.text,
               letterSpacing: -0.5,
-            }}>Add New Split</Text>
+            }}>{isEditing ? 'Edit Split' : 'Add New Split'}</Text>
             <Text style={{
               fontSize: 14,
               color: colors.textMuted,
               marginBottom: 24,
-            }}>Create your custom workout split</Text>
+            }}>{isEditing ? 'Update your workout split' : 'Create your custom workout split'}</Text>
             
             <View style={{ 
               flexDirection:'row', 
@@ -749,7 +822,7 @@ const AddSplitModal: React.FC<AddSplitModalProps> = ({ visible, onClose, days, a
                     fontWeight: '700',
                     fontSize: 16,
                     letterSpacing: 0.3,
-                  }}>{adding? '⏳ Creating...':'✓ Create Split'}</Text>
+                  }}>{adding ? (isEditing ? '⏳ Updating...' : '⏳ Creating...') : (isEditing ? '✓ Update Split' : '✓ Create Split')}</Text>
                 </TouchableOpacity>
               )}
             </View>
