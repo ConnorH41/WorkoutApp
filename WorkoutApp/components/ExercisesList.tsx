@@ -15,9 +15,10 @@ type Props = {
   onDelete?: (id?: string) => void; // server-backed delete by id
   setExercises?: React.Dispatch<React.SetStateAction<ExerciseForm[]>>; // preview mode
   addButtonText?: string;
+  readOnly?: boolean; // Hide edit/delete/add buttons for display-only mode
 };
 
-export default function ExercisesList({ exercises, loading, onAdd, onEdit, onDelete, setExercises, addButtonText }: Props) {
+export default function ExercisesList({ exercises, loading, onAdd, onEdit, onDelete, setExercises, addButtonText, readOnly = false }: Props) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<ExerciseForm>({ name: '', sets: '', reps: '', notes: '' });
 
@@ -69,19 +70,23 @@ export default function ExercisesList({ exercises, loading, onAdd, onEdit, onDel
                   <Text style={styles.exerciseDetails}>{ex.sets} sets × {ex.reps} reps</Text>
                   {ex.notes ? <Text style={styles.exerciseNotes}>{ex.notes}</Text> : null}
                 </View>
-                <View style={[styles.exerciseActions, { alignSelf: 'center' }]}>
-                  <RemoveButton onPress={() => handleDelete(i, ex.id)} label="Delete" accessibilityLabel={`Delete ${ex.name}`} textStyle={styles.deleteTextSmall} />
-                  <EditPencil onPress={() => openEdit(i)} accessibilityLabel={`Edit ${ex.name}`} />
-                </View>
+                {!readOnly && (
+                  <View style={[styles.exerciseActions, { alignSelf: 'center' }]}>
+                    <RemoveButton onPress={() => handleDelete(i, ex.id)} label="Delete" accessibilityLabel={`Delete ${ex.name}`} textStyle={styles.deleteTextSmall} />
+                    <EditPencil onPress={() => openEdit(i)} accessibilityLabel={`Edit ${ex.name}`} />
+                  </View>
+                )}
               </View>
             </View>
           ))}
 
-          <AddExercise
-            mode="modal"
-            addButtonText={addButtonText}
-            onAdd={handleAdd}
-          />
+          {!readOnly && (
+            <AddExercise
+              mode="modal"
+              addButtonText={addButtonText}
+              onAdd={handleAdd}
+            />
+          )}
 
           <EditExerciseModal
             visible={editingIdx !== null}

@@ -19,9 +19,12 @@ type Props = {
   setExercises: (f: React.SetStateAction<ExerciseForm[]>) => void;
   onCreate: () => Promise<void> | void;
   creating?: boolean;
+  editingDay?: any | null; // Optional: if provided, we're editing
 };
 
-export default function AddDayModal({ visible, onClose, tabIndex, setTabIndex, dayName, setDayName, exercises, setExercises, onCreate, creating }: Props) {
+export default function AddDayModal({ visible, onClose, tabIndex, setTabIndex, dayName, setDayName, exercises, setExercises, onCreate, creating, editingDay }: Props) {
+  const isEditing = !!editingDay;
+
   const handleReset = () => {
     setDayName('');
     setExercises([]);
@@ -74,12 +77,12 @@ export default function AddDayModal({ visible, onClose, tabIndex, setTabIndex, d
                 marginBottom: 4,
                 color: colors.text,
                 letterSpacing: 0.3,
-              }}>Add New Day</Text>
+              }}>{isEditing ? 'Edit Day' : 'Add New Day'}</Text>
               <Text style={{
                 fontSize: 14,
                 color: colors.textMuted,
                 letterSpacing: 0.2,
-              }}>Create a custom workout day</Text>
+              }}>{isEditing ? 'Update your workout day' : 'Create a custom workout day'}</Text>
             </View>
 
             {/* Tabs */}
@@ -231,7 +234,7 @@ export default function AddDayModal({ visible, onClose, tabIndex, setTabIndex, d
                     fontWeight: '700',
                     fontSize: 16,
                     letterSpacing: 0.3,
-                  }}>{creating ? '⏳ Creating...' : '✓ Create Day'}</Text>
+                  }}>{creating ? (isEditing ? '⏳ Updating...' : '⏳ Creating...') : (isEditing ? '✓ Update Day' : '✓ Create Day')}</Text>
                 </TouchableOpacity>
               )}
             </View>

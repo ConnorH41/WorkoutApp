@@ -16,7 +16,7 @@ import DayRow from '../components/DayRow';
 import Badge from '../components/Badge';
 import ExercisesList from '../components/ExercisesList';
 import AddDayModal from '../components/AddDayModal';
-import EditDayModal from '../components/EditDayModal';
+
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import EditExerciseModal from '../components/EditExerciseModal';
 import { colors } from '../styles/theme';
@@ -43,7 +43,6 @@ export default function DaysTab() {
   // Modal states
   const [showAddDayModal, setShowAddDayModal] = useState(false);
   const [newDayTab, setNewDayTab] = useState<number>(0);
-  const [showEditDayModal, setShowEditDayModal] = useState(false);
   
   // For expanded day exercise editing (existing functionality)
   const [showEditExerciseModal, setShowEditExerciseModal] = useState(false);
@@ -147,10 +146,16 @@ export default function DaysTab() {
   }, [profile?.id]);
 
   // Day and delete handlers
-  const handleEditDay = (id: string, name: string) => {
+  const handleEditDay = async (id: string, name: string) => {
     setEditingDayId(id);
     setEditingDayName(name);
-    setShowEditDayModal(true);
+    
+    // Load existing exercises for this day
+    await fetchExercises(id);
+    setNewDayName(name);
+    
+    // Open the AddDayModal in edit mode
+    setShowAddDayModal(true);
   };
 
   const handleDeleteDay = (id: string) => {
@@ -179,21 +184,6 @@ export default function DaysTab() {
       return null;
     } finally {
       setAdding(false);
-    }
-  };
-
-  const handleSaveEditDay = async () => {
-    if (!editingDayId || !editingDayName.trim()) {
-      showValidationToast('Day name is required');
-      return;
-    }
-    try {
-      await updateDay(editingDayId, editingDayName.trim(), profile?.id);
-      setShowEditDayModal(false);
-      setEditingDayId(null);
-      setEditingDayName('');
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to update day');
     }
   };
 
@@ -292,29 +282,8 @@ export default function DaysTab() {
               <View style={styles.exerciseSection}>
                 <ExercisesList
                   exercises={exercises}
-                  onEdit={(ex) => handleEditExercise(ex)}
-                  onDelete={(id) => id && handleDeleteExercise(id)}
-                  onAdd={async (ex) => {
-                    if (!item.id) return;
-                    // optimistic insert
-                    const optimistic: ExerciseForm = { id: `tmp-${Date.now()}`, name: ex.name, sets: String(ex.sets), reps: String(ex.reps), notes: ex.notes };
-                    setExercises(prev => [...prev, optimistic]);
-                    setLocalCounts(prev => ({ ...prev, [item.id]: (prev[item.id] ?? exerciseCounts[item.id] ?? 0) + 1 }));
-                    try {
-                      await createExercise(item.id, optimistic);
-                      // refresh authoritative data
-                      await fetchExercises(item.id);
-                      await fetchDays(profile?.id);
-                    } catch (err: any) {
-                      // rollback optimistic
-                      setExercises(prev => prev.filter(e => e.id !== optimistic.id));
-                      setLocalCounts(prev => ({ ...prev, [item.id]: Math.max(0, (prev[item.id] ?? exerciseCounts[item.id] ?? 1) - 1) }));
-                      Alert.alert('Error', err?.message || 'Failed to add exercise');
-                    } finally {
-                      setAddingEx(false);
-                    }
-                  }}
                   loading={exLoading}
+                  readOnly={true}
                 />
               </View>
             )}
@@ -324,7 +293,14 @@ export default function DaysTab() {
 
       <AddDayModal
         visible={showAddDayModal}
-        onClose={() => { setShowAddDayModal(false); setNewDayTab(0); setNewDayName(''); setExercises([]); }}
+        onClose={() => { 
+          setShowAddDayModal(false); 
+          setNewDayTab(0); 
+          setNewDayName(''); 
+          setExercises([]); 
+          setEditingDayId(null);
+          setEditingDayName('');
+        }}
         tabIndex={newDayTab}
         setTabIndex={setNewDayTab}
         dayName={newDayName}
@@ -332,33 +308,80 @@ export default function DaysTab() {
         exercises={exercises}
         setExercises={setExercises}
         creating={adding}
+        editingDay={editingDayId ? { id: editingDayId, name: editingDayName } : null}
         onCreate={async () => {
-          const created = await handleAddDay();
-          if (!created || !created.id) return;
-          const dayId = created.id;
-          try {
-            if (dayId && exercises.length > 0) {
+          if (editingDayId) {
+            // Update existing day
+            setAdding(true);
+            try {
+              // Update day name
+              await updateDay(editingDayId, newDayName.trim(), profile?.id);
+              
+              // Delete all existing exercises for this day
+              const { data: existingExercises } = await (await import('../lib/supabase')).supabase
+                .from('exercises')
+                .select('id')
+                .eq('day_id', editingDayId);
+              
+              if (existingExercises && existingExercises.length > 0) {
+                for (const ex of existingExercises) {
+                  try {
+                    await deleteExercise(ex.id, editingDayId);
+                  } catch (err) {
+                    console.warn('Failed to delete exercise', err);
+                  }
+                }
+              }
+              
+              // Add new exercises
               for (const ex of exercises) {
                 try {
-                  await createExercise(dayId, ex);
+                  await createExercise(editingDayId, ex);
                 } catch (err) {
                   console.warn('Failed to insert exercise', err);
                 }
               }
+              
               await fetchDays(profile?.id);
+              if (selectedDayId === editingDayId) {
+                await fetchExercises(editingDayId);
+              }
+            } catch (err: any) {
+              Alert.alert('Error', err?.message || 'Failed to update day');
+            } finally {
+              setAdding(false);
+              setNewDayName('');
+              setExercises([]);
+              setShowAddDayModal(false);
+              setNewDayTab(0);
+              setEditingDayId(null);
+              setEditingDayName('');
             }
-          } finally {
-            setNewDayName('');
-            setExercises([]);
-            setShowAddDayModal(false);
-            setNewDayTab(0);
+          } else {
+            // Create new day
+            const created = await handleAddDay();
+            if (!created || !created.id) return;
+            const dayId = created.id;
+            try {
+              if (dayId && exercises.length > 0) {
+                for (const ex of exercises) {
+                  try {
+                    await createExercise(dayId, ex);
+                  } catch (err) {
+                    console.warn('Failed to insert exercise', err);
+                  }
+                }
+                await fetchDays(profile?.id);
+              }
+            } finally {
+              setNewDayName('');
+              setExercises([]);
+              setShowAddDayModal(false);
+              setNewDayTab(0);
+            }
           }
         }}
       />
-
-      
-
-      <EditDayModal visible={showEditDayModal} onClose={() => setShowEditDayModal(false)} name={editingDayName} setName={setEditingDayName} onSave={handleSaveEditDay} />
 
       
 
