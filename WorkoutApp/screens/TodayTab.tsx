@@ -82,6 +82,20 @@ export default function TodayTab() {
     setScheduledDayForToday,
   } = useTodayWorkout();
 
+  // Refetch workout data when calendar date changes
+  useEffect(() => {
+    if (profile && profile.id && calendarDate) {
+      const isoDate = formatDateOnly(calendarDate);
+      fetchActiveSplitRun().then(splitInfo => {
+        if (splitInfo && splitInfo.run && splitInfo.split) {
+          fetchTodayWorkout(isoDate, { activeRun: splitInfo.run, splitTemplate: splitInfo.split, splitDays: splitInfo.splitDays });
+        } else {
+          fetchTodayWorkout(isoDate);
+        }
+      });
+    }
+  }, [calendarDate, profile]);
+
   // --- logsHook ---
   const logsHook = useExerciseLogs({
     createWorkoutFromScheduledDay,
@@ -153,6 +167,115 @@ export default function TodayTab() {
     load();
     return () => { mounted = false; };
   }, [calendarDate, profile]);
+
+  // Load historical logs when date or workout changes
+  useEffect(() => {
+    let mounted = true;
+    const loadHistoricalLogs = async () => {
+      if (!profile || !profile.id || !calendarDate) return;
+      
+      // Wait for workout to be loaded
+      if (workoutLoading) return;
+
+      try {
+        const isoDate = formatDateOnly(calendarDate);
+        // Fetch workout for the selected date
+        const { data: workout, error: workoutError } = await api.getWorkoutByUserDate(profile.id, isoDate);
+        if (!workout || workoutError) {
+          // No workout for this date, clear logs
+          logsHook.setLogs({});
+          logsHook.setNotesByExercise({});
+          return;
+        }
+
+        // Fetch logs for this workout
+        const { data: logsData, error: logsError } = await api.getLogsByWorkoutId(workout.id);
+        if (logsError || !logsData || logsData.length === 0) {
+          logsHook.setLogs({});
+          logsHook.setNotesByExercise({});
+          return;
+        }
+
+        // Fetch workout_exercises to create mapping
+        const { data: workoutExercises } = await api.getWorkoutExercisesByWorkoutId(workout.id);
+        
+        // Create a mapping from original exercise_id to workout_exercise instance id
+        // workout_exercises have both: id (instance) and exercise_id (original)
+        const exerciseIdToInstanceId: { [originalExerciseId: string]: string } = {};
+        if (workoutExercises && workoutExercises.length > 0) {
+          workoutExercises.forEach((we: any) => {
+            if (we.exercise_id) {
+              // Map original exercise_id to this workout_exercise instance id
+              exerciseIdToInstanceId[we.exercise_id] = we.id;
+            }
+          });
+        }
+
+        // Group logs by their exercise_id, then map to workout_exercise instance ids
+        const logsByOriginalExercise: { [exerciseId: string]: Array<any> } = {};
+        const notesByOriginalExercise: { [exerciseId: string]: string } = {};
+
+        logsData.forEach((log: any) => {
+          const origExerciseId = log.exercise_id;
+          if (!logsByOriginalExercise[origExerciseId]) {
+            logsByOriginalExercise[origExerciseId] = [];
+          }
+          logsByOriginalExercise[origExerciseId].push({
+            setNumber: log.set_number,
+            reps: String(log.reps || ''),
+            weight: String(log.weight || ''),
+            completed: !!log.completed,
+            logId: log.id,
+          });
+          // Store notes (typically same for all sets of an exercise)
+          if (log.notes && !notesByOriginalExercise[origExerciseId]) {
+            notesByOriginalExercise[origExerciseId] = log.notes;
+          }
+        });
+
+        // Sort sets by set_number for each exercise
+        Object.keys(logsByOriginalExercise).forEach(exerciseId => {
+          logsByOriginalExercise[exerciseId].sort((a, b) => a.setNumber - b.setNumber);
+        });
+
+        // Map logs to workout_exercise instance ids for the UI
+        const groupedLogs: { [instanceId: string]: Array<any> } = {};
+        const notesMap: { [instanceId: string]: string } = {};
+
+        Object.keys(logsByOriginalExercise).forEach(origExerciseId => {
+          const instanceId = exerciseIdToInstanceId[origExerciseId];
+          if (instanceId) {
+            // Map to the workout_exercise instance
+            groupedLogs[instanceId] = logsByOriginalExercise[origExerciseId];
+            if (notesByOriginalExercise[origExerciseId]) {
+              notesMap[instanceId] = notesByOriginalExercise[origExerciseId];
+            }
+          } else {
+            // Fallback: if no workout_exercise instance found, use original exercise_id
+            // This handles cases where exercises were logged directly
+            groupedLogs[origExerciseId] = logsByOriginalExercise[origExerciseId];
+            if (notesByOriginalExercise[origExerciseId]) {
+              notesMap[origExerciseId] = notesByOriginalExercise[origExerciseId];
+            }
+          }
+        });
+
+        if (mounted) {
+          logsHook.setLogs(groupedLogs);
+          logsHook.setNotesByExercise(notesMap);
+        }
+      } catch (e) {
+        console.error('Error loading historical logs:', e);
+        if (mounted) {
+          logsHook.setLogs({});
+          logsHook.setNotesByExercise({});
+        }
+      }
+    };
+
+    loadHistoricalLogs();
+    return () => { mounted = false; };
+  }, [calendarDate, profile, todayWorkout, workoutLoading, exercises]);
 
       
   // Prepare the data array for the FlatList:
@@ -485,7 +608,10 @@ export default function TodayTab() {
         onCancel={() => setShowCalendarModal(false)}
         onConfirm={(isoDate) => {
           setShowCalendarModal(false);
-          setCalendarDate(new Date(isoDate));
+          // Parse ISO date string (YYYY-MM-DD) to create a Date at local midnight
+          // to avoid timezone offset issues
+          const [year, month, day] = isoDate.split('-').map(Number);
+          setCalendarDate(new Date(year, month - 1, day));
         }}
       />
     </View>
