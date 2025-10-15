@@ -8,7 +8,7 @@ import styles from '../styles/todayStyles';
 import ConfirmModal from '../components/ConfirmModal';
 import ExerciseCard from '../components/ExerciseCard';
 import ModalButtons from '../components/ModalButtons';
-import WorkoutControls from '../components/WorkoutControls';
+// import WorkoutControls removed
 import { useTodayWorkout } from '../hooks/useTodayWorkout';
 import { useExerciseLogs } from '../hooks/useExerciseLogs';
 import * as api from '../lib/api';
@@ -71,14 +71,7 @@ export default function TodayTab() {
     addBlankExerciseToSplit,
     deleteExercise,
     updateWorkoutExerciseInstance,
-    markComplete,
-    unmarkComplete,
-    markRestDay,
-    unmarkRestDay,
     creatingWorkout,
-    completing,
-    resting,
-    isRestDay,
     splitDayId,
     splitDayMapped,
     activeSplitRun,
@@ -190,7 +183,7 @@ export default function TodayTab() {
   // Treat as rest day for UI when either persisted as rest, or when the active split
   // was evaluated for the date (`splitDayMapped === true`) and the mapping returned
   // `null` (no split day slot) => treat as an explicit rest day from the split.
-  const headerIsRest = !!isRestDay || (hasActiveSplit && splitDayMapped && splitDayId == null);
+  const headerIsRest = hasActiveSplit && splitDayMapped && splitDayId == null;
   // Helper to get an exercise display name by id (used in delete confirm)
   const getExerciseName = (id: string | null) => {
     if (!id) return '';
@@ -349,51 +342,6 @@ export default function TodayTab() {
                 <Text style={{ color: theme.primary, fontWeight: '700' }}>{'+ Add Exercise'}</Text>
               </TouchableOpacity>
             </View>
-            <View style={{ marginTop: 12, paddingHorizontal: 16 }}>
-              <WorkoutControls
-                todayWorkout={todayWorkout}
-                isRestDay={headerIsRest}
-                completing={completing}
-                resting={resting}
-                onConfirmComplete={() => setShowCompleteConfirm(true)}
-                onUnmarkComplete={() => setShowCompleteConfirm(true)}
-                onConfirmRestToggle={() => setShowRestConfirm(true)}
-              />
-            </View>
-            {/* If there's no workout for today and neither the run nor the header indicate a rest day, allow marking either as a completed workout or marking as a rest day. Both buttons should be visible under the same conditions. */}
-            {!todayWorkout && !headerIsRest && (
-              <View style={{ paddingHorizontal: 16 }}>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => setShowCompleteConfirm(true)}
-                  disabled={completing}
-                  style={[styles.secondaryButton, completing ? styles.secondaryButtonDisabled : null, { marginBottom: 8 }]}
-                >
-                  <Text style={[styles.secondaryButtonText, completing ? styles.secondaryButtonTextDisabled : null]}>{completing ? 'Completing...' : (effectiveCompleted ? 'Unmark Workout as Complete' : 'Mark Workout Complete')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => setShowRestConfirm(true)}
-                  disabled={resting}
-                  style={[styles.secondaryButton, resting ? styles.secondaryButtonDisabled : null]}
-                >
-                  <Text style={[styles.secondaryButtonText, resting ? styles.secondaryButtonTextDisabled : null]}>{resting ? 'Logging...' : 'Mark as Rest Day'}</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-            {/* If it's a rest day (either flagged or implied by header) show a friendly message instead of the mark button */}
-            {headerIsRest && (
-              <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => setShowRestConfirm(true)}
-                  disabled={resting}
-                  style={[styles.secondaryButton, resting ? styles.secondaryButtonDisabled : null]}
-                >
-                  <Text style={[styles.secondaryButtonText, resting ? styles.secondaryButtonTextDisabled : null]}>{resting ? 'Logging...' : 'Unmark as Rest Day'}</Text>
-                </TouchableOpacity>
-              </View>
-            )}
           </View>
         )}
       />
@@ -405,33 +353,31 @@ export default function TodayTab() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 12 }}>Settings</Text>
-
-
             <TouchableOpacity
               onPress={async () => {
                 // Load display names for day_id references before opening modal
                 try {
-                    setSplitDayNamesLoading(true);
-                    const ids = Array.from(new Set((splitDays || []).map((s: any) => s.day_id).filter(Boolean)));
-                    const map: Record<string, string> = {};
-                    await Promise.all(ids.map(async (id) => {
-                      try {
-                        const { data } = await api.getDayById(id);
-                        if (data && data.length > 0) map[id] = data[0].name || id;
-                        else map[id] = id;
-                      } catch (e) {
-                        map[id] = id;
-                      }
-                    }));
-                    setSplitDayNames(map);
-                  } catch (e) {
-                    // ignore
-                  } finally {
-                    setSplitDayNamesLoading(false);
-                    // close settings so the change-day modal is visible on top
-                    setShowSettingsModal(false);
-                    setShowChangeDayModal(true);
-                  }
+                  setSplitDayNamesLoading(true);
+                  const ids = Array.from(new Set((splitDays || []).map((s: any) => s.day_id).filter(Boolean)));
+                  const map: Record<string, string> = {};
+                  await Promise.all(ids.map(async (id) => {
+                    try {
+                      const { data } = await api.getDayById(id);
+                      if (data && data.length > 0) map[id] = data[0].name || id;
+                      else map[id] = id;
+                    } catch (e) {
+                      map[id] = id;
+                    }
+                  }));
+                  setSplitDayNames(map);
+                } catch (e) {
+                  // ignore
+                } finally {
+                  setSplitDayNamesLoading(false);
+                  // close settings so the change-day modal is visible on top
+                  setShowSettingsModal(false);
+                  setShowChangeDayModal(true);
+                }
               }}
               style={[styles.primaryButton, { marginBottom: 8 }]}
             >
@@ -459,188 +405,9 @@ export default function TodayTab() {
         </View>
       </Modal>
 
-      {/* Calendar modal */}
-      <DatePickerModal
-        visible={showCalendarModal}
-        initialDate={calendarDate}
-        onCancel={() => setShowCalendarModal(false)}
-        onConfirm={(isoDate) => {
-          setShowCalendarModal(false);
-            // Parse YYYY-MM-DD into a local Date at midnight to avoid timezone shifts
-            const parts = isoDate.split('-').map(p => parseInt(p, 10));
-            let d: Date | null = null;
-            if (parts.length === 3 && parts.every(p => !Number.isNaN(p))) {
-              d = new Date(parts[0], parts[1] - 1, parts[2]);
-              d.setHours(0, 0, 0, 0);
-            }
-            setCalendarDate(d);
-          // clear transient UI state so day-specific edits don't carry across
-          setRemovedExerciseIds([]);
-          setEditedNames({});
-          setEditingByExercise({});
-          (async () => {
-            // ensure split/run data is loaded first so mapping is accurate for the chosen date
-            const splitInfo = await fetchActiveSplitRun();
-            if (splitInfo && splitInfo.run && splitInfo.split) {
-              await fetchTodayWorkout(isoDate, { activeRun: splitInfo.run, splitTemplate: splitInfo.split, splitDays: splitInfo.splitDays });
-            } else {
-              await fetchTodayWorkout(isoDate);
-            }
-          })();
-        }}
-      />
+      {/* ConfirmModal for workout complete removed */}
 
-      <Modal visible={showChangeDayModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 12 }}>Change Today's Scheduled Day</Text>
-            <Text style={{ marginBottom: 8, color: '#666' }}>Select a different scheduled day to apply for today. This will persist into your calendar but won't alter your split configuration.</Text>
-            <ScrollView style={{ maxHeight: 300, marginBottom: 12 }}>
-              {(() => {
-                const ids = Array.from(new Set((splitDays || []).map((s: any) => s.day_id).filter(Boolean)));
-                return (
-                  <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                    {ids.map((dayId: string) => (
-                      <TouchableOpacity
-                        key={dayId}
-                        onPress={async () => {
-                          setChangeDaySubmitting(true);
-                          try {
-                            await setScheduledDayForToday(dayId ?? null);
-                            setShowChangeDayModal(false);
-                          } catch (e) {}
-                          setChangeDaySubmitting(false);
-                        }}
-                        style={[require('../styles/splitsStyles').default.assignBtn, { marginVertical: 8, minWidth: 160, alignItems: 'center', justifyContent: 'center' }]}
-                      >
-                        <Text style={require('../styles/splitsStyles').default.assignBtnText}>{splitDayNames[dayId] || dayId}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                );
-              })()}
-            </ScrollView>
-            <TouchableOpacity onPress={() => { setShowChangeDayModal(false); setShowSettingsModal(true); }} style={{ paddingVertical: 10, alignItems: 'center' }}>
-              <Text style={{ color: colors.primary, fontWeight: '700' }}>Back</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      <ConfirmModal
-        visible={showCompleteConfirm}
-        title={effectiveCompleted ? 'Unmark Workout as Complete?' : 'Mark Workout Complete?'}
-        message={effectiveCompleted ? "This will unmark today's workout as complete. Continue?" : "This will mark today's workout as complete. Continue?"}
-        onConfirm={async () => {
-          setShowCompleteConfirm(false);
-          // If the workout is effectively completed (persisted or all sets checked),
-          // un-complete sets and unmark the workout if it was persisted as completed.
-          if (effectiveCompleted) {
-            const uncompleteAllSetsThenUnmark = async () => {
-              try {
-                const items = visibleExercises || [];
-                for (const it of items) {
-                  const exId = it.id;
-                  const setRows = logsHook.logs[String(exId)] || [];
-                  for (let i = 0; i < setRows.length; i++) {
-                    const row = setRows[i];
-                    if (!row || !row.completed) continue;
-                    try {
-                      // toggleSetCompleted will un-persist the completed flag if possible
-                      // eslint-disable-next-line no-await-in-loop
-                      await logsHook.toggleSetCompleted(exId, i);
-                    } catch (e) {
-                      // fallback: update local state to uncheck
-                      logsHook.setLogs(prev => {
-                        const copy = { ...prev } as any;
-                        const arr = copy[exId] ? [...copy[exId]] : [];
-                        while (arr.length <= i) arr.push({ setNumber: arr.length + 1, reps: '', weight: '', completed: false, logId: null });
-                        arr[i] = { ...(arr[i] || {}), completed: false } as any;
-                        copy[exId] = arr;
-                        return copy;
-                      });
-                    }
-                  }
-                }
-              } catch (e) {
-                // ignore
-              }
-              // Only call unmarkComplete if the workout was persisted and marked complete
-              if (todayWorkout && todayWorkout.completed) {
-                try { await unmarkComplete(); } catch (e) {}
-              }
-            };
-            await uncompleteAllSetsThenUnmark();
-          } else {
-            // If there's no persisted workout object for today yet, create one so
-            // marking complete persists and the 'Unmark' path becomes available.
-            if (!todayWorkout) {
-              try {
-                await createWorkoutFromScheduledDay();
-              } catch (e) {
-                // ignore creation errors - we'll still attempt to markComplete which may no-op
-              }
-            }
-
-            // Otherwise, complete sets then mark workout complete
-            const completeAllSetsThenMark = async () => {
-              try {
-                const items = visibleExercises || [];
-                for (const it of items) {
-                  const exId = it.id;
-                  const setRows = logsHook.logs[String(exId)] || [];
-
-                  // If there are no sets, skip
-                  if (setRows.length === 0) continue;
-
-                  // Persist each set individually so the UI rows remain present and
-                  // are marked completed (read-only) — matching the per-set checkbox behavior.
-                  for (let i = 0; i < setRows.length; i++) {
-                    const row = setRows[i];
-                    if (!row || row.completed) continue;
-                    const repsOk = row && row.reps !== '' && !Number.isNaN(Number(row.reps));
-                    const weightOk = row && row.weight !== '' && !Number.isNaN(Number(row.weight));
-                    if (repsOk && weightOk) {
-                      try {
-                        // Persist this set as a completed log and keep the local row
-                        // eslint-disable-next-line no-await-in-loop
-                        await logsHook.toggleSetCompleted(exId, i);
-                      } catch (e) {
-                        // ignore per-set errors and continue
-                      }
-                    } else {
-                      // Mark locally as completed so UI shows checks even if not persisted
-                      logsHook.setLogs(prev => {
-                        const copy = { ...prev } as any;
-                        const arr = copy[exId] ? [...copy[exId]] : [];
-                        while (arr.length <= i) arr.push({ setNumber: arr.length + 1, reps: '', weight: '', completed: false, logId: null });
-                        arr[i] = { ...(arr[i] || {}), completed: true } as any;
-                        copy[exId] = arr;
-                        return copy;
-                      });
-                    }
-                  }
-                }
-              } catch (e) {
-                // ignore
-              }
-              // Finally, mark workout complete (persist flag)
-              try { await markComplete(); } catch (e) {}
-            };
-            await completeAllSetsThenMark();
-          }
-        }}
-        onCancel={() => setShowCompleteConfirm(false)}
-      />
-
-      <ConfirmModal
-        visible={showRestConfirm}
-        title={isRestDay ? 'Unmark Rest Day?' : 'Mark Rest Day?'}
-        message={isRestDay ? "This will unmark today as a rest day." : "This will mark today as a rest day."}
-        confirmLabel={isRestDay ? 'Unmark' : 'Mark'}
-        onConfirm={async () => { setShowRestConfirm(false); if (isRestDay) await unmarkRestDay(); else await markRestDay(); }}
-        onCancel={() => setShowRestConfirm(false)}
-      />
+      {/* ConfirmModal for rest day removed */}
 
       <ConfirmModal
         visible={showDeleteSetConfirm}

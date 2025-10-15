@@ -12,9 +12,6 @@ Built with **Expo (React Native)** and **Supabase** for cross-platform fitness t
 - Build splits in two modes:
   - **Weekly Split**: assign days to weekdays.  
   - **Rotation Split**: cycle through days in order with optional rest days.  
-- **Rescheduling logic**:
-  - Weekly Split → rebuild remaining week with Week Builder.  
-  - Rotation Split → mark day as rest (move workout to tomorrow).  
 - **Today Tab**:
   - Log bodyweight.  
   - View and complete today’s workout.  

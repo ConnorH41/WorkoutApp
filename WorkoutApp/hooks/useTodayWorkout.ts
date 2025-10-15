@@ -18,8 +18,7 @@ export function useTodayWorkout() {
   const [dayNameFromWorkout, setDayNameFromWorkout] = useState<string | null>(null);
   const [creatingWorkout, setCreatingWorkout] = useState(false);
   const [completing, setCompleting] = useState(false);
-  const [resting, setResting] = useState(false);
-  const [isRestDay, setIsRestDay] = useState(false);
+  // Removed resting and isRestDay state
 
   useEffect(() => {
     if (profile && profile.id) {
@@ -305,8 +304,6 @@ export function useTodayWorkout() {
   const { data: workout, error: workoutError } = await api.getWorkoutByUserDate(profile.id, today);
       if (workout && !workoutError) {
         setTodayWorkout(workout);
-        // Mark rest day if the workout exists and is marked completed
-        setIsRestDay(!!workout.completed);
         if (workout.day_id) {
           const { data: dayData } = await api.getDayById(workout.day_id);
           if (dayData && dayData.length > 0) setDayNameFromWorkout(dayData[0].name);
@@ -340,7 +337,7 @@ export function useTodayWorkout() {
         setExercises([]);
         setDayNameFromWorkout(null);
         // No explicit workout record for this date -> not a completed rest day
-        setIsRestDay(false);
+  // setIsRestDay removed
       }
       // Regardless of whether there's a created workout for the date, compute
       // the scheduled split day (if any) for this date so the UI can show the
@@ -362,7 +359,7 @@ export function useTodayWorkout() {
               setSplitDayName(day ? day.name : null);
               const { data: exData } = await api.getExercisesByDayId(mappedId);
               setSplitDayExercises(exData || []);
-              setIsRestDay(false);
+              // setIsRestDay removed
             } else {
               setSplitDayName(null);
               setSplitDayExercises([]);
@@ -377,7 +374,7 @@ export function useTodayWorkout() {
               setSplitDayName(day ? day.name : null);
               const { data: exData } = await api.getExercisesByDayId(mappedId);
               setSplitDayExercises(exData || []);
-              setIsRestDay(false);
+              // setIsRestDay removed
             } else {
               setSplitDayName(null);
               setSplitDayExercises([]);
@@ -593,80 +590,6 @@ export function useTodayWorkout() {
     return null;
   };
 
-  const markComplete = async () => {
-    if (!todayWorkout || !todayWorkout.id) return false;
-    setCompleting(true);
-    try {
-      const { data, error } = await api.updateWorkout(todayWorkout.id, { completed: true });
-      setCompleting(false);
-      if (error) return false;
-      if (data && data.length > 0) setTodayWorkout(data[0]);
-      return true;
-    } catch (e) {
-      setCompleting(false);
-      return false;
-    }
-  };
-
-  const unmarkComplete = async () => {
-    if (!todayWorkout || !todayWorkout.id) return false;
-    setCompleting(true);
-    try {
-      const { data, error } = await api.updateWorkout(todayWorkout.id, { completed: false });
-      setCompleting(false);
-      if (error) return false;
-      if (data && data.length > 0) setTodayWorkout(data[0]);
-      setIsRestDay(false);
-      return true;
-    } catch (e) {
-      setCompleting(false);
-      return false;
-    }
-  };
-
-  const markRestDay = async () => {
-    if (!profile || !profile.id) return false;
-    setResting(true);
-    try {
-  const today = formatDateOnly(new Date());
-      if (todayWorkout && todayWorkout.id) {
-        const { data, error } = await api.updateWorkout(todayWorkout.id, { completed: true });
-        setResting(false);
-        if (error) return false;
-        if (data && data.length > 0) setTodayWorkout(data[0]);
-      } else {
-        const { data, error } = await api.insertWorkout({ user_id: profile.id, date: today, completed: true });
-        setResting(false);
-        if (error) return false;
-        if (data && data.length > 0) setTodayWorkout(data[0]);
-      }
-      setIsRestDay(true);
-      return true;
-    } catch (e) {
-      setResting(false);
-      return false;
-    }
-  };
-
-  const unmarkRestDay = async () => {
-    if (!todayWorkout || !todayWorkout.id) {
-      setIsRestDay(false);
-      return true;
-    }
-    setResting(true);
-    try {
-      const { data, error } = await api.updateWorkout(todayWorkout.id, { completed: false });
-      setResting(false);
-      if (error) return false;
-      if (data && data.length > 0) setTodayWorkout(data[0]);
-      setIsRestDay(false);
-      return true;
-    } catch (e) {
-      setResting(false);
-      return false;
-    }
-  };
-
   return {
     profile,
     workoutLoading,
@@ -687,16 +610,10 @@ export function useTodayWorkout() {
     addBlankExerciseToWorkout,
     addBlankExerciseToSplit,
     deleteExercise,
-    markComplete,
-  unmarkComplete,
-    markRestDay,
-    unmarkRestDay,
     creatingWorkout,
     completing,
-    resting,
-    isRestDay,
-  splitDayId,
-  splitDayMapped,
+    splitDayId,
+    splitDayMapped,
     setTodayWorkout,
     setExercises,
     setSplitDayExercises,
