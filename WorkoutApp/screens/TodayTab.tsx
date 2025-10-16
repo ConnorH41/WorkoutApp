@@ -351,7 +351,8 @@ export default function TodayTab() {
       try {
         if (!calendarDate) return '';
         const d = new Date(calendarDate);
-        const opts: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' };
+        // Show full weekday name (e.g., "Thursday") and short month/day
+        const opts: Intl.DateTimeFormatOptions = { weekday: 'long', month: 'short', day: 'numeric' };
         return d.toLocaleDateString(undefined, opts);
       } catch {
         return '';
