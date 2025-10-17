@@ -276,6 +276,8 @@ export function useTodayWorkout() {
           const { data: dayData } = await api.getDayById(dayId);
           const day = dayData && dayData.length > 0 ? dayData[0] : null;
           setSplitDayName(day ? day.name : null);
+          // Also update the workout-derived day name so the UI header updates immediately
+          setDayNameFromWorkout(day ? day.name : null);
           const { data: exData } = await api.getExercisesByDayId(dayId);
           setSplitDayExercises(exData || []);
         } catch (e) {
@@ -285,6 +287,8 @@ export function useTodayWorkout() {
       } else {
         setSplitDayName(null);
         setSplitDayExercises([]);
+        // Ensure the workout-derived day name is cleared too (show 'Rest')
+        setDayNameFromWorkout(null);
       }
 
       return true;

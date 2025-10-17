@@ -9,13 +9,12 @@ interface BodyweightCardProps {
   submitting: boolean;
   recordId: string | null;
   onChangeWeight: (v: string) => void;
-  onToggleKg: (v: boolean) => void;
   onSave: () => void;
 }
 
 const ELEMENT_HEIGHT = 40;
 
-export default function BodyweightCard({ bodyweight, isKg, submitting, recordId, onChangeWeight, onToggleKg, onSave }: BodyweightCardProps) {
+export default function BodyweightCard({ bodyweight, isKg, submitting, recordId, onChangeWeight, onSave }: BodyweightCardProps) {
   return (
     <View style={[styles.exerciseBox, { marginBottom: 16, marginHorizontal: 16 }]}>  
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
@@ -43,36 +42,16 @@ export default function BodyweightCard({ bodyweight, isKg, submitting, recordId,
             localStyles.textInput,
             recordId ? styles.inputDisabled : null,
           ]}
-          placeholder={isKg ? 'Weight (kg)' : 'Weight (lbs)'}
+          placeholder={isKg ? 'Weight (kg)' : 'Weight (lb)'}
           value={bodyweight}
           onChangeText={onChangeWeight}
           keyboardType="numeric"
           editable={!recordId}
         />
 
-        {/* Unit toggle buttons */}
-        <View style={localStyles.unitContainer}> 
-          <TouchableOpacity
-            style={[
-              localStyles.unitButton,
-              isKg ? styles.unitToggleBtnActive : null,
-            ]}
-            onPress={() => onToggleKg(true)}
-            activeOpacity={0.9}
-          >
-            <Text style={[styles.unitToggleText, isKg ? styles.unitToggleTextActive : null]}>kg</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[
-              localStyles.unitButton,
-              !isKg ? styles.unitToggleBtnActive : null,
-            ]}
-            onPress={() => onToggleKg(false)}
-            activeOpacity={0.9}
-          >
-            <Text style={[styles.unitToggleText, !isKg ? styles.unitToggleTextActive : null]}>lbs</Text>
-          </TouchableOpacity>
+        {/* Unit label */}
+        <View style={localStyles.unitLabel}>
+          <Text style={localStyles.unitLabelText}>{isKg ? 'kg' : 'lb'}</Text>
         </View>
       </View>
     </View>
@@ -107,18 +86,16 @@ const localStyles = StyleSheet.create({
     textAlignVertical: 'center',
     color: '#000',
   },
-  unitContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  unitButton: {
+  unitLabel: {
     height: ELEMENT_HEIGHT,
     paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: '#F5F5F5',
     justifyContent: 'center',
     alignItems: 'center',
     minWidth: 48,
+  },
+  unitLabelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textMuted,
   },
 });

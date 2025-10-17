@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, TextInput, FlatList, ActivityIndicator, Alert, Keyboard, Modal, TouchableOpacity, Platform, ScrollView } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import BodyweightCard from '../components/BodyweightCard';
 import { useTheme } from '../lib/ThemeContext';
 import DatePickerModal from '../components/DatePickerModal';
@@ -53,6 +54,31 @@ export default function TodayTab() {
     const dd = new Date(d);
     dd.setHours(0, 0, 0, 0);
     return `${dd.getFullYear()}-${pad(dd.getMonth() + 1)}-${pad(dd.getDate())}`;
+  };
+
+  // Load saved weight unit preference on mount
+  useEffect(() => {
+    const loadWeightUnit = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('weightUnit');
+        if (saved) {
+          setIsKg(saved === 'kg');
+        }
+      } catch (error) {
+        console.error('Failed to load weight unit preference:', error);
+      }
+    };
+    loadWeightUnit();
+  }, []);
+
+  // Save weight unit preference
+  const handleWeightUnitChange = async (useKg: boolean) => {
+    setIsKg(useKg);
+    try {
+      await AsyncStorage.setItem('weightUnit', useKg ? 'kg' : 'lb');
+    } catch (error) {
+      console.error('Failed to save weight unit preference:', error);
+    }
   };
 
   // --- useTodayWorkout hook ---
@@ -415,7 +441,6 @@ export default function TodayTab() {
               submitting={bodyweightSubmitting}
               recordId={bodyweightRecordId}
               onChangeWeight={setBodyweight}
-              onToggleKg={setIsKg}
               onSave={onSaveBodyweight}
             />
           </View>
@@ -502,59 +527,421 @@ export default function TodayTab() {
       {/* Modals and confirmations placed outside the FlatList but inside the component root */}
       {/* Removed Bodyweight Modal - now inline card only */}
 
-      {/* Settings modal (simple placeholder with Logout) */}
-      <Modal visible={showSettingsModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 12 }}>Settings</Text>
-            <TouchableOpacity
-              onPress={async () => {
-                // Load display names for day_id references before opening modal
-                try {
-                  setSplitDayNamesLoading(true);
-                  const ids = Array.from(new Set((splitDays || []).map((s: any) => s.day_id).filter(Boolean)));
-                  const map: Record<string, string> = {};
-                  await Promise.all(ids.map(async (id) => {
+      {/* Settings modal */}
+      <Modal visible={showSettingsModal} animationType="slide" transparent onRequestClose={() => setShowSettingsModal(false)}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <View style={{
+            backgroundColor: colors.background,
+            padding: 24,
+            borderRadius: 20,
+            width: '90%',
+            maxWidth: 420,
+            maxHeight: '85%',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.15,
+            shadowRadius: 12,
+            elevation: 8,
+          }}>
+            {/* X Close Button */}
+            <View style={{ position: 'relative' }}>
+              <TouchableOpacity
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  right: 0,
+                  padding: 8,
+                  zIndex: 10,
+                }}
+                onPress={() => setShowSettingsModal(false)}
+              >
+                <Text style={{
+                  fontSize: 24,
+                  color: colors.textMuted,
+                  fontWeight: '600',
+                }}>✕</Text>
+              </TouchableOpacity>
+
+              {/* Title Section */}
+              <View style={{ marginBottom: 24 }}>
+                <Text style={{
+                  fontWeight: '700',
+                  fontSize: 22,
+                  marginBottom: 4,
+                  color: colors.text,
+                  letterSpacing: 0.3,
+                }}>Settings</Text>
+                <Text style={{
+                  fontSize: 14,
+                  color: colors.textMuted,
+                }}>Manage your workout preferences</Text>
+              </View>
+            </View>
+
+            <ScrollView style={{ maxHeight: 450 }} showsVerticalScrollIndicator={false}>
+              {/* Workout Section */}
+              <View style={{ marginBottom: 24 }}>
+                <Text style={{
+                  fontSize: 13,
+                  fontWeight: '700',
+                  color: colors.textMuted,
+                  marginBottom: 12,
+                  letterSpacing: 1,
+                  textTransform: 'uppercase',
+                }}>Workout</Text>
+
+                <TouchableOpacity
+                  onPress={async () => {
+                    // Load display names for day_id references before opening modal
                     try {
-                      const { data } = await api.getDayById(id);
-                      if (data && data.length > 0) map[id] = data[0].name || id;
-                      else map[id] = id;
+                      setSplitDayNamesLoading(true);
+                      const ids = Array.from(new Set((splitDays || []).map((s: any) => s.day_id).filter(Boolean)));
+                      const map: Record<string, string> = {};
+                      await Promise.all(ids.map(async (id) => {
+                        try {
+                          const { data } = await api.getDayById(id);
+                          if (data && data.length > 0) map[id] = data[0].name || id;
+                          else map[id] = id;
+                        } catch (e) {
+                          map[id] = id;
+                        }
+                      }));
+                      setSplitDayNames(map);
                     } catch (e) {
-                      map[id] = id;
+                      // ignore
+                    } finally {
+                      setSplitDayNamesLoading(false);
+                      // close settings so the change-day modal is visible on top
+                      setShowSettingsModal(false);
+                      setShowChangeDayModal(true);
                     }
-                  }));
-                  setSplitDayNames(map);
-                } catch (e) {
-                  // ignore
-                } finally {
-                  setSplitDayNamesLoading(false);
-                  // close settings so the change-day modal is visible on top
-                  setShowSettingsModal(false);
-                  setShowChangeDayModal(true);
-                }
-              }}
-              style={[styles.primaryButton, { marginBottom: 8 }]}
-            >
-              <Text style={styles.primaryButtonText}>{splitDayNamesLoading ? 'Loading...' : 'Change Scheduled Day'}</Text>
-            </TouchableOpacity>
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingVertical: 14,
+                    paddingHorizontal: 16,
+                    backgroundColor: colors.backgroundMuted,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    marginBottom: 8,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <Text style={{ fontSize: 20, marginRight: 12 }}>📅</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>
+                        {splitDayNamesLoading ? 'Loading...' : 'Change Scheduled Day'}
+                      </Text>
+                      <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>
+                        Override today's workout
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 18, color: colors.textMuted }}>›</Text>
+                </TouchableOpacity>
+              </View>
 
-            <TouchableOpacity
-              onPress={async () => {
-                try {
-                  await supabase.auth.signOut();
-                } catch (e) {
-                  // ignore
-                }
-                useProfileStore.getState().setProfile(null);
-              }}
-              style={[styles.primaryButton, { backgroundColor: colors.danger, marginBottom: 8 }]}
-            >
-              <Text style={styles.primaryButtonText}>Logout</Text>
-            </TouchableOpacity>
+              {/* Preferences Section */}
+              <View style={{ marginBottom: 24 }}>
+                <Text style={{
+                  fontSize: 13,
+                  fontWeight: '700',
+                  color: colors.textMuted,
+                  marginBottom: 12,
+                  letterSpacing: 1,
+                  textTransform: 'uppercase',
+                }}>Preferences</Text>
 
-            <TouchableOpacity onPress={() => setShowSettingsModal(false)} style={{ padding: 12, alignItems: 'center' }}>
-              <Text style={{ color: colors.primary, fontWeight: '700' }}>Close</Text>
-            </TouchableOpacity>
+                {/* Default Weight Unit */}
+                <View style={{
+                  paddingVertical: 14,
+                  paddingHorizontal: 16,
+                  backgroundColor: colors.backgroundMuted,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  marginBottom: 8,
+                }}>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 12 }}>
+                    Default Weight Unit
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <TouchableOpacity
+                      onPress={() => handleWeightUnitChange(true)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 12,
+                        paddingHorizontal: 16,
+                        borderRadius: 10,
+                        backgroundColor: isKg ? colors.primary : '#fff',
+                        borderWidth: 2,
+                        borderColor: isKg ? colors.primary : colors.border,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text style={{ 
+                        fontSize: 15, 
+                        fontWeight: '700', 
+                        color: isKg ? '#fff' : colors.text 
+                      }}>kg</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleWeightUnitChange(false)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 12,
+                        paddingHorizontal: 16,
+                        borderRadius: 10,
+                        backgroundColor: !isKg ? colors.primary : '#fff',
+                        borderWidth: 2,
+                        borderColor: !isKg ? colors.primary : colors.border,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text style={{ 
+                        fontSize: 15, 
+                        fontWeight: '700', 
+                        color: !isKg ? '#fff' : colors.text 
+                      }}>lb</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Rest Timer (placeholder for future) */}
+                <View style={{
+                  paddingVertical: 14,
+                  paddingHorizontal: 16,
+                  backgroundColor: colors.backgroundMuted,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  marginBottom: 8,
+                  opacity: 0.6,
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>
+                        Rest Timer
+                      </Text>
+                      <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>
+                        Coming soon
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Data Section */}
+              <View style={{ marginBottom: 24 }}>
+                <Text style={{
+                  fontSize: 13,
+                  fontWeight: '700',
+                  color: colors.textMuted,
+                  marginBottom: 12,
+                  letterSpacing: 1,
+                  textTransform: 'uppercase',
+                }}>Data</Text>
+
+                {/* Export Data (placeholder) */}
+                <View style={{
+                  paddingVertical: 14,
+                  paddingHorizontal: 16,
+                  backgroundColor: colors.backgroundMuted,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  marginBottom: 8,
+                  opacity: 0.6,
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                      <Text style={{ fontSize: 20, marginRight: 12 }}>📊</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>
+                          Export Workout Data
+                        </Text>
+                        <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>
+                          Coming soon
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Account Section */}
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{
+                  fontSize: 13,
+                  fontWeight: '700',
+                  color: colors.textMuted,
+                  marginBottom: 12,
+                  letterSpacing: 1,
+                  textTransform: 'uppercase',
+                }}>Account</Text>
+
+                <TouchableOpacity
+                  onPress={async () => {
+                    try {
+                      await supabase.auth.signOut();
+                    } catch (e) {
+                      // ignore
+                    }
+                    useProfileStore.getState().setProfile(null);
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingVertical: 14,
+                    paddingHorizontal: 16,
+                    backgroundColor: '#FFF5F5',
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: colors.danger,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <Text style={{ fontSize: 20, marginRight: 12 }}>🚪</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: colors.danger }}>
+                      Logout
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Change Scheduled Day modal */}
+      <Modal visible={showChangeDayModal} animationType="slide" transparent onRequestClose={() => setShowChangeDayModal(false)}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <View style={{
+            backgroundColor: colors.background,
+            padding: 24,
+            borderRadius: 20,
+            width: '90%',
+            maxWidth: 420,
+            maxHeight: '80%',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.15,
+            shadowRadius: 12,
+            elevation: 8,
+          }}>
+            {/* X Close Button */}
+            <View style={{ position: 'relative' }}>
+              <TouchableOpacity
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  right: 0,
+                  padding: 8,
+                  zIndex: 10,
+                }}
+                onPress={() => setShowChangeDayModal(false)}
+              >
+                <Text style={{
+                  fontSize: 24,
+                  color: colors.textMuted,
+                  fontWeight: '600',
+                }}>✕</Text>
+              </TouchableOpacity>
+
+              {/* Title Section */}
+              <View style={{ marginBottom: 20 }}>
+                <Text style={{
+                  fontWeight: '700',
+                  fontSize: 22,
+                  marginBottom: 4,
+                  color: colors.text,
+                  letterSpacing: 0.3,
+                }}>Change Scheduled Day</Text>
+                <Text style={{
+                  fontSize: 14,
+                  color: colors.textMuted,
+                }}>Select a day to schedule for today</Text>
+              </View>
+            </View>
+
+            {/* Scrollable Day List */}
+            <ScrollView style={{ maxHeight: 400, marginBottom: 16 }} showsVerticalScrollIndicator={false}>
+              {/* Rest option */}
+              <TouchableOpacity
+                onPress={async () => {
+                  try {
+                    setChangeDaySubmitting(true);
+                    await setScheduledDayForToday(null);
+                  } catch (e) {
+                    // ignore
+                  } finally {
+                    setChangeDaySubmitting(false);
+                    setShowChangeDayModal(false);
+                  }
+                }}
+                style={{
+                  paddingVertical: 14,
+                  paddingHorizontal: 16,
+                  marginBottom: 8,
+                  backgroundColor: colors.backgroundMuted,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Text style={{ 
+                  fontSize: 16, 
+                  fontWeight: '600',
+                  color: colors.textMuted,
+                }}>🛌 Rest</Text>
+              </TouchableOpacity>
+
+              {/* Split days */}
+              {Object.keys(splitDayNames || {}).map(id => (
+                <TouchableOpacity
+                  key={id}
+                  onPress={async () => {
+                    try {
+                      setChangeDaySubmitting(true);
+                      await setScheduledDayForToday(id);
+                    } catch (e) {
+                      // ignore
+                    } finally {
+                      setChangeDaySubmitting(false);
+                      setShowChangeDayModal(false);
+                    }
+                  }}
+                  style={{
+                    paddingVertical: 14,
+                    paddingHorizontal: 16,
+                    marginBottom: 8,
+                    backgroundColor: colors.backgroundMuted,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                >
+                  <Text style={{ 
+                    fontSize: 16, 
+                    fontWeight: '600',
+                    color: colors.text,
+                  }}>{splitDayNames[id]}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {changeDaySubmitting && (
+              <Text style={{ 
+                textAlign: 'center', 
+                color: colors.primary, 
+                fontSize: 14,
+                marginTop: 8,
+              }}>Saving...</Text>
+            )}
           </View>
         </View>
       </Modal>
