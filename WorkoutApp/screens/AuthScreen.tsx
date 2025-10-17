@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, Text, Linking } from 'react-native';
+import { View, TextInput, TouchableOpacity, Text, Linking, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
 import { supabase } from '../lib/supabase';
-import styles from '../styles/authStyles';
 import { FontAwesome } from '@expo/vector-icons';
 import { colors } from '../styles/theme';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function AuthScreen({ onAuthSuccess }: { onAuthSuccess: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
 
   const handleSignUp = async () => {
     setLoading(true);
@@ -36,8 +37,6 @@ export default function AuthScreen({ onAuthSuccess }: { onAuthSuccess: () => voi
         setError(error.message);
         return;
       }
-      // For native apps Supabase returns a URL to open in the system browser.
-      // If present, open it; otherwise the client may already redirect.
       if (data?.url) {
         await Linking.openURL(data.url);
       }
@@ -48,60 +47,221 @@ export default function AuthScreen({ onAuthSuccess }: { onAuthSuccess: () => voi
   };
 
   return (
-    <View style={[styles.container, { padding: 20 }]}> 
-      <View style={{ width: '100%', maxWidth: 420 }}>
-        <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 20, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 4 }}>
-          <Text style={{ fontSize: 28, fontWeight: '700', marginBottom: 18, textAlign: 'center' }}>Login or Sign Up</Text>
-          <TextInput
-            placeholder="Email"
-            value={email}
-            onChangeText={(v) => { setEmail(v); setError(''); }}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            style={[styles.input, { marginBottom: 12 }]}
-          />
+    <LinearGradient
+      colors={['#FAF3F0', '#F5E6E8', '#E8F4F8']}
+      style={localStyles.gradient}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={localStyles.keyboardView}
+      >
+        <ScrollView
+          contentContainerStyle={localStyles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Top Spacer */}
+          <View style={{ flex: 1, minHeight: 60 }} />
 
-          <TextInput
-            placeholder="Password"
-            value={password}
-            onChangeText={(v) => { setPassword(v); setError(''); }}
-            secureTextEntry
-            style={[styles.input, { marginBottom: 8 }]}
-          />
-
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-
-          <TouchableOpacity onPress={handleSignIn} disabled={loading} style={{ backgroundColor: colors.primary, padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 8 }}>
-            <Text style={{ color: '#fff', fontWeight: '700' }}>{loading ? 'Signing in...' : 'Sign In'}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={handleSignUp} disabled={loading} style={{ borderWidth: 1, borderColor: colors.primary, padding: 12, borderRadius: 8, alignItems: 'center' }}>
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>{loading ? 'Working...' : 'Create Account'}</Text>
-          </TouchableOpacity>
-
-          <View style={{ height: 16 }} />
-
-          <View style={{ alignItems: 'center' }}>
-            <Text style={{ color: '#666', marginBottom: 12 }}>or</Text>
-
-            <View style={{ width: '100%' }}>
-              <TouchableOpacity
-                onPress={() => handleOAuthSignIn('google')}
-                disabled={loading}
-                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#ddd', marginBottom: 12, width: '100%', justifyContent: 'center' }}
-              >
-                <FontAwesome name="google" size={20} color="#DB4437" style={{ marginRight: 10 }} />
-                <Text style={{ fontWeight: '600' }}>Continue With Google</Text>
-              </TouchableOpacity>
-
-              {/* Apple sign-in removed */}
-            </View>
-            
+          {/* Logo/App Icon Area */}
+          <View style={localStyles.logoContainer}>
+            <Image
+              source={require('../assets/logo.png')}
+              style={localStyles.logoImage}
+              resizeMode="contain"
+            />
+            <Text style={localStyles.appName}>SimpleSplit</Text>
           </View>
-        </View>
-      </View>
-    </View>
+
+          {/* Main Form Container */}
+          <View style={localStyles.formContainer}>
+            <TextInput
+              placeholder="Username, email or mobile number"
+              placeholderTextColor="#999"
+              value={email}
+              onChangeText={(v) => { setEmail(v); setError(''); }}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              style={localStyles.input}
+            />
+
+            <TextInput
+              placeholder="Password"
+              placeholderTextColor="#999"
+              value={password}
+              onChangeText={(v) => { setPassword(v); setError(''); }}
+              secureTextEntry
+              style={localStyles.input}
+            />
+
+            {error ? (
+              <Text style={localStyles.error}>{error}</Text>
+            ) : null}
+
+            <TouchableOpacity
+              onPress={isSignUp ? handleSignUp : handleSignIn}
+              disabled={loading}
+              style={[
+                localStyles.primaryButton,
+                loading && localStyles.primaryButtonDisabled
+              ]}
+              activeOpacity={0.8}
+            >
+              <Text style={localStyles.primaryButtonText}>
+                {loading ? 'Please wait...' : (isSignUp ? 'Sign up' : 'Log in')}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={localStyles.forgotPassword}
+              activeOpacity={0.7}
+            >
+              <Text style={localStyles.forgotPasswordText}>Forgot password?</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Divider with OR */}
+          <View style={localStyles.dividerContainer}>
+            <View style={localStyles.dividerLine} />
+            <Text style={localStyles.dividerText}>OR</Text>
+            <View style={localStyles.dividerLine} />
+          </View>
+
+          {/* Create Account Button */}
+          <TouchableOpacity
+            onPress={handleSignUp}
+            disabled={loading}
+            style={localStyles.secondaryButton}
+            activeOpacity={0.8}
+          >
+            <Text style={localStyles.secondaryButtonText}>Create an Account</Text>
+          </TouchableOpacity>
+
+          {/* Spacer */}
+          <View style={{ flex: 1, minHeight: 60 }} />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
+
+const localStyles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 48,
+  },
+  logoImage: {
+    width: 100,
+    height: 100,
+    marginBottom: 16,
+    borderRadius: 22,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  appName: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: colors.text,
+    letterSpacing: -0.5,
+  },
+  formContainer: {
+    width: '100%',
+    marginBottom: 24,
+  },
+  input: {
+    width: '100%',
+    height: 48,
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: '#DBDBDB',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    fontSize: 14,
+    color: colors.text,
+    marginBottom: 12,
+  },
+  error: {
+    color: colors.danger,
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  primaryButton: {
+    width: '100%',
+    height: 48,
+    backgroundColor: colors.primary,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 6,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.6,
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  forgotPassword: {
+    alignSelf: 'center',
+    marginTop: 16,
+  },
+  forgotPasswordText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#DBDBDB',
+  },
+  dividerText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+    marginHorizontal: 18,
+  },
+  secondaryButton: {
+    width: '100%',
+    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    color: colors.primary,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+});
 
  
