@@ -45,6 +45,10 @@ export async function insertExercise(payload: any) {
   return await supabase.from('exercises').insert([payload]).select().limit(1);
 }
 
+export async function updateExercise(id: string, payload: any) {
+  return await supabase.from('exercises').update(payload).eq('id', id).select().limit(1);
+}
+
 export async function deleteExercise(id: string) {
   return await supabase.from('exercises').delete().eq('id', id);
 }

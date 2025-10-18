@@ -334,7 +334,7 @@ export function useTodayWorkout() {
     if (!userId) return null;
     const dayId = todayWorkout?.day_id || originalExercise?.day_id || null;
     try {
-      const payload: any = { name: newName, user_id: userId, day_id: dayId, sets: originalExercise?.sets || 3, reps: originalExercise?.reps || 8 };
+      const payload: any = { name: newName, day_id: dayId, sets: originalExercise?.sets || 3, reps: originalExercise?.reps || 8 };
       const { data, error } = await api.insertExercise(payload);
       if (error) return null;
       if (data && data.length > 0) {
@@ -363,7 +363,30 @@ export function useTodayWorkout() {
           if (wdata && wdata.length > 0) { w = wdata[0]; setTodayWorkout(w); }
         }
         if (!w) return;
-        const payload: any = { user_id: userId, workout_id: w.id, exercise_id: null, name: 'Exercise Name', sets: 1, reps: '' };
+        
+        // First create a template exercise in the exercises table with day_id: null
+        const exercisePayload: any = { 
+          name: 'Exercise Name', 
+          day_id: null,  // null day_id means it's a workout-specific exercise
+          sets: 1, 
+          reps: 1  // Use integer 1 instead of empty string for reps
+        };
+        const { data: exerciseData, error: exerciseError } = await api.insertExercise(exercisePayload);
+        if (exerciseError || !exerciseData || exerciseData.length === 0) {
+          console.error('Failed to create template exercise:', exerciseError);
+          return;
+        }
+        const templateExercise = exerciseData[0];
+        
+        // Now create the workout_exercise instance with a valid exercise_id
+        const payload: any = { 
+          user_id: userId, 
+          workout_id: w.id, 
+          exercise_id: templateExercise.id, 
+          name: 'Exercise Name', 
+          sets: 1, 
+          reps: '' 
+        };
         const { data, error } = await api.insertWorkoutExercise(payload);
         if (!error && data && data.length > 0) {
           const instance = data[0];
@@ -373,7 +396,10 @@ export function useTodayWorkout() {
           return;
         }
         return;
-      } catch (e) { return; }
+      } catch (e) { 
+        console.error('Error in addBlankExerciseToWorkout:', e);
+        return; 
+      }
     })();
 
     return tmpEx;
@@ -391,7 +417,7 @@ export function useTodayWorkout() {
   const addTransientExercise = async (name = 'Exercise Name') => {
     if (!userId) return null;
     try {
-      const payload: any = { name: name, user_id: userId, day_id: null, sets: 1, reps: '' };
+      const payload: any = { name: name, day_id: null, sets: 1, reps: 1 };
       const { data, error } = await api.insertExercise(payload);
       if (error) return null;
       if (data && data.length > 0) { const ex = data[0]; setExercises(prev => [...prev, ex]); return ex; }

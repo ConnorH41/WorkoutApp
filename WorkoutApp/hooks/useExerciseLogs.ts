@@ -102,18 +102,18 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
         if ((!created || !created.id)) {
           try {
             const wk = workout || (opts?.getTodayWorkout ? opts.getTodayWorkout() : null);
-            const payload: any = { name: newName, user_id: wk?.user_id || undefined, day_id: null, sets: originalExercise?.sets || 1, reps: originalExercise?.reps || null };
+            const payload: any = { name: newName, day_id: null, sets: originalExercise?.sets || 1, reps: originalExercise?.reps || 1 };
             const { data, error } = await api.insertExercise(payload);
             if (!error && data && data.length > 0) created = data[0];
           } catch (e) {
             // ignore
           }
         }
-        // Last-resort: try inserting directly via API using workout.user_id if available
+        // Last-resort: try inserting directly via API
         if ((!created || !created.id)) {
           try {
             const wk = workout || (opts?.getTodayWorkout ? opts.getTodayWorkout() : null);
-            const payload: any = { name: newName, user_id: wk?.user_id || undefined, day_id: null, sets: originalExercise?.sets || 1, reps: originalExercise?.reps || null };
+            const payload: any = { name: newName, day_id: null, sets: originalExercise?.sets || 1, reps: originalExercise?.reps || 1 };
             const { data, error } = await api.insertExercise(payload);
             if (!error && data && data.length > 0) created = data[0];
           } catch (e) {
@@ -143,7 +143,7 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
           if (localEx.workout_id) {
             if (localEx.exercise_id) return String(localEx.exercise_id);
             // Create a template exercise and attach it to the workout_exercise instance
-            const payload: any = { name: localEx.name || 'Exercise', user_id: localEx.user_id || workout?.user_id, day_id: localEx.day_id ?? null, sets: localEx.sets || 1, reps: localEx.reps || null };
+            const payload: any = { name: localEx.name || 'Exercise', day_id: localEx.day_id ?? null, sets: localEx.sets || 1, reps: localEx.reps || 1 };
             try {
               const { data: exData, error: exErr } = await api.insertExercise(payload);
               if (!exErr && exData && exData.length > 0) {
@@ -158,7 +158,7 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
 
           // If this is a local template (but tmp- id), persist it
           if (String(localEx.id).startsWith('tmp-') || !isProbablyUuid(candidateId)) {
-            const payload: any = { name: localEx.name || 'Exercise', user_id: localEx.user_id || undefined, day_id: localEx.day_id ?? null, sets: localEx.sets || 1, reps: localEx.reps || null };
+            const payload: any = { name: localEx.name || 'Exercise', day_id: localEx.day_id ?? null, sets: localEx.sets || 1, reps: localEx.reps || 1 };
             try {
               const { data: exData, error: exErr } = await api.insertExercise(payload);
               if (!exErr && exData && exData.length > 0) return String(exData[0].id);
@@ -214,7 +214,7 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
         // final defensive check: if exercise_id still looks invalid, create a template exercise fallback
         try {
           if (!payload.exercise_id || !isProbablyUuid(payload.exercise_id)) {
-            const pl: any = { name: displayedName || 'Exercise', user_id: workout?.user_id || undefined, day_id: originalExercise?.day_id ?? null, sets: originalExercise?.sets || 1 };
+            const pl: any = { name: displayedName || 'Exercise', day_id: originalExercise?.day_id ?? null, sets: originalExercise?.sets || 1, reps: 1 };
             const { data: exData } = await api.insertExercise(pl);
             if (exData && exData.length > 0) payload.exercise_id = exData[0].id;
           }
@@ -226,6 +226,16 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
   const { data, error } = await api.insertSingleLog(payload);
         if (error) throw error;
         if (data && data.length > 0) {
+          // Update the exercise name in the exercises table if it was changed from "Exercise Name"
+          try {
+            if (displayedName && displayedName.trim() !== 'Exercise Name' && payload.exercise_id && isProbablyUuid(payload.exercise_id)) {
+              await api.updateExercise(payload.exercise_id, { name: displayedName.trim() });
+            }
+          } catch (e) {
+            console.error('Failed to update exercise name:', e);
+            // Don't block the flow if name update fails
+          }
+          
           setLogs(prev => {
             const arr = prev[exerciseId] ? [...prev[exerciseId]] : [];
             arr[index] = { ...(arr[index] || {}), completed: true, logId: data[0].id } as any;
@@ -335,7 +345,7 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
               if (localEx && localEx.workout_id) {
                 if (localEx.exercise_id) return String(localEx.exercise_id);
                 // create template and attach
-                const pl: any = { name: localEx.name || 'Exercise', user_id: localEx.user_id || workout?.user_id, day_id: localEx.day_id ?? null, sets: localEx.sets || 1, reps: localEx.reps || null };
+                const pl: any = { name: localEx.name || 'Exercise', day_id: localEx.day_id ?? null, sets: localEx.sets || 1, reps: localEx.reps || 1 };
                 try {
                   const { data: exData } = await api.insertExercise(pl);
                   if (exData && exData.length > 0) {
@@ -347,7 +357,7 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
                 return payload[i].exercise_id;
               }
               if (localEx && String(localEx.id).startsWith('tmp-')) {
-                const pl: any = { name: localEx.name || 'Exercise', user_id: localEx.user_id || undefined, day_id: localEx.day_id ?? null, sets: localEx.sets || 1, reps: localEx.reps || null };
+                const pl: any = { name: localEx.name || 'Exercise', day_id: localEx.day_id ?? null, sets: localEx.sets || 1, reps: localEx.reps || 1 };
                 try {
                   const { data: exData } = await api.insertExercise(pl);
                   if (exData && exData.length > 0) return String(exData[0].id);
@@ -360,7 +370,7 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
         // defensive fallback if still invalid
         try {
           if (!payload[i].exercise_id || !isProbablyUuid(payload[i].exercise_id)) {
-            const fb: any = { name: fallbackName, user_id: workout?.user_id || undefined, day_id: null, sets: 1 };
+            const fb: any = { name: fallbackName, day_id: null, sets: 1, reps: 1 };
             try {
               const { data: exData } = await api.insertExercise(fb);
               if (exData && exData.length > 0) payload[i].exercise_id = exData[0].id;
