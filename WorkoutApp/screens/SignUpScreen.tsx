@@ -1,35 +1,84 @@
 import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, Text, Linking, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
+import { View, TextInput, TouchableOpacity, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
 import { supabase } from '../lib/supabase';
-import { FontAwesome } from '@expo/vector-icons';
 import { colors } from '../styles/theme';
 import { LinearGradient } from 'expo-linear-gradient';
-import SignUpScreen from './SignUpScreen';
+import { FontAwesome } from '@expo/vector-icons';
 
-export default function AuthScreen({ onAuthSuccess }: { onAuthSuccess: () => void }) {
+export default function SignUpScreen({ onAuthSuccess, onBackToLogin }: { onAuthSuccess: () => void; onBackToLogin: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showSignUp, setShowSignUp] = useState(false);
 
-  const handleSignIn = async () => {
+  const handleSignUp = async () => {
+    // Validation
+    if (!email || !password || !fullName) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) setError(error.message);
-    else onAuthSuccess();
-  };
+    setError('');
 
-  // If showing sign up screen, render that instead
-  if (showSignUp) {
-    return (
-      <SignUpScreen
-        onAuthSuccess={onAuthSuccess}
-        onBackToLogin={() => setShowSignUp(false)}
-      />
-    );
-  }
+    try {
+      // Sign up the user
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            display_name: fullName,
+          },
+          emailRedirectTo: undefined, // Disable email confirmation redirect
+        },
+      });
+
+      if (signUpError) {
+        setLoading(false);
+        setError(signUpError.message);
+        return;
+      }
+
+      // Check if email confirmation is required
+      if (signUpData?.user && !signUpData.session) {
+        // Email confirmation is required
+        setLoading(false);
+        setError('Please check your email to confirm your account, then log in.');
+        return;
+      }
+
+      // If we have a session, the user is automatically logged in
+      if (signUpData?.session) {
+        setLoading(false);
+        onAuthSuccess();
+      } else {
+        // Try to sign in automatically if no session was created
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        setLoading(false);
+
+        if (signInError) {
+          setError('Account created! Please log in manually.');
+          setTimeout(() => onBackToLogin(), 2000);
+        } else if (signInData?.session) {
+          onAuthSuccess();
+        }
+      }
+    } catch (err: any) {
+      setLoading(false);
+      setError(err?.message || 'An error occurred during sign up');
+    }
+  };
 
   return (
     <LinearGradient
@@ -46,7 +95,7 @@ export default function AuthScreen({ onAuthSuccess }: { onAuthSuccess: () => voi
           showsVerticalScrollIndicator={false}
         >
           {/* Top Spacer */}
-          <View style={{ flex: 1, minHeight: 60 }} />
+          <View style={{ flex: 1, minHeight: 40 }} />
 
           {/* Logo/App Icon Area */}
           <View style={localStyles.logoContainer}>
@@ -56,12 +105,22 @@ export default function AuthScreen({ onAuthSuccess }: { onAuthSuccess: () => voi
               resizeMode="contain"
             />
             <Text style={localStyles.appName}>SimpleSplit</Text>
+            <Text style={localStyles.subtitle}>Create Your Account</Text>
           </View>
 
           {/* Main Form Container */}
           <View style={localStyles.formContainer}>
             <TextInput
-              placeholder="Username, email or mobile number"
+              placeholder="Full Name"
+              placeholderTextColor="#999"
+              value={fullName}
+              onChangeText={(v) => { setFullName(v); setError(''); }}
+              autoCapitalize="words"
+              style={localStyles.input}
+            />
+
+            <TextInput
+              placeholder="Email"
               placeholderTextColor="#999"
               value={email}
               onChangeText={(v) => { setEmail(v); setError(''); }}
@@ -84,7 +143,7 @@ export default function AuthScreen({ onAuthSuccess }: { onAuthSuccess: () => voi
             ) : null}
 
             <TouchableOpacity
-              onPress={handleSignIn}
+              onPress={handleSignUp}
               disabled={loading}
               style={[
                 localStyles.primaryButton,
@@ -93,33 +152,25 @@ export default function AuthScreen({ onAuthSuccess }: { onAuthSuccess: () => voi
               activeOpacity={0.8}
             >
               <Text style={localStyles.primaryButtonText}>
-                {loading ? 'Please wait...' : 'Log in'}
+                {loading ? 'Creating Account...' : 'Create Account'}
               </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={localStyles.forgotPassword}
-              activeOpacity={0.7}
-            >
-              <Text style={localStyles.forgotPasswordText}>Forgot password?</Text>
             </TouchableOpacity>
           </View>
 
           {/* Divider with OR */}
           <View style={localStyles.dividerContainer}>
             <View style={localStyles.dividerLine} />
-            <Text style={localStyles.dividerText}>OR</Text>
             <View style={localStyles.dividerLine} />
           </View>
 
-          {/* Create Account Button */}
+          {/* Back to Login Button */}
           <TouchableOpacity
-            onPress={() => setShowSignUp(true)}
+            onPress={onBackToLogin}
             disabled={loading}
             style={localStyles.secondaryButton}
             activeOpacity={0.8}
           >
-            <Text style={localStyles.secondaryButtonText}>Create an Account</Text>
+            <Text style={localStyles.secondaryButtonText}>Already have an account? Log in</Text>
           </TouchableOpacity>
 
           {/* Spacer */}
@@ -144,7 +195,7 @@ const localStyles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 40,
   },
   logoImage: {
     width: 100,
@@ -162,6 +213,12 @@ const localStyles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.textMuted,
+    marginTop: 8,
   },
   formContainer: {
     width: '100%',
@@ -207,15 +264,6 @@ const localStyles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-  forgotPassword: {
-    alignSelf: 'center',
-    marginTop: 16,
-  },
-  forgotPasswordText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '500',
-  },
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -225,12 +273,6 @@ const localStyles = StyleSheet.create({
     flex: 1,
     height: 1,
     backgroundColor: '#DBDBDB',
-  },
-  dividerText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-    marginHorizontal: 18,
   },
   secondaryButton: {
     width: '100%',
@@ -248,5 +290,3 @@ const localStyles = StyleSheet.create({
     fontWeight: '700',
   },
 });
-
- 
