@@ -111,3 +111,28 @@ export async function deleteWorkoutExercise(id: string) {
 export async function updateWorkoutExercise(id: string, payload: any) {
   return await supabase.from('workout_exercises').update(payload).eq('id', id).select().limit(1);
 }
+
+// --- Day overrides (per-user, per-calendar-date) ---
+export async function getDayOverrideForUserDate(userId: string, isoDate: string) {
+  return await supabase.from('day_overrides').select('*').eq('user_id', userId).eq('calendar_date', isoDate).single();
+}
+
+export async function setDayOverride(params: { user_id: string; calendar_date: string; overridden_day_id: string | null; original_day_id?: string | null; split_run_id?: string | null; note?: string | null }) {
+  const payload: any = {
+    user_id: params.user_id,
+    calendar_date: params.calendar_date,
+    overridden_day_id: params.overridden_day_id,
+    original_day_id: params.original_day_id ?? null,
+    split_run_id: params.split_run_id ?? null,
+    note: params.note ?? null,
+  };
+  // If overridden_day_id is null we'll remove the override instead of upserting
+  if (!params.overridden_day_id) {
+    return await supabase.from('day_overrides').delete().eq('user_id', params.user_id).eq('calendar_date', params.calendar_date);
+  }
+  return await supabase.from('day_overrides').upsert(payload, { onConflict: 'user_id,calendar_date' }).select().limit(1);
+}
+
+export async function deleteDayOverride(userId: string, isoDate: string) {
+  return await supabase.from('day_overrides').delete().eq('user_id', userId).eq('calendar_date', isoDate);
+}
