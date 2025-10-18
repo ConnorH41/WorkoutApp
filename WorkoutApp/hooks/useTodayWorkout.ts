@@ -367,6 +367,8 @@ export function useTodayWorkout() {
         const { data, error } = await api.insertWorkoutExercise(payload);
         if (!error && data && data.length > 0) {
           const instance = data[0];
+          // Keep reference to the original tmp id so the UI can transfer transient edits
+          try { (instance as any)._tmpId = id; } catch (e) {}
           setExercises(prev => prev.map(e => (String(e.id) === String(id) ? instance : e)));
           return;
         }

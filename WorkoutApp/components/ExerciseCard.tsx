@@ -57,7 +57,7 @@ export default function ExerciseCard(props: {
             <EditPencil onPress={onToggleEdit} />
           </>
         ) : (
-          <TextInput value={name || item.name} onChangeText={onChangeName} style={styles.exerciseTitleInput} autoFocus onBlur={onToggleEdit} />
+          <TextInput value={name ?? item.name} onChangeText={onChangeName} style={styles.exerciseTitleInput} autoFocus onBlur={onToggleEdit} />
         )}
       </View>
 

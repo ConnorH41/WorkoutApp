@@ -17,6 +17,8 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
   const [logs, setLogs] = useState<{ [exerciseId: string]: Array<{ setNumber: number; reps: string; weight: string; completed?: boolean; logId?: string | null }> }>({});
   const [notesByExercise, setNotesByExercise] = useState<{ [exerciseId: string]: string }>({});
 
+  const isProbablyUuid = (s: any) => typeof s === 'string' && s.length === 36 && s.indexOf('-') > 0;
+
   const addSetRow = (exerciseId: string) => {
     setLogs(prev => {
       const arr = prev[exerciseId] ? [...prev[exerciseId]] : [];
@@ -68,7 +70,7 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
       Alert.alert('Invalid fields', 'Please enter numeric reps and weight for this set before marking it complete.');
       return;
     }
-    try {
+  try {
       const workoutDate = opts?.getWorkoutDate ? opts.getWorkoutDate() : undefined;
       let workout = opts?.getTodayWorkout ? opts.getTodayWorkout() : null;
       if (!workout && opts?.createWorkoutFromScheduledDay) {
@@ -80,13 +82,13 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
       }
 
   let targetExerciseId = exerciseId;
-  const displayedName = opts?.getNameByExercise ? opts.getNameByExercise(exerciseId) : undefined;
+    const displayedName = opts?.getNameByExercise ? opts.getNameByExercise(exerciseId) : undefined;
   const originalExercise = (opts?.getExercises ? opts.getExercises() : []).find((e: any) => e.id === exerciseId) || (opts?.getSplitDayExercises ? opts.getSplitDayExercises().find((e: any) => e.id === exerciseId) : null);
       if (displayedName && originalExercise && displayedName.trim() !== originalExercise.name && opts?.createExercise) {
         const created = await opts.createExercise(originalExercise, displayedName.trim());
         if (created && created.id) targetExerciseId = created.id;
       }
-      // If the exercise id is a temporary local id (tmp-...), create a persistent exercise first
+  // If the exercise id is a temporary local id (tmp-...), create a persistent exercise first
       if (String(targetExerciseId).startsWith('tmp-')) {
         const newName = (displayedName && String(displayedName).trim()) || (originalExercise && originalExercise.name) || 'Exercise Name';
         let created = null;
@@ -125,7 +127,52 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
         }
       }
 
-      if (setRow.logId) {
+      // Ensure we have a valid template exercise id to insert into logs (the logs.exercise_id
+      // column references the exercises table). If the displayed exercise is a workout_exercise
+      // instance without an exercise_id, create a template exercise and attach it to the instance.
+      const isProbablyUuid = (s: any) => typeof s === 'string' && s.length === 36 && s.indexOf('-') > 0;
+
+      const ensureTemplateForLogging = async (candidateId: string) => {
+        try {
+          const localExercises = opts?.getExercises ? opts.getExercises() : [];
+          const localEx = localExercises.find((e: any) => String(e.id) === String(candidateId));
+          // If not found locally, assume it's already a template exercise id (persisted)
+          if (!localEx) return candidateId;
+
+          // If this is a workout_exercise instance (has workout_id)
+          if (localEx.workout_id) {
+            if (localEx.exercise_id) return String(localEx.exercise_id);
+            // Create a template exercise and attach it to the workout_exercise instance
+            const payload: any = { name: localEx.name || 'Exercise', user_id: localEx.user_id || workout?.user_id, day_id: localEx.day_id ?? null, sets: localEx.sets || 1, reps: localEx.reps || null };
+            try {
+              const { data: exData, error: exErr } = await api.insertExercise(payload);
+              if (!exErr && exData && exData.length > 0) {
+                const created = exData[0];
+                // Attach to workout_exercise instance
+                try { await api.updateWorkoutExercise(localEx.id, { exercise_id: created.id }); } catch (e) {}
+                return String(created.id);
+              }
+            } catch (e) {}
+            return candidateId;
+          }
+
+          // If this is a local template (but tmp- id), persist it
+          if (String(localEx.id).startsWith('tmp-') || !isProbablyUuid(candidateId)) {
+            const payload: any = { name: localEx.name || 'Exercise', user_id: localEx.user_id || undefined, day_id: localEx.day_id ?? null, sets: localEx.sets || 1, reps: localEx.reps || null };
+            try {
+              const { data: exData, error: exErr } = await api.insertExercise(payload);
+              if (!exErr && exData && exData.length > 0) return String(exData[0].id);
+            } catch (e) {}
+          }
+
+          return candidateId;
+        } catch (e) {
+        console.error('ensureTemplateForLogging failed', e, { candidateId });
+        return candidateId;
+        }
+      };
+
+  if (setRow.logId) {
         const { error } = await api.updateLog(setRow.logId, { completed: willComplete });
         if (error) throw error;
         // update local state so UI toggles immediately
@@ -158,6 +205,24 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
           notes: notesByExercise[exerciseId] || '',
           completed: true,
         };
+        // ensure the exercise_id used in the log is a valid template id
+        try {
+          payload.exercise_id = await ensureTemplateForLogging(payload.exercise_id);
+        } catch (e) {
+          console.error('Failed to ensure template before inserting single log', e, { payload });
+        }
+        // final defensive check: if exercise_id still looks invalid, create a template exercise fallback
+        try {
+          if (!payload.exercise_id || !isProbablyUuid(payload.exercise_id)) {
+            const pl: any = { name: displayedName || 'Exercise', user_id: workout?.user_id || undefined, day_id: originalExercise?.day_id ?? null, sets: originalExercise?.sets || 1 };
+            const { data: exData } = await api.insertExercise(pl);
+            if (exData && exData.length > 0) payload.exercise_id = exData[0].id;
+          }
+        } catch (e) {
+          console.error('Fallback persist exercise failed', e, { payload });
+        }
+
+  console.debug('Inserting single log payload:', JSON.stringify(payload));
   const { data, error } = await api.insertSingleLog(payload);
         if (error) throw error;
         if (data && data.length > 0) {
@@ -259,7 +324,53 @@ export function useExerciseLogs(opts?: UseExerciseLogsOpts) {
         weight: parseFloat(r.weight),
         notes: notesByExercise[exerciseId] || '',
       }));
-      const { error } = await api.insertLogs(payload);
+      // Ensure each payload.exercise_id points to a real exercises.id (create/persist if necessary)
+  const fallbackName = displayedName || originalExercise?.name || 'Exercise';
+  for (let i = 0; i < payload.length; i++) {
+        try {
+          payload[i].exercise_id = await (async () => {
+            try {
+              const localExercises = opts?.getExercises ? opts.getExercises() : [];
+              const localEx = localExercises.find((e: any) => String(e.id) === String(payload[i].exercise_id));
+              if (localEx && localEx.workout_id) {
+                if (localEx.exercise_id) return String(localEx.exercise_id);
+                // create template and attach
+                const pl: any = { name: localEx.name || 'Exercise', user_id: localEx.user_id || workout?.user_id, day_id: localEx.day_id ?? null, sets: localEx.sets || 1, reps: localEx.reps || null };
+                try {
+                  const { data: exData } = await api.insertExercise(pl);
+                  if (exData && exData.length > 0) {
+                    const created = exData[0];
+                    try { await api.updateWorkoutExercise(localEx.id, { exercise_id: created.id }); } catch (e) {}
+                    return String(created.id);
+                  }
+                } catch (e) {}
+                return payload[i].exercise_id;
+              }
+              if (localEx && String(localEx.id).startsWith('tmp-')) {
+                const pl: any = { name: localEx.name || 'Exercise', user_id: localEx.user_id || undefined, day_id: localEx.day_id ?? null, sets: localEx.sets || 1, reps: localEx.reps || null };
+                try {
+                  const { data: exData } = await api.insertExercise(pl);
+                  if (exData && exData.length > 0) return String(exData[0].id);
+                } catch (e) {}
+              }
+              return payload[i].exercise_id;
+            } catch (e) { return payload[i].exercise_id; }
+          })();
+        } catch (e) {}
+        // defensive fallback if still invalid
+        try {
+          if (!payload[i].exercise_id || !isProbablyUuid(payload[i].exercise_id)) {
+            const fb: any = { name: fallbackName, user_id: workout?.user_id || undefined, day_id: null, sets: 1 };
+            try {
+              const { data: exData } = await api.insertExercise(fb);
+              if (exData && exData.length > 0) payload[i].exercise_id = exData[0].id;
+            } catch (e) { console.error('Fallback persist in bulk insert failed', e, { item: payload[i] }); }
+          }
+        } catch (e) {}
+      }
+
+  console.debug('Inserting bulk logs payload (count=' + payload.length + '):', JSON.stringify(payload));
+  const { error } = await api.insertLogs(payload);
       if (error) {
         Alert.alert('Error', error.message);
       } else {

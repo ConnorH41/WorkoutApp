@@ -121,6 +121,29 @@ export default function TodayTab() {
     }
   }, [calendarDate, userId]);
 
+  // When a tmp exercise gets replaced by a persisted instance, transfer any edited name
+  useEffect(() => {
+    try {
+      // Find persisted instances that carry a _tmpId marker
+      const tmpMap: Record<string, string> = {};
+      (exercises || []).forEach((ex: any) => {
+        if (ex && (ex as any)._tmpId) tmpMap[String((ex as any)._tmpId)] = String(ex.id);
+      });
+      if (Object.keys(tmpMap).length === 0) return;
+      let changed = false;
+      const nextEdited = { ...editedNames };
+      Object.keys(tmpMap).forEach(tmpId => {
+        const persistedId = tmpMap[tmpId];
+        if (nextEdited[tmpId] && !nextEdited[persistedId]) {
+          nextEdited[persistedId] = nextEdited[tmpId];
+          delete nextEdited[tmpId];
+          changed = true;
+        }
+      });
+      if (changed) setEditedNames(nextEdited);
+    } catch (e) { /* ignore */ }
+  }, [exercises]);
+
   // --- logsHook ---
   const logsHook = useExerciseLogs({
     createWorkoutFromScheduledDay,
@@ -981,8 +1004,16 @@ export default function TodayTab() {
             setShowDeleteExerciseConfirm(false);
             setDeleteExerciseTarget(null);
             try {
-              // Hide exercise locally for today
-              setRemovedExerciseIds(prev => [...prev, id]);
+              // Try to persist deletion on the server (delete workout_exercise or exercise)
+              const deleted = await deleteExercise(id);
+              if (!deleted) {
+                // If deletion failed, still hide locally to avoid immediate UI flicker
+                setRemovedExerciseIds(prev => [...prev, id]);
+              } else {
+                // ensure it's hidden locally as well
+                setRemovedExerciseIds(prev => [...prev.filter(x => x !== id), id]);
+              }
+
               // Clear any local logs/notes for the exercise
               logsHook.setLogs(prev => {
                 const copy = { ...prev };
@@ -1006,7 +1037,8 @@ export default function TodayTab() {
                 return copy;
               });
             } catch (e) {
-              // ignore
+              // On error, fallback to local hide so UX isn't broken; user can refresh again
+              setRemovedExerciseIds(prev => [...prev, id]);
             }
           } else {
             setShowDeleteExerciseConfirm(false);
