@@ -20,7 +20,7 @@ interface AddSplitModalProps {
   onClose: () => void;
   days: any[];
   activeRuns: any[];
-  profile: any;
+  userId: string | null;
   fetchActiveRun: () => Promise<void>;
   fetchSplits: () => Promise<void>;
   editingSplit?: any | null; // Optional: if provided, we're editing
@@ -33,7 +33,7 @@ interface AddSplitModalProps {
   };
 }
 
-const AddSplitModal: React.FC<AddSplitModalProps> = ({ visible, onClose, days, activeRuns, profile, fetchActiveRun, fetchSplits, editingSplit, editSplitData }) => {
+const AddSplitModal: React.FC<AddSplitModalProps> = ({ visible, onClose, days, activeRuns, userId, fetchActiveRun, fetchSplits, editingSplit, editSplitData }) => {
   const isEditing = !!editingSplit;
   const [split, setSplit] = useState<{ name:string; mode:'week'|'rotation' }>({ name:'', mode:'week' });
   const [tab, setTab] = useState(0);
@@ -77,7 +77,7 @@ const AddSplitModal: React.FC<AddSplitModalProps> = ({ visible, onClose, days, a
   const reset = ()=>{ setSplit({name:'',mode:'week'}); setTab(0); setWeekdays(new Array(7).fill(null)); setRotationLen(3); setRotationInput('3'); setRotationDays(Array.from({length:3}).map(()=>null)); setAssignWeekday(null); setAssignIndex(null); setShowPicker(false); setStartDate(null); setEndDate(null); setDuration(null); setShowStartPicker(false); setShowEndPicker(false); };
 
   const handleCreate = async () => {
-    if(!profile?.id){ toast('Must be signed in'); return; }
+    if(!userId){ toast('Must be signed in'); return; }
     if(!split.name.trim()){ toast('Split name is required'); return; }
     setAdding(true);
     try {
@@ -93,7 +93,7 @@ const AddSplitModal: React.FC<AddSplitModalProps> = ({ visible, onClose, days, a
         await supabase.from('split_days').delete().eq('split_id', splitId);
       } else {
         // Create new split
-        const { data: created, error } = await supabase.from('splits').insert([{ name: split.name.trim(), mode: split.mode, user_id: profile.id }]).select();
+        const { data: created, error } = await supabase.from('splits').insert([{ name: split.name.trim(), mode: split.mode, user_id: userId }]).select();
         if(error){ Alert.alert('Error', error.message); return; }
         splitId = created![0].id;
       }
@@ -121,7 +121,7 @@ const AddSplitModal: React.FC<AddSplitModalProps> = ({ visible, onClose, days, a
               await supabase.from('split_runs').update({ start_date: st, end_date: en, num_weeks: endDate? parseFloat(weeks)||1:null, num_rotations: null, active: true }).eq('id', existingRun.id);
             } else {
               // Insert new run
-              await supabase.from('split_runs').insert({ split_id: splitId, user_id: profile.id, start_date: st, end_date: en, num_weeks: endDate? parseFloat(weeks)||1:null, num_rotations: null, active: true });
+              await supabase.from('split_runs').insert({ split_id: splitId, user_id: userId, start_date: st, end_date: en, num_weeks: endDate? parseFloat(weeks)||1:null, num_rotations: null, active: true });
             }
             await fetchActiveRun(); 
           }
@@ -139,7 +139,7 @@ const AddSplitModal: React.FC<AddSplitModalProps> = ({ visible, onClose, days, a
               await supabase.from('split_runs').update({ start_date: st, end_date: en, num_weeks: null, num_rotations: rotations, active: true }).eq('id', existingRun.id);
             } else {
               // Insert new run
-              await supabase.from('split_runs').insert({ split_id: splitId, user_id: profile.id, start_date: st, end_date: en, num_weeks: null, num_rotations: rotations, active: true });
+              await supabase.from('split_runs').insert({ split_id: splitId, user_id: userId, start_date: st, end_date: en, num_weeks: null, num_rotations: rotations, active: true });
             }
             await fetchActiveRun(); 
           }

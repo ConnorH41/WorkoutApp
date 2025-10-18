@@ -4,7 +4,7 @@ import { View, Text, TextInput, FlatList, TouchableOpacity, Alert, Keyboard, Mod
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import styles from '../styles/daysStyles';
 import splitStyles from '../styles/splitsStyles';
-import { useProfileStore } from '../lib/profileStore';
+import { supabase } from '../lib/supabase';
 import { Day, ExerciseForm, DeleteTargetType } from '../lib/types';
 import useDays from '../hooks/useDays';
 import useExercises from '../hooks/useExercises';
@@ -23,7 +23,19 @@ import { colors } from '../styles/theme';
 
 export default function DaysTab() {
   const insets = useSafeAreaInsets();
-  const profile = useProfileStore((state) => state.profile);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Get user ID from Supabase auth
+  useEffect(() => {
+    const getUserId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+      }
+    };
+    getUserId();
+  }, []);
+
   const { days, loading, exerciseCounts, fetchDays, createDay, updateDay, deleteDay } = useDays();
   // Local optimistic counts to show immediate UI updates for creates/deletes
   const [localCounts, setLocalCounts] = useState<Record<string, number>>({});
@@ -132,7 +144,7 @@ export default function DaysTab() {
         setEditingEx({ name: '', sets: '', reps: '', notes: '' });
         setShowEditExerciseModal(false);
         await fetchExercises(selectedDayId);
-        await fetchDays(profile?.id);
+        await fetchDays(userId);
       }
     } catch (error: any) {
       Alert.alert('Error', error?.message || 'Failed to update exercise');
@@ -140,10 +152,10 @@ export default function DaysTab() {
   };
 
   useEffect(() => {
-    if (profile && profile.id) {
-      fetchDays(profile.id);
+    if (userId) {
+      fetchDays(userId);
     }
-  }, [profile?.id]);
+  }, [userId]);
 
   // Day and delete handlers
   const handleEditDay = async (id: string, name: string) => {
@@ -177,7 +189,7 @@ export default function DaysTab() {
     }
     setAdding(true);
     try {
-      const created = await createDay(newDayName.trim(), profile?.id);
+      const created = await createDay(newDayName.trim(), userId);
       return created || null;
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Failed to create day');
@@ -191,7 +203,7 @@ export default function DaysTab() {
     setShowDeleteConfirm(false);
     try {
       if (deleteTargetType === 'day' && deleteTargetId) {
-        await deleteDay(deleteTargetId, profile?.id);
+        await deleteDay(deleteTargetId, userId);
         if (selectedDayId === deleteTargetId) {
           setSelectedDayId(null);
           setExercises([]);
@@ -205,7 +217,7 @@ export default function DaysTab() {
         try {
           await deleteExercise(removedId, selectedDayId ?? undefined);
           if (selectedDayId) await fetchExercises(selectedDayId);
-          await fetchDays(profile?.id);
+          await fetchDays(userId);
         } catch (err: any) {
           // rollback
           setExercises(prevExercises);
@@ -319,7 +331,7 @@ export default function DaysTab() {
             setAdding(true);
             try {
               // Update day name
-              await updateDay(editingDayId, newDayName.trim(), profile?.id);
+              await updateDay(editingDayId, newDayName.trim(), userId);
               
               // Delete all existing exercises for this day
               const { data: existingExercises } = await (await import('../lib/supabase')).supabase
@@ -346,7 +358,7 @@ export default function DaysTab() {
                 }
               }
               
-              await fetchDays(profile?.id);
+              await fetchDays(userId);
               if (selectedDayId === editingDayId) {
                 await fetchExercises(editingDayId);
               }
@@ -375,7 +387,7 @@ export default function DaysTab() {
                     console.warn('Failed to insert exercise', err);
                   }
                 }
-                await fetchDays(profile?.id);
+                await fetchDays(userId);
               }
             } finally {
               setNewDayName('');

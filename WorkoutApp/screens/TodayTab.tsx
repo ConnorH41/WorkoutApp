@@ -14,7 +14,6 @@ import { useTodayWorkout } from '../hooks/useTodayWorkout';
 import { useExerciseLogs } from '../hooks/useExerciseLogs';
 import * as api from '../lib/api';
 import { supabase } from '../lib/supabase';
-import { useProfileStore } from '../lib/profileStore';
 import { colors } from '../styles/theme';
 
 
@@ -83,7 +82,7 @@ export default function TodayTab() {
 
   // --- useTodayWorkout hook ---
   const {
-    profile,
+    userId,
     workoutLoading,
     todayWorkout,
     exercises,
@@ -110,7 +109,7 @@ export default function TodayTab() {
 
   // Refetch workout data when calendar date changes
   useEffect(() => {
-    if (profile && profile.id && calendarDate) {
+    if (userId && calendarDate) {
       const isoDate = formatDateOnly(calendarDate);
       fetchActiveSplitRun().then(splitInfo => {
         if (splitInfo && splitInfo.run && splitInfo.split) {
@@ -120,7 +119,7 @@ export default function TodayTab() {
         }
       });
     }
-  }, [calendarDate, profile]);
+  }, [calendarDate, userId]);
 
   // --- logsHook ---
   const logsHook = useExerciseLogs({
@@ -139,7 +138,7 @@ export default function TodayTab() {
   });
 
   const onSaveBodyweight = async () => {
-    if (!profile || !profile.id) return;
+    if (!userId) return;
     
     // If already saved (recordId exists), allow unchecking to unlock for editing
     if (bodyweightRecordId) {
@@ -162,7 +161,7 @@ export default function TodayTab() {
       const isoDate = calendarDate ? formatDateOnly(calendarDate) : formatDateOnly(new Date());
       
       // Check if there's already a record for this date
-      const { data: existing } = await api.getBodyweightByUserDate(profile.id, isoDate);
+      const { data: existing } = await api.getBodyweightByUserDate(userId, isoDate);
       
       if (existing && existing.length > 0) {
         // Update existing record
@@ -175,7 +174,7 @@ export default function TodayTab() {
       } else {
         // Insert new record with the selected date (logged_at = date it's FOR, not when it's created)
         const { data, error } = await api.insertBodyweight({ 
-          user_id: profile.id, 
+          user_id: userId, 
           weight: parsed, 
           unit,
           logged_at: isoDate 
@@ -196,10 +195,10 @@ export default function TodayTab() {
   useEffect(() => {
     let mounted = true;
     const load = async () => {
-      if (!profile || !profile.id) return;
+      if (!userId) return;
       try {
         const isoDate = calendarDate ? formatDateOnly(calendarDate) : formatDateOnly(new Date());
-        const { data, error } = await api.getBodyweightByUserDate(profile.id, isoDate);
+        const { data, error } = await api.getBodyweightByUserDate(userId, isoDate);
         if (!mounted) return;
         if (!error && data && data.length > 0) {
           const row = data[0];
@@ -218,13 +217,13 @@ export default function TodayTab() {
     };
     load();
     return () => { mounted = false; };
-  }, [calendarDate, profile]);
+  }, [calendarDate, userId]);
 
   // Load historical logs when date or workout changes
   useEffect(() => {
     let mounted = true;
     const loadHistoricalLogs = async () => {
-      if (!profile || !profile.id || !calendarDate) return;
+      if (!userId || !calendarDate) return;
       
       // Wait for workout to be loaded
       if (workoutLoading) return;
@@ -232,7 +231,7 @@ export default function TodayTab() {
       try {
         const isoDate = formatDateOnly(calendarDate);
         // Fetch workout for the selected date
-        const { data: workout, error: workoutError } = await api.getWorkoutByUserDate(profile.id, isoDate);
+        const { data: workout, error: workoutError } = await api.getWorkoutByUserDate(userId, isoDate);
         if (!workout || workoutError) {
           // No workout for this date, clear logs
           logsHook.setLogs({});
@@ -329,7 +328,7 @@ export default function TodayTab() {
 
     loadHistoricalLogs();
     return () => { mounted = false; };
-  }, [calendarDate, profile, todayWorkout, workoutLoading, exercises]);
+  }, [calendarDate, userId, todayWorkout, workoutLoading, exercises]);
 
       
   // Prepare the data array for the FlatList:
@@ -790,7 +789,6 @@ export default function TodayTab() {
                     } catch (e) {
                       // ignore
                     }
-                    useProfileStore.getState().setProfile(null);
                   }}
                   style={{
                     flexDirection: 'row',

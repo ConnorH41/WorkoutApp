@@ -3,7 +3,6 @@ import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Alert, Modal
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DatePickerModal from '../components/DatePickerModal';
 import { supabase } from '../lib/supabase';
-import { useProfileStore } from '../lib/profileStore';
 import ModalButtons from '../components/ModalButtons';
 import EditPencil from '../components/EditPencil';
 import RemoveButton from '../components/RemoveButton';
@@ -77,7 +76,18 @@ const safeStorage = {
 
 export default function SplitsTab() {
   const insets = useSafeAreaInsets();
-  const profile = useProfileStore((state) => state.profile);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Get user ID from Supabase auth
+  useEffect(() => {
+    const getUserId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+      }
+    };
+    getUserId();
+  }, []);
   const [splits, setSplits] = useState<any[]>([]);
   const [currentSplitId, setCurrentSplitId] = useState<string | null>(null);
   const [splitStartDate, setSplitStartDate] = useState<string | null>(null);
@@ -245,7 +255,7 @@ export default function SplitsTab() {
           // Clear local stored timeframe and deactivate any existing active run for this split
           try {
             const existingRun = activeRuns.find(r => r.split_id === pendingSplit.id && r.active);
-            if (profile?.id) {
+            if (userId) {
               if (existingRun && existingRun.id) {
                 await supabase.from('split_runs').update({
                   start_date: null,
@@ -308,7 +318,7 @@ export default function SplitsTab() {
         await safeStorage.setItem('splitNumWeeks', weeks);
         await safeStorage.removeItem('splitNumRotations');
         // Persist to split_runs
-        if (profile?.id) {
+        if (userId) {
             const existingRun = activeRuns.find(r => r.split_id === pendingSplit.id && r.active);
             if (existingRun && existingRun.id) {
               await supabase.from('split_runs').update({
@@ -321,7 +331,7 @@ export default function SplitsTab() {
             } else {
               await supabase.from('split_runs').insert({
                 split_id: pendingSplit.id,
-                user_id: profile.id,
+                user_id: userId,
                 start_date: toDateOnly(calendarDate as Date),
                 end_date: endDate ? toDateOnly(endDate as Date) : null,
                 num_weeks: endDate ? parseFloat(weeks) || 1 : null,
@@ -353,7 +363,7 @@ export default function SplitsTab() {
         }
         await safeStorage.removeItem('splitNumWeeks');
         // Persist to split_runs
-        if (profile?.id) {
+        if (userId) {
           const existingRun = activeRuns.find(r => r.split_id === pendingSplit.id && r.active);
           if (existingRun && existingRun.id) {
             await supabase.from('split_runs').update({
@@ -366,7 +376,7 @@ export default function SplitsTab() {
           } else {
             await supabase.from('split_runs').insert({
               split_id: pendingSplit.id,
-              user_id: profile.id,
+              user_id: userId,
               start_date: toDateOnly(calendarDate as Date),
               end_date: endDate ? toDateOnly(endDate as Date) : null,
               num_weeks: null,
@@ -428,11 +438,11 @@ export default function SplitsTab() {
 
   // Helper to fetch active run after scheduling
   const fetchActiveRun = async () => {
-    if (!profile || !profile.id) return;
+    if (!userId) return;
     const { data, error } = await supabase
       .from('split_runs')
       .select('*')
-      .eq('user_id', profile.id)
+      .eq('user_id', userId)
       .eq('active', true)
       .order('created_at', { ascending: false });
     if (!error && data) {
@@ -707,11 +717,11 @@ export default function SplitsTab() {
 
   // Fetch all days for the user
   const fetchDays = async () => {
-    if (!profile || !profile.id) return;
+    if (!userId) return;
     const { data, error } = await supabase
       .from('days')
       .select('*')
-      .eq('user_id', profile.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: true });
     if (!error && data) {
       setDays(data);
@@ -799,11 +809,11 @@ export default function SplitsTab() {
   // Fetch all splits for the user
   const fetchSplits = async () => {
     setLoading(true);
-    if (!profile || !profile.id) return;
+    if (!userId) return;
     const { data, error } = await supabase
       .from('splits')
       .select('*')
-      .eq('user_id', profile.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: true });
     if (!error && data) {
       setSplits(data);
@@ -812,12 +822,12 @@ export default function SplitsTab() {
   };
 
   useEffect(() => {
-    if (profile && profile.id) {
+    if (userId) {
       fetchSplits();
       fetchDays();
       fetchActiveRun();
     }
-  }, [profile?.id]);
+  }, [userId]);
 
   useEffect(() => {
     if (selectedSplitId) {
@@ -978,7 +988,7 @@ export default function SplitsTab() {
         }}
         days={days}
         activeRuns={activeRuns}
-        profile={profile}
+        userId={userId}
         fetchActiveRun={fetchActiveRun}
         fetchSplits={fetchSplits}
         editingSplit={editingSplit}

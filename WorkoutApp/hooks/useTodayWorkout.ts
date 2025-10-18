@@ -1,10 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
-import { useProfileStore } from '../lib/profileStore';
 
 export function useTodayWorkout() {
-  const profile = useProfileStore((s) => s.profile);
+  const [userId, setUserId] = useState<string | null>(null);
   const [workoutLoading, setWorkoutLoading] = useState(false);
   const [todayWorkout, setTodayWorkout] = useState<any | null>(null);
   const [exercises, setExercises] = useState<any[]>([]);
@@ -20,8 +19,19 @@ export function useTodayWorkout() {
   const [completing, setCompleting] = useState(false);
   // Removed resting and isRestDay state
 
+  // Get user ID from Supabase auth
   useEffect(() => {
-    if (profile && profile.id) {
+    const getUserId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+      }
+    };
+    getUserId();
+  }, []);
+
+  useEffect(() => {
+    if (userId) {
       (async () => {
         // Load split/run first so mapping info is available when we fetch today's workout
         const splitInfo = await fetchActiveSplitRun();
@@ -32,17 +42,17 @@ export function useTodayWorkout() {
         }
       })();
     }
-  }, [profile?.id]);
+  }, [userId]);
 
   // Realtime listener: watch split_runs for changes for this user and refresh
   useEffect(() => {
-    if (!profile || !profile.id || !supabase?.channel) return;
+    if (!userId || !supabase?.channel) return;
     // Try to use new Realtime API (channel) if available, else fallback to on()
     let channel: any = null;
     try {
       // channel name scoped to user
-      channel = supabase.channel(`public:split_runs:user:${profile.id}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'split_runs', filter: `user_id=eq.${profile.id}` }, (payload: any) => {
+      channel = supabase.channel(`public:split_runs:user:${userId}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'split_runs', filter: `user_id=eq.${userId}` }, (payload: any) => {
           // When a split_run changes, refresh active run and today's workout
           (async () => {
             const info = await fetchActiveSplitRun();
@@ -63,7 +73,7 @@ export function useTodayWorkout() {
           .on('*', (payload: any) => {
             if (!payload || !payload.record) return;
             // only react to events for this user
-            if (String(payload.record.user_id) !== String(profile.id)) return;
+            if (String(payload.record.user_id) !== String(userId)) return;
             (async () => {
               const info = await fetchActiveSplitRun();
               if (info && info.run && info.split) {
@@ -86,7 +96,7 @@ export function useTodayWorkout() {
         if (channel && channel.remove) channel.remove();
       } catch {}
     };
-  }, [profile?.id]);
+  }, [userId]);
 
   // Parse YYYY-MM-DD into a date at local midnight
   const parseDateOnly = (s: string | null) => {
@@ -154,9 +164,9 @@ export function useTodayWorkout() {
   }, []);
 
   const fetchActiveSplitRun = async () => {
-    if (!profile || !profile.id) return;
+    if (!userId) return;
     try {
-      const { data } = await api.getActiveSplitRun(profile.id);
+      const { data } = await api.getActiveSplitRun(userId);
       if (!data || data.length === 0) {
         setActiveSplitRun(null);
         setSplitTemplate(null);
@@ -252,7 +262,7 @@ export function useTodayWorkout() {
   // with the chosen day_id (or null to clear). This lets the calendar reflect
   // that the user swapped the scheduled day without changing the split.
   const setScheduledDayForToday = async (dayId: string | null) => {
-    if (!profile || !profile.id) return false;
+    if (!userId) return false;
     try {
       const today = formatDateOnly(new Date());
       if (todayWorkout && todayWorkout.id) {
@@ -262,7 +272,7 @@ export function useTodayWorkout() {
         if (data && data.length > 0) setTodayWorkout(data[0]);
       } else {
         // create a workout record for today with the chosen day_id
-        const payload: any = { user_id: profile.id, date: today, day_id: dayId };
+        const payload: any = { user_id: userId, date: today, day_id: dayId };
         const { data, error } = await api.insertWorkout(payload);
         if (error) return false;
         if (data && data.length > 0) setTodayWorkout(data[0]);
@@ -300,12 +310,12 @@ export function useTodayWorkout() {
   const fetchTodayWorkout = async (dateStr?: string, opts?: { activeRun?: any; splitTemplate?: any; splitDays?: any[] }) => {
     setWorkoutLoading(true);
     const today = (dateStr && String(dateStr).slice(0, 10)) || formatDateOnly(new Date());
-    if (!profile || !profile.id) {
+    if (!userId) {
       setWorkoutLoading(false);
       return;
     }
     try {
-  const { data: workout, error: workoutError } = await api.getWorkoutByUserDate(profile.id, today);
+  const { data: workout, error: workoutError } = await api.getWorkoutByUserDate(userId, today);
       if (workout && !workoutError) {
         setTodayWorkout(workout);
         if (workout.day_id) {
@@ -404,11 +414,11 @@ export function useTodayWorkout() {
   };
 
   const createWorkoutFromScheduledDay = async (dateStr?: string) => {
-    if (!profile || !profile.id || !splitDayName) return null;
+    if (!userId || !splitDayName) return null;
     setCreatingWorkout(true);
     try {
       const today = dateStr || formatDateOnly(new Date());
-      const payload: any = { user_id: profile.id, date: today };
+      const payload: any = { user_id: userId, date: today };
       if (splitDayName) {
         const { data: dayData } = await api.getDayByName(splitDayName);
         if (dayData && dayData.length > 0) payload.day_id = dayData[0].id;
@@ -441,12 +451,12 @@ export function useTodayWorkout() {
   };
 
   const createExercise = async (originalExercise: any, newName: string) => {
-    if (!profile || !profile.id) return null;
+    if (!userId) return null;
     const dayId = todayWorkout?.day_id || originalExercise?.day_id || null;
     try {
       const payload: any = {
         name: newName,
-        user_id: profile.id,
+        user_id: userId,
         day_id: dayId,
         sets: originalExercise?.sets || 3,
         reps: originalExercise?.reps || 8,
@@ -465,11 +475,11 @@ export function useTodayWorkout() {
   };
 
   const addBlankExerciseToWorkout = (dateStr?: string) => {
-    if (!profile || !profile.id) return null;
+    if (!userId) return null;
     // Try to persist as a workout_exercise instance. If that fails (offline), fall back
     // to a local tmp exercise so the UI still shows immediately.
     const id = `tmp-${Date.now()}`;
-    const tmpEx: any = { id, name: 'Exercise Name', user_id: profile.id, day_id: todayWorkout?.day_id || null, sets: 1, reps: '' };
+    const tmpEx: any = { id, name: 'Exercise Name', user_id: userId, day_id: todayWorkout?.day_id || null, sets: 1, reps: '' };
 
     // Optimistically add the tmp item immediately.
     setExercises(prev => [...prev, tmpEx]);
@@ -480,7 +490,7 @@ export function useTodayWorkout() {
         let w = todayWorkout;
         if (!w) {
           const today = dateStr || formatDateOnly(new Date());
-          const { data: wdata } = await api.insertWorkout({ user_id: profile.id, date: today });
+          const { data: wdata } = await api.insertWorkout({ user_id: userId, date: today });
           if (wdata && wdata.length > 0) {
             w = wdata[0];
             setTodayWorkout(w);
@@ -493,7 +503,7 @@ export function useTodayWorkout() {
         }
 
         const payload: any = {
-          user_id: profile.id,
+          user_id: userId,
           workout_id: w.id,
           exercise_id: null,
           name: 'Exercise Name',
@@ -521,10 +531,10 @@ export function useTodayWorkout() {
   };
 
   const addBlankExerciseToSplit = () => {
-    if (!profile || !profile.id) return null;
+    if (!userId) return null;
     const id = `tmp-s-${Date.now()}`;
     const dayId = splitDayExercises && splitDayExercises.length > 0 ? splitDayExercises[0].day_id : null;
-    const newEx: any = { id, name: 'Exercise Name', user_id: profile.id, day_id: dayId, sets: 1, reps: '' };
+    const newEx: any = { id, name: 'Exercise Name', user_id: userId, day_id: dayId, sets: 1, reps: '' };
     setSplitDayExercises(prev => [...prev, newEx]);
     return newEx;
   };
@@ -532,9 +542,9 @@ export function useTodayWorkout() {
   // Create a persisted exercise with a null day_id so it appears in today's UI
   // but does not attach to a day. Useful for on-the-fly logging.
   const addTransientExercise = async (name = 'Exercise Name') => {
-    if (!profile || !profile.id) return null;
+    if (!userId) return null;
     try {
-      const payload: any = { name: name, user_id: profile.id, day_id: null, sets: 1, reps: '' };
+      const payload: any = { name: name, user_id: userId, day_id: null, sets: 1, reps: '' };
       const { data, error } = await api.insertExercise(payload);
       if (error) return null;
       if (data && data.length > 0) {
@@ -549,7 +559,7 @@ export function useTodayWorkout() {
   };
 
   const deleteExercise = async (exerciseId: string) => {
-    if (!profile || !profile.id) return false;
+    if (!userId) return false;
     try {
       // If this looks like a workout_exercises instance (UUID and present in DB table), delete from that table
       // Heuristic: workout_exercises rows typically have an 'workout_id' field when loaded; check local state first
@@ -578,7 +588,7 @@ export function useTodayWorkout() {
   };
 
   const updateWorkoutExerciseInstance = async (id: string, payload: any) => {
-    if (!profile || !profile.id) return null;
+    if (!userId) return null;
     if (String(id).startsWith('tmp-')) return null;
     try {
       const { data, error } = await api.updateWorkoutExercise(id, payload);
@@ -595,7 +605,7 @@ export function useTodayWorkout() {
   };
 
   return {
-    profile,
+    userId,
     workoutLoading,
     todayWorkout,
     exercises,

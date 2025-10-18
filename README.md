@@ -92,7 +92,6 @@ Built with **Expo (React Native)** and **Supabase** for cross-platform fitness t
 **Set Up Supabase Backend**
 - Create Supabase project.  
 - Define tables:  
-  - `profiles` (user info)  
   - `days` (workout day templates)  
   - `splits` (week or rotation)  
   - `workouts` (logged sessions)  
